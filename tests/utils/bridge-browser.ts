@@ -12,11 +12,14 @@ export const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 export const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
+export const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
 
 export type WorkspaceOptions = {
   physics?: 'document' | 'design';
   title?: string;
   blockText?: string;
+  provider?: string;
+  apiKeyEnvVar?: string;
 };
 
 export async function ensureBuilt(): Promise<void> {
@@ -45,6 +48,8 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
   const physics = options.physics ?? 'document';
   const title = options.title ?? 'Bridge Browser Resume';
   const blockText = options.blockText ?? 'Initial bridge browser text.';
+  const provider = options.provider ?? 'openai';
+  const apiKeyEnvVar = options.apiKeyEnvVar ?? 'OPENAI_API_KEY';
   const frames = physics === 'design'
     ? [
         {
@@ -63,8 +68,8 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
       {
         version: 1,
         ai: {
-          provider: 'openai',
-          apiKeyEnvVar: 'OPENAI_API_KEY',
+          provider,
+          apiKeyEnvVar,
         },
         workspace: {
           physics,
@@ -123,10 +128,13 @@ export async function readWorkspaceDocument(projectRoot: string): Promise<Record
   return JSON.parse(await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8')) as Record<string, unknown>;
 }
 
-export async function waitForBridgeReady(projectRoot: string): Promise<{ child: ChildProcess; url: string; stdout: string[]; stderr: string[] }> {
+export async function waitForBridgeReady(
+  projectRoot: string,
+  options: { env?: NodeJS.ProcessEnv } = {},
+): Promise<{ child: ChildProcess; url: string; stdout: string[]; stderr: string[] }> {
   const child = spawn(process.execPath, ['dist/cli.js', 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
     cwd: process.cwd(),
-    env: process.env,
+    env: { ...process.env, ...options.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -248,6 +256,25 @@ export async function postEditorMutation(
       'content-type': 'application/json',
     },
     body: JSON.stringify({ document }),
+  });
+
+  return {
+    status: response.status,
+    payload: (await response.json()) as Record<string, unknown>,
+  };
+}
+
+export async function postConsultantRequest(
+  baseUrl: string,
+  request: Record<string, unknown>,
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  const response = await fetch(new URL(BRIDGE_LAYOUT_CONSULTANT_PATH, baseUrl), {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(request),
   });
 
   return {

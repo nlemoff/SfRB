@@ -41,13 +41,13 @@ This slice groups into three tasks because there are three distinct risks that h
 
 ## Tasks
 
-- [ ] **T01: Add the bridge-backed consultant contract and provider safety boundary** `est:2h`
+- [x] **T01: Add the bridge-backed consultant contract and provider safety boundary** `est:2h`
   - Why: The milestone risk cannot retire until the bridge can securely turn workspace AI config into a structured, validated frame-resize proposal without leaking secrets into the browser.
   - Files: `src/bridge/server.mjs`, `src/agent/LayoutConsultant.ts`, `web/src/bridge-client.ts`, `package.json`, `tests/bridge/bridge-layout-consultant-contract.test.ts`, `tests/utils/bridge-browser.ts`
   - Do: Add a dedicated consultant route on the bridge; resolve `config.ai.provider` and `config.ai.apiKeyEnvVar` from the workspace config; read the secret only in the bridge process; implement a provider abstraction that returns a tightly-scoped frame resize proposal with rationale/confidence or an actionable unavailable/error result; validate that the target frame exists and proposed box numbers are finite/positive before returning them; and add a bridge contract test that covers success, missing-secret/provider-unavailable, and rejected malformed proposals without mutating the canonical document.
   - Verify: `npm test -- --run tests/bridge/bridge-layout-consultant-contract.test.ts`
   - Done when: the browser has a typed consultant request helper, the bridge can return only safe structured resize proposals, and consultant failures remain inspectable without touching `resume.sfrb.json`.
-- [ ] **T02: Detect overflow locally and render a rejectable ghost preview in design mode** `est:3h`
+- [x] **T02: Detect overflow locally and render a rejectable ghost preview in design mode** `est:3h`
   - Why: R006 is only user-real once the design canvas can observe overflow, ask for a proposal at the right time, and show a preview that is clearly separate from canonical edits.
   - Files: `web/src/App.tsx`, `web/src/bridge-client.ts`, `web/src/editor/Canvas.tsx`, `web/src/editor/engine.ts`, `web/src/ui/GhostPreview.tsx`, `tests/web/editor-layout-consultant.test.ts`
   - Do: Measure overflow from the frame’s text body after render/settle in design mode only; add consultant state and diagnostics to the app/editor shell; keep preview box state separate from engine `frameBoxOverrides`; render a translucent overlay plus rationale and accept/reject controls; invalidate stale preview when the canonical payload changes under it; and on accept compose a candidate document and persist it through the existing `/__sfrb/editor` route while reject just clears preview.

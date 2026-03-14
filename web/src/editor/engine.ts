@@ -9,7 +9,7 @@ import {
 
 const DEFAULT_COMMIT_DEBOUNCE_MS = 700;
 
-type FrameBox = BridgeDocument['layout']['frames'][number]['box'];
+export type FrameBox = BridgeDocument['layout']['frames'][number]['box'];
 
 export type DocumentEditorSnapshot = {
   selectedBlockId: string | null;
@@ -73,6 +73,10 @@ function replaceFrameBox(document: BridgeDocument, frameId: string, box: FrameBo
       frames: document.layout.frames.map((frame) => (frame.id === frameId ? { ...frame, box: cloneFrameBox(box) } : frame)),
     },
   };
+}
+
+export function composeFrameResizeCandidate(document: BridgeDocument, frameId: string, box: FrameBox): BridgeDocument {
+  return replaceFrameBox(document, frameId, box);
 }
 
 function getCanonicalBlockText(payload: ReadyBridgePayload | null, blockId: string): string | null {
