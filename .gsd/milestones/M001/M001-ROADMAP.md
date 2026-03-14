@@ -43,7 +43,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: CLI & Config Agent** `risk:low` `depends:[]`
+- [x] **S01: CLI & Config Agent** `risk:low` `depends:[]`
   > After this: User can initialize a project and configure BYOK and physics via a terminal chat agent.
 
 - [ ] **S02: Universal Doc Model** `risk:high` `depends:[S01]`
