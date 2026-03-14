@@ -1,18 +1,18 @@
 # GSD State
 
 **Active Milestone:** M001 — Foundation & Physics
-**Active Slice:** S03 — Local Web Bridge
-**Phase:** planned
-**Requirements Status:** 1 active · 0 validated · 0 deferred · 0 out of scope
+**Active Slice:** S05 — AI Layout Consultant
+**Phase:** planning
+**Requirements Status:** 2 active · 4 validated · 0 deferred · 0 out of scope
 
 ## Milestone Registry
 - 🔄 **M001:** Foundation & Physics
 
 ## Recent Decisions
-- D012 — Keep `sfrb open` on the current CommonJS CLI surface, but launch the local Vite bridge from a separate ESM runtime and use Vite custom events for file-to-browser sync.
+- D020 — S05 will keep overflow detection + ghost preview in the browser, but request structured resize proposals only through a bridge-backed consultant route and keep preview geometry separate from canonical frame overrides until accept.
 
 ## Blockers
 - None
 
 ## Next Action
-- Execute S03 T01: wire `sfrb open` to the ESM Vite bridge runtime and add command-level startup/failure coverage.
+Execute S05 T01: add the bridge-backed consultant contract and provider safety boundary.
