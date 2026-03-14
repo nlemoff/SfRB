@@ -1,16 +1,28 @@
-import http from 'node:http';
 import { createRequire } from 'node:module';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  acceptConsultantPreview,
   cleanupTempProjects,
   closeBridge,
+  createOpenAiStubServer,
   ensureBuilt,
   makeTempProject,
+  openDesignWorkspace,
   postEditorMutation,
+  readConsultantDiagnostics,
   readWorkspaceDocument,
+  readWorkspaceDocumentRaw,
+  rejectConsultantPreview,
+  requestConsultantPreview,
+  selectConsultantFrame,
   waitForBridgeReady,
+  waitForBridgeUpdateSignal,
+  waitForConsultantState,
+  waitForEditorIdle,
+  waitForOverflowStatus,
+  waitForPreviewVisibility,
   writeWorkspaceFiles,
 } from '../utils/bridge-browser';
 
@@ -19,54 +31,6 @@ const { chromium } = require('playwright') as { chromium: { launch: (options: { 
 
 type Browser = Awaited<ReturnType<typeof chromium.launch>>;
 type Page = Awaited<ReturnType<Browser['newPage']>>;
-
-async function waitForEditorIdle(page: Page): Promise<void> {
-  await page.waitForFunction(() => {
-    return document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle';
-  });
-}
-
-async function createOpenAiStubServer(
-  handler: (request: http.IncomingMessage, response: http.ServerResponse<http.IncomingMessage>) => void,
-): Promise<{ baseUrl: string; close: () => Promise<void> }> {
-  const server = http.createServer((request, response) => {
-    if (request.method !== 'POST' || request.url !== '/chat/completions') {
-      response.writeHead(404, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'not_found' }));
-      return;
-    }
-
-    handler(request, response);
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
-
-  const address = server.address();
-  if (!address || typeof address === 'string') {
-    throw new Error('Failed to resolve stub provider address.');
-  }
-
-  return {
-    baseUrl: `http://127.0.0.1:${address.port}`,
-    close: async () => {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    },
-  };
-}
 
 describe('editor layout consultant', () => {
   beforeAll(async () => {
@@ -94,7 +58,7 @@ describe('editor layout consultant', () => {
               message: {
                 content: JSON.stringify({
                   frameId: 'summaryFrame',
-                  box: { x: 36, y: 48, width: 540, height: 280 },
+                  box: { x: 36, y: 48, width: 540, height: 420 },
                   rationale: 'Increase frame height so the overflowing summary can fit without clipping.',
                   confidence: 0.94,
                 }),
@@ -106,6 +70,7 @@ describe('editor layout consultant', () => {
     });
 
     const beforeDocument = await readWorkspaceDocument(projectRoot);
+    const beforeRaw = await readWorkspaceDocumentRaw(projectRoot);
     const { child, url, stderr } = await waitForBridgeReady(projectRoot, {
       env: {
         OPENAI_API_KEY: 'sk-test-layout-consultant',
@@ -116,62 +81,54 @@ describe('editor layout consultant', () => {
 
     try {
       browser = await chromium.launch({ headless: true });
-      const page = await browser.newPage();
-      await page.goto(url, { waitUntil: 'networkidle' });
+      const page: Page = await browser.newPage();
+      await openDesignWorkspace(page, url);
+      await selectConsultantFrame(page);
+      await waitForOverflowStatus(page, 'overflow');
 
-      await page.waitForSelector('#editor-canvas[data-physics-mode="design"]');
-      await page.click('[data-testid="editor-frame-summaryFrame"]');
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === 'overflow';
-      });
+      const beforePreview = await readConsultantDiagnostics(page);
+      expect(beforePreview.consultantState).toBe('idle');
+      expect(beforePreview.overflowStatus).toBe('overflow');
+      expect(beforePreview.overflowPx).toBeGreaterThan(0);
+      expect(beforePreview.previewVisible).toBe(false);
+      expect(beforePreview.ghostCount).toBe(0);
 
-      expect(await page.textContent('#consultant-status')).toContain('idle');
-      expect(await page.textContent('#consultant-overflow-status')).toContain('overflow');
-      expect(Number(await page.getAttribute('#consultant-measurements', 'data-overflow-px'))).toBeGreaterThan(0);
-      expect(await page.getAttribute('#consultant-preview-state', 'data-preview-visible')).toBe('false');
+      await requestConsultantPreview(page);
+      await waitForConsultantState(page, 'preview');
 
-      await page.click('#consultant-request');
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-status')?.getAttribute('data-consultant-state') === 'preview';
-      });
+      const preview = await readConsultantDiagnostics(page);
+      expect(preview.previewVisible).toBe(true);
+      expect(preview.rationale).toContain('Increase frame height');
+      expect(preview.ghostCount).toBe(1);
+      expect(preview.ghostFrameHeight).toBe('420');
 
-      expect(await page.getAttribute('#consultant-preview-state', 'data-preview-visible')).toBe('true');
-      expect(await page.textContent('#consultant-rationale')).toContain('Increase frame height');
-      expect(await page.locator('[data-testid="consultant-ghost-preview-summaryFrame"]').count()).toBe(1);
-      expect(await page.locator('[data-testid="consultant-ghost-preview-summaryFrame"]').getAttribute('data-frame-height')).toBe('280');
+      await rejectConsultantPreview(page);
+      await waitForPreviewVisibility(page, false);
 
-      await page.click('#consultant-reject');
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === 'false';
-      });
-      expect(await page.textContent('#consultant-state-note')).toContain('rejected');
+      const rejected = await readConsultantDiagnostics(page);
+      expect(rejected.consultantCode).toBe('rejected');
+      expect(rejected.note).toContain('rejected');
       expect(await readWorkspaceDocument(projectRoot)).toEqual(beforeDocument);
-      expect(await page.locator('#bridge-payload-preview').textContent()).toContain('"height": 96');
+      expect(await readWorkspaceDocumentRaw(projectRoot)).toBe(beforeRaw);
+      expect(rejected.payloadPreview).toContain('"height": 96');
 
-      await page.click('#consultant-request');
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-status')?.getAttribute('data-consultant-state') === 'preview';
-      });
-      await page.click('#consultant-accept');
+      await requestConsultantPreview(page);
+      await waitForConsultantState(page, 'preview');
+      await acceptConsultantPreview(page);
       await waitForEditorIdle(page);
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === 'false';
-      });
-      await page.waitForFunction(() => {
-        const signal = document.querySelector('#bridge-last-signal')?.textContent ?? '';
-        return signal.includes('sfrb:bridge-update') && signal.includes('resume.sfrb.json');
-      });
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === 'clear';
-      });
+      await waitForPreviewVisibility(page, false);
+      await waitForBridgeUpdateSignal(page);
+      await waitForOverflowStatus(page, 'clear');
 
+      const accepted = await readConsultantDiagnostics(page);
       const diskDocument = await readWorkspaceDocument(projectRoot);
       expect((diskDocument.layout as { frames: Array<{ id: string; box: { height: number } }> }).frames[0]).toMatchObject({
         id: 'summaryFrame',
-        box: { height: 280 },
+        box: { height: 420 },
       });
-      expect(await page.locator('#bridge-payload-preview').textContent()).toContain('"height": 280');
-      expect(await page.textContent('#consultant-state-note')).toContain('persisted');
+      expect(accepted.payloadPreview).toContain('"height": 420');
+      expect(accepted.previewVisible).toBe(false);
+      expect(accepted.overflowStatus).toBe('clear');
       expect(stderr.join('')).toBe('');
     } finally {
       if (browser) {
@@ -179,6 +136,47 @@ describe('editor layout consultant', () => {
       }
       await closeBridge(child);
       await provider.close();
+    }
+  }, 45000);
+
+  it('surfaces a missing consultant secret in the real browser runtime without mutating the canonical document', async () => {
+    const projectRoot = await makeTempProject('sfrb-editor-layout-consultant-missing-secret-');
+    await writeWorkspaceFiles(projectRoot, {
+      physics: 'design',
+      title: 'Layout Consultant Missing Secret',
+      blockText: Array.from({ length: 10 }, (_, index) => `Missing secret overflow line ${index + 1}.`).join('\n'),
+    });
+
+    const beforeDocument = await readWorkspaceDocument(projectRoot);
+    const beforeRaw = await readWorkspaceDocumentRaw(projectRoot);
+    const env = { ...process.env };
+    delete env.OPENAI_API_KEY;
+    const { child, url } = await waitForBridgeReady(projectRoot, { env });
+    let browser: Browser | null = null;
+
+    try {
+      browser = await chromium.launch({ headless: true });
+      const page: Page = await browser.newPage();
+      await openDesignWorkspace(page, url);
+      await selectConsultantFrame(page);
+      await waitForOverflowStatus(page, 'overflow');
+
+      await requestConsultantPreview(page);
+      await waitForConsultantState(page, 'error');
+
+      const failure = await readConsultantDiagnostics(page);
+      expect(failure.previewVisible).toBe(false);
+      expect(failure.consultantCode).toBe('configuration_missing');
+      expect(failure.errorText).toContain('configuration_missing');
+      expect(failure.errorText).toContain('OPENAI_API_KEY');
+      expect(failure.payloadPreview).toContain('"height": 96');
+      expect(await readWorkspaceDocument(projectRoot)).toEqual(beforeDocument);
+      expect(await readWorkspaceDocumentRaw(projectRoot)).toBe(beforeRaw);
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+      await closeBridge(child);
     }
   }, 30000);
 
@@ -220,18 +218,12 @@ describe('editor layout consultant', () => {
 
     try {
       browser = await chromium.launch({ headless: true });
-      const page = await browser.newPage();
-      await page.goto(url, { waitUntil: 'networkidle' });
-
-      await page.waitForSelector('#editor-canvas[data-physics-mode="design"]');
-      await page.click('[data-testid="editor-frame-summaryFrame"]');
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === 'overflow';
-      });
-      await page.click('#consultant-request');
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === 'true';
-      });
+      const page: Page = await browser.newPage();
+      await openDesignWorkspace(page, url);
+      await selectConsultantFrame(page);
+      await waitForOverflowStatus(page, 'overflow');
+      await requestConsultantPreview(page);
+      await waitForPreviewVisibility(page, true);
 
       const nextDocument = await readWorkspaceDocument(projectRoot) as {
         layout: { frames: Array<{ id: string; box: { x: number; y: number; width: number; height: number } }> };
@@ -244,13 +236,12 @@ describe('editor layout consultant', () => {
       await postEditorMutation(url, nextDocument as unknown as Record<string, unknown>);
 
       await waitForEditorIdle(page);
-      await page.waitForFunction(() => {
-        return document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === 'false';
-      });
-      expect(await page.getAttribute('#consultant-panel', 'data-consultant-code')).toBe('preview_stale_cleared');
-      expect(await page.textContent('#consultant-state-note')).toContain('canonical document changed');
-      expect(await page.locator('[data-testid="consultant-ghost-preview-summaryFrame"]').count()).toBe(0);
-      expect(await page.locator('#bridge-payload-preview').textContent()).toContain('"x": 64');
+      await waitForPreviewVisibility(page, false);
+      const staleCleared = await readConsultantDiagnostics(page);
+      expect(staleCleared.consultantCode).toBe('preview_stale_cleared');
+      expect(staleCleared.note).toContain('canonical document changed');
+      expect(staleCleared.ghostCount).toBe(0);
+      expect(staleCleared.payloadPreview).toContain('"x": 64');
     } finally {
       if (browser) {
         await browser.close();
