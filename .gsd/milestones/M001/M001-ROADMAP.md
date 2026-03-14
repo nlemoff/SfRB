@@ -49,7 +49,7 @@ This milestone is complete only when all are true:
 - [x] **S02: Universal Doc Model** `risk:high` `depends:[S01]`
   > After this: A validated JSON schema for resumes that supports both semantic content and spatial layout metadata.
 
-- [ ] **S03: Local Web Bridge** `risk:medium` `depends:[S02]`
+- [x] **S03: Local Web Bridge** `risk:medium` `depends:[S02]`
   > After this: `sfrb open` successfully spawns a Vite server and opens a browser that live-syncs with the local `.sfrb` file.
 
 - [ ] **S04: Canvas Editor Foundation** `risk:high` `depends:[S03]`

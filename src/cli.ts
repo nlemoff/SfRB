@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 
 import { createInitCommand } from './commands/init';
+import { createOpenCommand } from './commands/open';
 
 export function createCli(): Command {
   const program = new Command();
@@ -12,6 +13,7 @@ export function createCli(): Command {
     .version('0.1.0');
 
   program.addCommand(createInitCommand());
+  program.addCommand(createOpenCommand());
 
   return program;
 }
