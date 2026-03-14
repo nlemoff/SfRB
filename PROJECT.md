@@ -10,7 +10,7 @@ The hybrid interaction model that treats the resume as a first-class spatial can
 
 ## Current State
 
-Project initialized with Apache 2.0 license. Architecture defined: CLI-first, local Vite server for web UI, BYOK AI integration, and configurable document physics.
+Project initialized with Apache 2.0 license. S01 and S02 are complete: the repo now has a working `sfrb init` flow, a validated project-local `sfrb.config.json`, a canonical `resume.sfrb.json` document boundary, generated `schema.json`, and workspace-physics-aware document validation. The next milestone step is S03, which will open and live-sync this validated document model through a local web bridge.
 
 ## Architecture / Key Patterns
 

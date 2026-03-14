@@ -8,7 +8,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "schema:generate": "npm run build && node scripts/generate-schema.mjs",
+    "schema:check": "npm run build && node scripts/check-schema.mjs"
   },
   "engines": {
     "node": ">=20"

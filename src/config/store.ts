@@ -7,6 +7,14 @@ import { parseSfrbConfig, type SfrbConfig } from './schema';
 export const SFRB_CONFIG_FILE = 'sfrb.config.json';
 export const GITIGNORE_FILE = '.gitignore';
 
+export class ConfigParseError extends Error {
+  constructor(source: string, cause: unknown) {
+    const detail = cause instanceof Error ? cause.message : 'Unknown JSON parse failure';
+    super(`${source} is not valid JSON: ${detail}`);
+    this.name = 'ConfigParseError';
+  }
+}
+
 export class ConfigValidationError extends Error {
   readonly issues: Array<{ path: string; message: string }>;
 
@@ -48,7 +56,13 @@ export function validateConfig(input: unknown, source = SFRB_CONFIG_FILE): SfrbC
 export async function readConfig(projectRoot = process.cwd()): Promise<SfrbConfig> {
   const configPath = getConfigPath(projectRoot);
   const rawFile = await readFile(configPath, 'utf8');
-  const rawConfig = JSON.parse(rawFile) as unknown;
+
+  let rawConfig: unknown;
+  try {
+    rawConfig = JSON.parse(rawFile) as unknown;
+  } catch (error) {
+    throw new ConfigParseError(configPath, error);
+  }
 
   return validateConfig(rawConfig, configPath);
 }

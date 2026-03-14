@@ -46,7 +46,7 @@ This milestone is complete only when all are true:
 - [x] **S01: CLI & Config Agent** `risk:low` `depends:[]`
   > After this: User can initialize a project and configure BYOK and physics via a terminal chat agent.
 
-- [ ] **S02: Universal Doc Model** `risk:high` `depends:[S01]`
+- [x] **S02: Universal Doc Model** `risk:high` `depends:[S01]`
   > After this: A validated JSON schema for resumes that supports both semantic content and spatial layout metadata.
 
 - [ ] **S03: Local Web Bridge** `risk:medium` `depends:[S02]`

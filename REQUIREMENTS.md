@@ -39,17 +39,6 @@ Use it to track what is actively in scope, what has been validated by completed 
 - Validation: mapped
 - Notes: Needs a robust bridge between the local filesystem and the browser.
 
-### R004 — Configurable Workspace Physics
-- Class: differentiator
-- Status: active
-- Description: Users can configure if the document behaves like a word processor (reflow) or a design tool (fixed boxes) at the workspace level.
-- Why it matters: Adapts to different user mental models and design needs.
-- Source: user
-- Primary owning slice: M001/S02
-- Supporting slices: M001/S01
-- Validation: mapped
-- Notes: Physics affects how the document model handles content growth.
-
 ### R005 — BYOK AI Agent Integration
 - Class: differentiator
 - Status: active
@@ -94,6 +83,19 @@ Use it to track what is actively in scope, what has been validated by completed 
 - Validation: mapped
 - Notes: The CLI is the primary "API" for now.
 
+## Validated
+
+### R004 — Configurable Workspace Physics
+- Class: differentiator
+- Status: validated
+- Description: Users can configure if the document behaves like a word processor (reflow) or a design tool (fixed boxes) at the workspace level.
+- Why it matters: Adapts to different user mental models and design needs.
+- Source: user
+- Primary owning slice: M001/S02
+- Supporting slices: M001/S01
+- Validation: integration
+- Notes: Validated at the shared document boundary: `readWorkspaceDocument()` now changes acceptance rules based on `workspace.physics`, with real temp-workspace tests and smoke coverage proving document-mode and design-mode divergence.
+
 ## Deferred
 
 ### R007 — Style Tiles & Presets
@@ -125,7 +127,7 @@ Use it to track what is actively in scope, what has been validated by completed 
 | R001 | primary-user-loop | active | M001/S04 | M001/S03 | mapped |
 | R002 | core-capability | active | M001/S01 | M003/S02 | mapped |
 | R003 | integration | active | M001/S03 | none | mapped |
-| R004 | differentiator | active | M001/S02 | M001/S01 | mapped |
+| R004 | differentiator | validated | M001/S02 | M001/S01 | integration |
 | R005 | differentiator | active | M002/S01 | M001/S01 | mapped |
 | R006 | primary-user-loop | active | M001/S05 | M002/S02 | mapped |
 | R008 | launchability | active | M002/S03 | none | mapped |
@@ -135,7 +137,7 @@ Use it to track what is actively in scope, what has been validated by completed 
 
 ## Coverage Summary
 
-- Active requirements: 8
-- Mapped to slices: 8
-- Validated: 0
+- Active requirements: 7
+- Mapped to slices: 7
+- Validated: 1
 - Unmapped active requirements: 0
