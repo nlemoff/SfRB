@@ -1,6 +1,59 @@
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
+export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
 export const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 export const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
+
+export type BridgeValidationIssue = {
+  path: string;
+  message: string;
+};
+
+export type BridgeDocument = {
+  version: number;
+  metadata: {
+    title: string;
+    locale: string;
+  };
+  semantic: {
+    sections: Array<{
+      id: string;
+      title: string;
+      blockIds: string[];
+    }>;
+    blocks: Array<{
+      id: string;
+      kind: string;
+      text: string;
+    }>;
+  };
+  layout: {
+    pages: Array<{
+      id: string;
+      size: {
+        width: number;
+        height: number;
+      };
+      margin: {
+        top: number;
+        right: number;
+        bottom: number;
+        left: number;
+      };
+    }>;
+    frames: Array<{
+      id: string;
+      pageId: string;
+      blockId: string;
+      box: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
+      zIndex: number;
+    }>;
+  };
+};
 
 export type ReadyBridgePayload = {
   status: 'ready';
@@ -8,33 +61,7 @@ export type ReadyBridgePayload = {
   documentPath: string;
   configPath: string;
   physics: string;
-  document: {
-    version: number;
-    metadata: {
-      title: string;
-      locale: string;
-    };
-    semantic: {
-      sections: Array<{
-        id: string;
-        title: string;
-        blockIds: string[];
-      }>;
-      blocks: Array<{
-        id: string;
-        kind: string;
-        text: string;
-      }>;
-    };
-    layout: {
-      pages: Array<{
-        id: string;
-      }>;
-      frames: Array<{
-        id: string;
-      }>;
-    };
-  };
+  document: BridgeDocument;
 };
 
 export type ErrorBridgePayload = {
@@ -47,6 +74,7 @@ export type ErrorBridgePayload = {
   changedPath?: string;
   changedPaths?: string[];
   watchedPath?: string;
+  issues?: BridgeValidationIssue[];
 };
 
 export type BridgePayload = ReadyBridgePayload | ErrorBridgePayload;
@@ -55,6 +83,50 @@ export type BridgeSignal = {
   event: typeof BRIDGE_UPDATE_EVENT | typeof BRIDGE_ERROR_EVENT;
   receivedAt: string;
   detail: Record<string, unknown>;
+};
+
+export type BridgeSaveState = 'idle' | 'saving' | 'error';
+
+export type BridgeMutationSuccess = {
+  ok: true;
+  status: 'saved';
+  saveState: 'idle';
+  workspaceRoot: string;
+  documentPath: string;
+  configPath: string;
+  physics: string;
+  canonicalBootstrapPath: typeof BRIDGE_BOOTSTRAP_PATH;
+  savedAt: string;
+};
+
+export type BridgeMutationError = {
+  ok: false;
+  status: 'error';
+  saveState: 'error';
+  code: 'request_invalid' | 'document_invalid' | 'physics_invalid' | 'persistence_failed';
+  workspaceRoot: string;
+  message: string;
+  name: string;
+  documentPath: string;
+  configPath: string;
+  canonicalBootstrapPath: typeof BRIDGE_BOOTSTRAP_PATH;
+  issues?: BridgeValidationIssue[];
+  cause?: string;
+};
+
+export type BridgeMutationResult = BridgeMutationSuccess | BridgeMutationError;
+
+export type BridgeEditorStatusSnapshot = {
+  saveState: BridgeSaveState;
+  lastResult: BridgeMutationResult | null;
+  errorMessage: string | null;
+};
+
+export type BridgeEditorStatusStore = {
+  getSnapshot: () => BridgeEditorStatusSnapshot;
+  subscribe: (listener: (snapshot: BridgeEditorStatusSnapshot) => void) => () => void;
+  markSaving: () => void;
+  settle: (result: BridgeMutationResult) => void;
 };
 
 export async function fetchBridgePayload(signal?: AbortSignal): Promise<BridgePayload> {
@@ -67,6 +139,73 @@ export async function fetchBridgePayload(signal?: AbortSignal): Promise<BridgePa
 
   const payload = (await response.json()) as BridgePayload;
   return payload;
+}
+
+export async function submitBridgeDocumentMutation(
+  document: BridgeDocument,
+  options: {
+    signal?: AbortSignal;
+    statusStore?: BridgeEditorStatusStore;
+  } = {},
+): Promise<BridgeMutationResult> {
+  options.statusStore?.markSaving();
+
+  const response = await fetch(BRIDGE_EDITOR_MUTATION_PATH, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ document }),
+    signal: options.signal,
+  });
+
+  const result = (await response.json()) as BridgeMutationResult;
+  options.statusStore?.settle(result);
+  return result;
+}
+
+export function createBridgeEditorStatusStore(
+  initialSnapshot: Partial<BridgeEditorStatusSnapshot> = {},
+): BridgeEditorStatusStore {
+  let snapshot: BridgeEditorStatusSnapshot = {
+    saveState: initialSnapshot.saveState ?? 'idle',
+    lastResult: initialSnapshot.lastResult ?? null,
+    errorMessage: initialSnapshot.errorMessage ?? null,
+  };
+  const listeners = new Set<(next: BridgeEditorStatusSnapshot) => void>();
+
+  const emit = () => {
+    for (const listener of listeners) {
+      listener(snapshot);
+    }
+  };
+
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    markSaving: () => {
+      snapshot = {
+        ...snapshot,
+        saveState: 'saving',
+        errorMessage: null,
+      };
+      emit();
+    },
+    settle: (result) => {
+      snapshot = {
+        saveState: result.saveState,
+        lastResult: result,
+        errorMessage: result.ok ? null : result.message,
+      };
+      emit();
+    },
+  };
 }
 
 export function subscribeToBridgeSignals(onSignal: (signal: BridgeSignal) => void): () => void {

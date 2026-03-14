@@ -9,15 +9,22 @@ import { createServer } from 'vite';
 
 const require = createRequire(import.meta.url);
 const { readConfig, getConfigPath } = require('../config/store.js');
-const { readWorkspaceDocument, getDocumentPath } = require('../document/store.js');
+const {
+  readWorkspaceDocument,
+  getDocumentPath,
+  validateDocument,
+  writeDocument,
+} = require('../document/store.js');
 const {
   MissingWorkspaceConfigError,
   DocumentPhysicsValidationError,
+  validateDocumentForPhysics,
 } = require('../document/validation.js');
 const { ConfigParseError, ConfigValidationError } = require('../config/store.js');
 const { DocumentParseError, DocumentValidationError } = require('../document/store.js');
 
 const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
+const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
 const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 const runtimeDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -78,6 +85,18 @@ function isWorkspaceValidationError(error) {
   );
 }
 
+function getErrorIssues(error) {
+  if (!error || typeof error !== 'object' || !('issues' in error) || !Array.isArray(error.issues)) {
+    return undefined;
+  }
+
+  return error.issues
+    .filter(
+      (issue) => issue && typeof issue === 'object' && typeof issue.path === 'string' && typeof issue.message === 'string',
+    )
+    .map((issue) => ({ path: issue.path, message: issue.message }));
+}
+
 function toBridgeError(error, workspaceRoot) {
   if (isWorkspaceValidationError(error)) {
     return {
@@ -87,6 +106,7 @@ function toBridgeError(error, workspaceRoot) {
       name: error.name,
       documentPath: error.documentPath ?? getDocumentPath(workspaceRoot),
       configPath: error.configPath ?? getConfigPath(workspaceRoot),
+      issues: getErrorIssues(error),
     };
   }
 
@@ -97,6 +117,62 @@ function toBridgeError(error, workspaceRoot) {
     name: error instanceof Error ? error.name : 'Error',
     documentPath: getDocumentPath(workspaceRoot),
     configPath: getConfigPath(workspaceRoot),
+  };
+}
+
+function getMutationFailureStatusCode(error) {
+  if (error instanceof DocumentPhysicsValidationError) {
+    return 409;
+  }
+
+  if (
+    error instanceof MissingWorkspaceConfigError ||
+    error instanceof ConfigParseError ||
+    error instanceof ConfigValidationError ||
+    error instanceof DocumentParseError ||
+    error instanceof DocumentValidationError
+  ) {
+    return 422;
+  }
+
+  return 500;
+}
+
+function toMutationFailure(error, workspaceRoot) {
+  const baseError = toBridgeError(error, workspaceRoot);
+  return {
+    ok: false,
+    status: 'error',
+    saveState: 'error',
+    code:
+      error instanceof DocumentPhysicsValidationError
+        ? 'physics_invalid'
+        : error instanceof MissingWorkspaceConfigError ||
+            error instanceof ConfigParseError ||
+            error instanceof ConfigValidationError ||
+            error instanceof DocumentParseError ||
+            error instanceof DocumentValidationError
+          ? 'document_invalid'
+          : 'persistence_failed',
+    canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+    ...baseError,
+  };
+}
+
+function toRequestFailure(workspaceRoot, message, cause) {
+  return {
+    ok: false,
+    status: 'error',
+    saveState: 'error',
+    code: 'request_invalid',
+    workspaceRoot,
+    message,
+    name: 'BridgeRequestError',
+    cause,
+    documentPath: getDocumentPath(workspaceRoot),
+    configPath: getConfigPath(workspaceRoot),
+    canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+    issues: [{ path: '(body)', message }],
   };
 }
 
@@ -112,6 +188,52 @@ async function readBridgePayload(workspaceRoot) {
     physics: config.workspace.physics,
     document,
   };
+}
+
+async function readJsonBody(request) {
+  const chunks = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const rawBody = Buffer.concat(chunks).toString('utf8');
+  if (rawBody.trim().length === 0) {
+    throw new Error('Bridge mutation body must be a JSON object with a document field.');
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Bridge mutation body is not valid JSON: ${detail}`);
+  }
+}
+
+async function validateMutationDocument(candidate, workspaceRoot) {
+  const documentPath = getDocumentPath(workspaceRoot);
+  const configPath = getConfigPath(workspaceRoot);
+  const document = validateDocument(candidate, documentPath);
+
+  let config;
+  try {
+    config = await readConfig(workspaceRoot);
+  } catch (error) {
+    const fileError = error;
+    if (fileError && typeof fileError === 'object' && fileError.code === 'ENOENT') {
+      throw new MissingWorkspaceConfigError(workspaceRoot, documentPath);
+    }
+    throw error;
+  }
+
+  validateDocumentForPhysics(document, config.workspace.physics, documentPath, configPath);
+  return { document, physics: config.workspace.physics };
+}
+
+function respondJson(response, statusCode, payload) {
+  response.statusCode = statusCode;
+  response.setHeader('content-type', 'application/json; charset=utf-8');
+  response.end(`${JSON.stringify(payload, null, 2)}\n`);
 }
 
 async function main() {
@@ -153,9 +275,52 @@ async function main() {
 
   vite.middlewares.use(BRIDGE_BOOTSTRAP_PATH, (_request, response) => {
     const statusCode = currentState.status === 'ready' ? 200 : 409;
-    response.statusCode = statusCode;
-    response.setHeader('content-type', 'application/json; charset=utf-8');
-    response.end(`${JSON.stringify(currentState, null, 2)}\n`);
+    respondJson(response, statusCode, currentState);
+  });
+
+  vite.middlewares.use(BRIDGE_EDITOR_MUTATION_PATH, async (request, response, next) => {
+    if (request.method !== 'POST') {
+      if (request.method === 'OPTIONS') {
+        response.statusCode = 204;
+        response.end();
+        return;
+      }
+      next();
+      return;
+    }
+
+    try {
+      const parsedBody = await readJsonBody(request);
+      if (!parsedBody || typeof parsedBody !== 'object' || !('document' in parsedBody)) {
+        respondJson(
+          response,
+          400,
+          toRequestFailure(options.cwd, 'Bridge mutation body must be a JSON object with a document field.', 'missing_document'),
+        );
+        return;
+      }
+
+      const { document, physics } = await validateMutationDocument(parsedBody.document, options.cwd);
+      await writeDocument(document, options.cwd);
+      respondJson(response, 200, {
+        ok: true,
+        status: 'saved',
+        saveState: 'idle',
+        workspaceRoot: options.cwd,
+        documentPath: getDocumentPath(options.cwd),
+        configPath: getConfigPath(options.cwd),
+        physics,
+        canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+        savedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'Error' && error.message.startsWith('Bridge mutation body')) {
+        respondJson(response, 400, toRequestFailure(options.cwd, error.message, 'invalid_json'));
+        return;
+      }
+
+      respondJson(response, getMutationFailureStatusCode(error), toMutationFailure(error, options.cwd));
+    }
   });
 
   vite.middlewares.use(async (request, response, next) => {

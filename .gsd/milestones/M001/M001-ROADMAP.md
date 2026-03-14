@@ -52,7 +52,7 @@ This milestone is complete only when all are true:
 - [x] **S03: Local Web Bridge** `risk:medium` `depends:[S02]`
   > After this: `sfrb open` successfully spawns a Vite server and opens a browser that live-syncs with the local `.sfrb` file.
 
-- [ ] **S04: Canvas Editor Foundation** `risk:high` `depends:[S03]`
+- [x] **S04: Canvas Editor Foundation** `risk:high` `depends:[S03]`
   > After this: A basic browser editor where you can click-to-edit text and move boxes with "Physics" (flow vs fixed) enforced.
 
 - [ ] **S05: AI Layout Consultant** `risk:high` `depends:[S04]`
