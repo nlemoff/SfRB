@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "01db229c",
+    "label": "github-auth-shell",
+    "command": "bash",
+    "cwd": "/home/nlemo/SfRB",
+    "startedAt": 1773553786765,
+    "processType": "shell",
+    "group": null,
+    "readyPattern": null,
+    "readyPort": null,
+    "pid": 1083336
+  }
+]

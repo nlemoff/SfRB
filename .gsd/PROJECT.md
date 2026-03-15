@@ -10,6 +10,7 @@ A user should be able to open a local resume workspace, edit it directly against
 
 ## Current State
 
+- M001 has been re-verified at the milestone level with a fresh `npm run build` plus passing S01-S05 smoke scripts.
 - `sfrb init` captures provider/env-var configuration and workspace physics into `sfrb.config.json`.
 - `resume.sfrb.json` is validated through the canonical Zod-backed schema and workspace physics rules.
 - `sfrb open` launches the local bridge, serves `/__sfrb/bootstrap`, and pushes invalidation events to the browser.
@@ -19,7 +20,8 @@ A user should be able to open a local resume workspace, edit it directly against
 - Browser writes go through `/__sfrb/editor`, where schema + physics validation happen before persistence.
 - The bridge now also exposes `/__sfrb/consultant`, which resolves workspace BYOK config + env-backed secrets, returns only validated resize proposals or sanitized failures, and never exposes raw secrets to the browser.
 - In design mode, overflowing frames can request an AI proposal, show a translucent ghost preview with rationale, reject without writing, and accept through the canonical editor path so overflow clears in the persisted document.
-- M001 is complete and all currently tracked requirements are validated.
+- `.gsd/milestones/M001/M001-SUMMARY.md` is now the milestone-level handoff artifact for what was delivered, how it was verified, and what remains fragile.
+- All currently tracked requirements are validated; M002 is not planned yet.
 
 ## Architecture / Key Patterns
 
