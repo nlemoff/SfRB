@@ -19,6 +19,27 @@
           "default": "en-US",
           "type": "string",
           "minLength": 2
+        },
+        "starter": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "template",
+                "blank"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "kind"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

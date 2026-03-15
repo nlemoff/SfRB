@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 describe('sfrb config contract', () => {
-  it('writes and reads a valid config with stable defaults', async () => {
+  it('writes and reads a valid AI-configured config with stable defaults', async () => {
     const projectRoot = await makeTempProject();
 
     const written = await writeConfig(
@@ -47,6 +47,33 @@ describe('sfrb config contract', () => {
     const persisted = await readFile(configPath, 'utf8');
     expect(persisted).toContain('"provider": "openai"');
     expect(persisted).toContain('"physics": "document"');
+
+    await expect(readConfig(projectRoot)).resolves.toEqual(written);
+  });
+
+  it('writes and reads a valid editor-only config without AI settings', async () => {
+    const projectRoot = await makeTempProject();
+
+    const written = await writeConfig(
+      {
+        workspace: {
+          physics: 'design',
+        },
+      },
+      projectRoot,
+    );
+
+    expect(written).toEqual({
+      version: 1,
+      workspace: {
+        physics: 'design',
+      },
+    });
+
+    const configPath = getConfigPath(projectRoot);
+    const persisted = await readFile(configPath, 'utf8');
+    expect(persisted).not.toContain('"ai"');
+    expect(persisted).toContain('"physics": "design"');
 
     await expect(readConfig(projectRoot)).resolves.toEqual(written);
   });

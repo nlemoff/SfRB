@@ -19,7 +19,8 @@ A user should be able to start from a strong template or a blank canvas, edit th
   - design physics: canonical frame rendering, frame dragging, linked text editing, and overflow measurement
 - Browser writes go through `/__sfrb/editor`, where schema + physics validation happen before persistence.
 - The bridge also exposes `/__sfrb/consultant`, but AI is intentionally de-emphasized for the next milestone while the editor engine and product experience take priority.
-- M002 is now planned as the first product-shaping milestone: template starts, guided text/tile/freeform editing, structured editor actions for CLI parity, and a sleeker non-technical user experience.
+- M002 is in progress. S01 is complete: `sfrb init` now creates template or blank starter workspaces with AI either skipped or configured, `resume.sfrb.json` carries durable starter metadata, and `sfrb open` now lands on a guidance-first shell that explains the text/tile/freeform lenses while preserving the canonical save/refetch loop.
+- The next milestone work is S02: define the canonical structured editor action model so later text/tile/freeform mechanics stay scriptable and browser/CLI parity stays real.
 
 ## Architecture / Key Patterns
 
@@ -38,5 +39,5 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 ## Milestone Sequence
 
 - [x] M001: Foundation & Physics — Established the canonical local document model, bridge runtime, mode-aware browser editor, and AI layout consultant loop.
-- [ ] M002: Resume Engine & Guided Editing — Turn the foundation into a real non-technical-user editor with template starts, text/tile/freeform editing, and structured editor actions with CLI parity.
+- [ ] M002: Resume Engine & Guided Editing — Turn the foundation into a real non-technical-user editor with template starts, text/tile/freeform editing, and structured editor actions with CLI parity. S01 is complete; S02 is next.
 - [ ] M003: Export & Presentation Depth — Make the editor feel finished with reliable PDF export, stronger presentation behavior, and deeper polish on top of the M002 engine.

@@ -47,17 +47,6 @@ Guidelines:
 - Validation: mapped
 - Notes: This is action/model parity, not a promise that the CLI must be the most comfortable UX for normal users.
 
-### R010 — Non-technical first-run value
-- Class: primary-user-loop
-- Status: active
-- Description: A non-technical user can open the app, replace template content with their own resume content, and get immediate basic value without configuring AI.
-- Why it matters: The first optimized user is someone who is not that technical and should still be able to make a good resume fast.
-- Source: user
-- Primary owning slice: M002/S01
-- Supporting slices: M002/S06, M002/S07
-- Validation: mapped
-- Notes: AI is de-emphasized for now; the editor must stand on its own.
-
 ### R011 — Sleek minimalist editor presentation
 - Class: quality-attribute
 - Status: active
@@ -181,6 +170,17 @@ Guidelines:
 - Validation: validated
 - Notes: Proven by S05 through bridge contract tests, browser runtime tests, and built-path smoke verification showing overflow detection, visible ghost preview, explicit reject/no-write behavior, accept/persist behavior, overflow clearing after accept, and categorized provider-failure visibility.
 
+### R010 — Non-technical first-run value
+- Class: primary-user-loop
+- Status: validated
+- Description: A non-technical user can open the app, replace template content with their own resume content, and get immediate basic value without configuring AI.
+- Why it matters: The first optimized user is someone who is not that technical and should still be able to make a good resume fast.
+- Source: user
+- Primary owning slice: M002/S01
+- Supporting slices: M002/S06, M002/S07
+- Validation: validated
+- Notes: Proven by S01 through AI-optional `sfrb init`, guidance-first `sfrb open`, browser/runtime persistence checks for both starter variants, and the shipped `scripts/verify-s01-first-run.mjs` loop.
+
 ## Deferred
 
 ### R016 — AI-assisted resume authoring and layout guidance
@@ -216,7 +216,7 @@ None.
 | R007 | launchability | active | M002/S01 | M002/S03 | mapped |
 | R008 | primary-user-loop | active | M002/S01 | M002/S04, M002/S05, M002/S06 | mapped |
 | R009 | integration | active | M002/S02 | M002/S07 | mapped |
-| R010 | primary-user-loop | active | M002/S01 | M002/S06, M002/S07 | mapped |
+| R010 | primary-user-loop | validated | M002/S01 | M002/S06, M002/S07 | validated |
 | R011 | quality-attribute | active | M002/S07 | M002/S01, M002/S04, M002/S05 | mapped |
 | R012 | constraint | active | M002/S06 | M002/S03, M002/S04, M002/S05 | mapped |
 | R013 | core-capability | active | M003/S01 | none yet | mapped |
@@ -233,7 +233,7 @@ None.
 
 ## Coverage Summary
 
-- Active requirements: 9
-- Mapped to slices: 9
-- Validated: 6
+- Active requirements: 8
+- Mapped to slices: 8
+- Validated: 7
 - Unmapped active requirements: 0

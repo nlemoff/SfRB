@@ -8,6 +8,8 @@ export const stableIdSchema = z
 
 export const semanticBlockKinds = ['heading', 'paragraph', 'bullet', 'fact'] as const;
 export const semanticBlockKindSchema = z.enum(semanticBlockKinds);
+export const starterKinds = ['template', 'blank'] as const;
+export const starterKindSchema = z.enum(starterKinds);
 
 export const boxSchema = z.strictObject({
   x: z.number().finite(),
@@ -28,6 +30,11 @@ export const pageSchema = z.strictObject({
     bottom: z.number().min(0),
     left: z.number().min(0),
   }),
+});
+
+export const starterMetadataSchema = z.strictObject({
+  id: stableIdSchema,
+  kind: starterKindSchema,
 });
 
 export const semanticBlockSchema = z.strictObject({
@@ -79,6 +86,7 @@ export const documentSchema = z
     metadata: z.strictObject({
       title: z.string().min(1, 'Document title is required'),
       locale: z.string().min(2, 'Locale must be at least 2 characters').default('en-US'),
+      starter: starterMetadataSchema.optional(),
     }),
     semantic: z.strictObject({
       sections: z.array(semanticSectionSchema).min(1, 'Document must contain at least one semantic section'),
@@ -184,6 +192,8 @@ export const documentSchema = z
 
 export type SfrbDocument = z.output<typeof documentSchema>;
 export type SfrbDocumentInput = z.input<typeof documentSchema>;
+export type StarterKind = z.output<typeof starterKindSchema>;
+export type StarterMetadata = z.output<typeof starterMetadataSchema>;
 export type SemanticSection = z.output<typeof semanticSectionSchema>;
 export type SemanticBlock = z.output<typeof semanticBlockSchema>;
 export type LayoutPage = z.output<typeof pageSchema>;

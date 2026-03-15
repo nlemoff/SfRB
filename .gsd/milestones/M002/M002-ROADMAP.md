@@ -56,7 +56,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Template Starts & First-Run Guidance** `risk:medium` `depends:[]`
+- [x] **S01: Template Starts & First-Run Guidance** `risk:medium` `depends:[]`
   > After this: User can open either a strong starter resume or a blank canvas and gets clear guidance on the three editing modes.
 
 - [ ] **S02: Canonical Editor Action Model** `risk:high` `depends:[S01]`
