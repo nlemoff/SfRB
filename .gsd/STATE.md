@@ -1,18 +1,19 @@
 # GSD State
 
-**Active Milestone:** M001 — Foundation & Physics
-**Active Slice:** S05 — AI Layout Consultant
-**Phase:** planning
-**Requirements Status:** 2 active · 4 validated · 0 deferred · 0 out of scope
+**Active Milestone:** None — M001 complete; next milestone planning pending
+**Active Slice:** None
+**Phase:** ready-for-next-milestone-planning
+**Requirements Status:** 0 active · 6 validated · 0 deferred · 0 out of scope
 
 ## Milestone Registry
-- 🔄 **M001:** Foundation & Physics
+- ✅ **M001:** Foundation & Physics
 
 ## Recent Decisions
-- D020 — S05 will keep overflow detection + ghost preview in the browser, but request structured resize proposals only through a bridge-backed consultant route and keep preview geometry separate from canonical frame overrides until accept.
+- D021 — Keep provider config/secret resolution and raw provider output handling inside the bridge; expose only validated consultant proposals or sanitized categorized failures.
+- D022 — Measure overflow in Canvas from rendered frame content, but keep consultant lifecycle and preview ownership in App so reject remains non-destructive.
 
 ## Blockers
 - None
 
 ## Next Action
-Execute S05 T01: add the bridge-backed consultant contract and provider safety boundary.
+- Plan M002 and decide the next capability set beyond M001’s completed local authoring + consultant loop.
