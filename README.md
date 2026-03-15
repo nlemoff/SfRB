@@ -54,6 +54,16 @@ The authoritative internal project status lives in:
 npm install
 ```
 
+### Browser test setup
+
+Playwright is used for browser-level editor tests and smoke verification. It is **not** required just to build the CLI, but it **is** required for the web/editor verification paths.
+
+Install the Chromium browser used by the repo's Playwright-based tests:
+
+```bash
+npm run test:setup:browsers
+```
+
 ### Build
 
 ```bash
@@ -62,8 +72,22 @@ npm run build
 
 ### Test
 
+Run the full Vitest suite:
+
 ```bash
 npm test
+```
+
+Run only the browser/editor tests:
+
+```bash
+npm run test:web
+```
+
+Run the built-runtime smoke verification scripts:
+
+```bash
+npm run verify:smoke
 ```
 
 ### Schema checks

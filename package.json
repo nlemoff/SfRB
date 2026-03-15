@@ -9,6 +9,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-bridge-runtime.mjs",
     "test": "vitest run",
+    "test:web": "vitest run tests/web",
+    "test:setup:browsers": "playwright install chromium",
+    "verify:smoke": "npm run build && node scripts/verify-s04-editor-smoke.mjs && node scripts/verify-s05-layout-consultant.mjs",
     "schema:generate": "npm run build && node scripts/generate-schema.mjs",
     "schema:check": "npm run build && node scripts/check-schema.mjs"
   },
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "playwright": "^1.58.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
