@@ -1,14 +1,18 @@
 import {
+  type BridgeConsultantResult,
   type BridgeEditorStatusSnapshot,
   type BridgePayload,
   type BridgeSignal,
+  type ReadyBridgePayload,
   BRIDGE_BOOTSTRAP_PATH,
   createBridgeEditorStatusStore,
   fetchBridgePayload,
+  requestBridgeLayoutConsultant,
+  submitBridgeDocumentMutation,
   subscribeToBridgeSignals,
 } from './bridge-client';
-import { mountCanvas } from './editor/Canvas';
-import { createDocumentEditorEngine } from './editor/engine';
+import { mountCanvas, type CanvasConsultantPreview, type CanvasOverflowDiagnostics } from './editor/Canvas';
+import { composeFrameResizeCandidate, createDocumentEditorEngine } from './editor/engine';
 
 const pageStyles = [
   'min-height: 100vh',
@@ -52,6 +56,8 @@ function formatSignalLabel(signal: BridgeSignal | null): string {
   const suffix = changedPaths.length > 0 ? changedPaths.join(', ') : (changedPath ?? watchedPath);
   return suffix ? `${signal.event} · ${suffix}` : signal.event;
 }
+
+type ConsultantUiState = 'idle' | 'detecting' | 'requesting' | 'preview' | 'applying' | 'error' | 'unavailable';
 
 function createShellMarkup(): string {
   return `
@@ -105,6 +111,36 @@ function createShellMarkup(): string {
             <div id="editor-host"></div>
           </article>
           <article style="${panelStyles}; padding: 30px; display: grid; gap: 16px;">
+            <section id="consultant-panel" data-testid="consultant-panel" data-consultant-state="idle" data-consultant-code="none" style="padding: 18px; border-radius: 18px; background: rgba(15, 23, 42, 0.58); border: 1px solid rgba(96, 165, 250, 0.22); display: grid; gap: 12px;">
+              <div>
+                <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">AI layout consultant</div>
+                <div id="consultant-status" data-testid="consultant-status" data-consultant-state="idle" style="margin-top: 10px; font-size: 1.2rem; font-weight: 700;">idle</div>
+                <div id="consultant-state-note" data-testid="consultant-state-note" style="margin-top: 8px; color: #cbd5e1; line-height: 1.5;">Select a design frame to inspect overflow.</div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+                <div style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48);">
+                  <div style="font-size: 0.72rem; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em;">Overflow</div>
+                  <div id="consultant-overflow-status" data-testid="consultant-overflow-status" data-overflow-status="idle" style="margin-top: 8px;">idle</div>
+                </div>
+                <div style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48);">
+                  <div style="font-size: 0.72rem; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em;">Proposal frame</div>
+                  <div id="consultant-frame-id" data-testid="consultant-frame-id" data-frame-id="" style="margin-top: 8px;">None</div>
+                </div>
+              </div>
+              <div id="consultant-measurements" data-testid="consultant-measurements" data-overflow-px="" style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48); color: #cbd5e1; line-height: 1.5;">
+                No overflow diagnostics recorded.
+              </div>
+              <div id="consultant-preview-state" data-testid="consultant-preview-state" data-preview-visible="false" style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48); color: #cbd5e1; line-height: 1.5;">
+                No ghost preview active.
+              </div>
+              <div id="consultant-rationale" data-testid="consultant-rationale" style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48); color: #dbeafe; line-height: 1.5;">Awaiting a consultant proposal.</div>
+              <div id="consultant-error" data-testid="consultant-error" style="padding: 12px; border-radius: 14px; background: rgba(127, 29, 29, 0.24); color: #fecaca; line-height: 1.5;" hidden>No consultant errors recorded.</div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="consultant-request" data-testid="consultant-request" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(96, 165, 250, 0.4); background: rgba(59, 130, 246, 0.24); color: #eff6ff; font: inherit; cursor: pointer;">Request proposal</button>
+                <button id="consultant-accept" data-testid="consultant-accept" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(45, 212, 191, 0.35); background: rgba(13, 148, 136, 0.22); color: #ecfeff; font: inherit; cursor: pointer;">Accept preview</button>
+                <button id="consultant-reject" data-testid="consultant-reject" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(244, 114, 182, 0.35); background: rgba(190, 24, 93, 0.18); color: #ffe4e6; font: inherit; cursor: pointer;">Reject preview</button>
+              </div>
+            </section>
             <div>
               <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Canonical payload preview</div>
               <pre id="bridge-payload-preview" data-testid="bridge-payload-preview" style="${previewStyles}">Loading bridge payload…</pre>
@@ -153,6 +189,26 @@ function setSaveStatusVisuals(container: HTMLElement, editorStatus: BridgeEditor
   container.style.border = '1px solid rgba(148, 163, 184, 0.28)';
 }
 
+function setButtonState(button: HTMLElement | null, enabled: boolean): void {
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+  button.disabled = !enabled;
+  button.style.opacity = enabled ? '1' : '0.48';
+  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+}
+
+function createDocumentKey(payload: ReadyBridgePayload | null): string | null {
+  return payload ? JSON.stringify(payload.document) : null;
+}
+
+function mapConsultantFailureState(result: BridgeConsultantResult): ConsultantUiState {
+  if (result.ok) {
+    return 'preview';
+  }
+  return result.status === 'unavailable' ? 'unavailable' : 'error';
+}
+
 export function mountApp(rootElement: HTMLElement) {
   rootElement.innerHTML = createShellMarkup();
 
@@ -162,17 +218,139 @@ export function mountApp(rootElement: HTMLElement) {
   if (!(editorHost instanceof HTMLElement)) {
     throw new Error('Missing #editor-host for editor canvas mount.');
   }
-  const canvas = mountCanvas(editorHost, editorEngine);
+
+  let payload: BridgePayload | null = null;
+  let lastSignal: BridgeSignal | null = null;
+  let fetchError: string | null = null;
+  let overflowDiagnostics: CanvasOverflowDiagnostics = {
+    status: 'idle',
+    frameId: null,
+    blockId: null,
+    measuredContentHeight: null,
+    measuredAvailableHeight: null,
+    overflowPx: null,
+    documentKey: null,
+  };
+  let consultantState: ConsultantUiState = 'idle';
+  let consultantCode = 'none';
+  let consultantNote = 'Select a design frame to inspect overflow.';
+  let consultantErrorMessage: string | null = null;
+  let preview: CanvasConsultantPreview | null = null;
+  let activeConsultantRequest: AbortController | null = null;
+
+  const canvas = mountCanvas(editorHost, editorEngine, {
+    onOverflowChange: (diagnostics) => {
+      overflowDiagnostics = diagnostics;
+      if (preview && diagnostics.documentKey && preview.sourceDocumentKey !== diagnostics.documentKey) {
+        preview = null;
+        canvas.setGhostPreview(null);
+        consultantState = 'idle';
+        consultantCode = 'preview_stale_cleared';
+        consultantNote = 'Ghost preview cleared because the canonical document changed.';
+      } else if (!preview && consultantState !== 'requesting' && consultantState !== 'applying' && consultantState !== 'error' && consultantState !== 'unavailable') {
+        consultantState = diagnostics.status === 'settling' ? 'detecting' : 'idle';
+      }
+      syncConsultantSurface();
+    },
+  });
 
   const bridgeStatus = rootElement.querySelector('#bridge-status');
   const saveStatus = rootElement.querySelector('#editor-save-status');
   const errorPanel = rootElement.querySelector('#bridge-error-panel');
   const errorIssues = rootElement.querySelector('#bridge-error-issues');
   const payloadPreview = rootElement.querySelector('#bridge-payload-preview');
+  const consultantPanel = rootElement.querySelector('#consultant-panel');
+  const consultantError = rootElement.querySelector('#consultant-error');
+  const requestButton = rootElement.querySelector('#consultant-request');
+  const acceptButton = rootElement.querySelector('#consultant-accept');
+  const rejectButton = rootElement.querySelector('#consultant-reject');
 
-  let payload: BridgePayload | null = null;
-  let lastSignal: BridgeSignal | null = null;
-  let fetchError: string | null = null;
+  const syncConsultantSurface = () => {
+    const currentPayload = payload?.status === 'ready' ? payload : null;
+    const selectedFrameId = editorEngine.getSnapshot().selectedFrameId;
+    const frameId = preview?.frameId ?? selectedFrameId ?? overflowDiagnostics.frameId;
+    const previewVisible = preview !== null;
+    const isDesignMode = currentPayload?.physics === 'design';
+    const canRequest = isDesignMode && overflowDiagnostics.status === 'overflow' && consultantState !== 'requesting' && consultantState !== 'applying';
+    const canAcceptOrReject = previewVisible && consultantState !== 'applying';
+
+    if (consultantPanel instanceof HTMLElement) {
+      consultantPanel.dataset.consultantState = consultantState;
+      consultantPanel.dataset.consultantCode = consultantCode;
+      consultantPanel.style.border = consultantState === 'error' || consultantState === 'unavailable'
+        ? '1px solid rgba(248, 113, 113, 0.35)'
+        : consultantState === 'preview'
+          ? '1px solid rgba(45, 212, 191, 0.35)'
+          : '1px solid rgba(96, 165, 250, 0.22)';
+    }
+
+    const statusNode = rootElement.querySelector('#consultant-status');
+    if (statusNode instanceof HTMLElement) {
+      statusNode.dataset.consultantState = consultantState;
+      statusNode.textContent = consultantState;
+    }
+
+    const note = previewVisible
+      ? 'Ghost preview is separate from canonical frame geometry until you accept it.'
+      : consultantState === 'requesting'
+        ? 'Requesting a structured resize proposal from the bridge consultant.'
+        : consultantState === 'applying'
+          ? 'Applying the preview through the canonical editor mutation route.'
+          : consultantErrorMessage
+            ? consultantErrorMessage
+            : consultantNote;
+    setText(rootElement, '#consultant-state-note', note);
+
+    const overflowLabel = overflowDiagnostics.status === 'overflow'
+      ? `overflow · +${overflowDiagnostics.overflowPx ?? 0}px`
+      : overflowDiagnostics.status;
+    const overflowNode = rootElement.querySelector('#consultant-overflow-status');
+    if (overflowNode instanceof HTMLElement) {
+      overflowNode.dataset.overflowStatus = overflowDiagnostics.status;
+      overflowNode.textContent = overflowLabel;
+    }
+
+    const frameNode = rootElement.querySelector('#consultant-frame-id');
+    if (frameNode instanceof HTMLElement) {
+      frameNode.dataset.frameId = frameId ?? '';
+      frameNode.textContent = frameId ?? 'None';
+    }
+
+    const measurementsNode = rootElement.querySelector('#consultant-measurements');
+    if (measurementsNode instanceof HTMLElement) {
+      measurementsNode.dataset.overflowPx = overflowDiagnostics.overflowPx === null ? '' : String(overflowDiagnostics.overflowPx);
+      measurementsNode.textContent = overflowDiagnostics.frameId
+        ? overflowDiagnostics.measuredAvailableHeight === null || overflowDiagnostics.measuredContentHeight === null
+          ? `Frame ${overflowDiagnostics.frameId} is settling before measurement.`
+          : `Frame ${overflowDiagnostics.frameId}: content ${overflowDiagnostics.measuredContentHeight}px · available ${overflowDiagnostics.measuredAvailableHeight}px · overflow ${overflowDiagnostics.overflowPx ?? 0}px`
+        : 'No overflow diagnostics recorded.';
+    }
+
+    const previewNode = rootElement.querySelector('#consultant-preview-state');
+    if (previewNode instanceof HTMLElement) {
+      previewNode.dataset.previewVisible = String(previewVisible);
+      previewNode.textContent = previewVisible
+        ? `Ghost preview active for ${preview?.frameId} at x:${preview?.box.x} y:${preview?.box.y} w:${preview?.box.width} h:${preview?.box.height}`
+        : 'No ghost preview active.';
+    }
+
+    setText(
+      rootElement,
+      '#consultant-rationale',
+      preview
+        ? `${preview.rationale} (${Math.round(preview.confidence * 100)}% confidence)`
+        : 'Awaiting a consultant proposal.',
+    );
+
+    if (consultantError instanceof HTMLElement) {
+      consultantError.hidden = !consultantErrorMessage;
+      consultantError.textContent = consultantErrorMessage ?? 'No consultant errors recorded.';
+    }
+
+    setButtonState(requestButton, canRequest);
+    setButtonState(acceptButton, canAcceptOrReject);
+    setButtonState(rejectButton, canAcceptOrReject);
+  };
 
   const syncBridgeSurface = () => {
     const bridgeStatusLabel = fetchError ? 'Fetch failed' : (payload ? payload.status : 'Loading');
@@ -194,6 +372,15 @@ export function mountApp(rootElement: HTMLElement) {
     }
 
     if (payload?.status === 'ready') {
+      const currentDocumentKey = createDocumentKey(payload);
+      if (preview && preview.sourceDocumentKey !== currentDocumentKey) {
+        preview = null;
+        canvas.setGhostPreview(null);
+        consultantState = 'idle';
+        consultantCode = 'preview_stale_cleared';
+        consultantNote = 'Ghost preview cleared because the canonical document changed.';
+      }
+
       canvas.setReadyPayload(payload);
 
       if (errorPanel instanceof HTMLElement) {
@@ -202,10 +389,16 @@ export function mountApp(rootElement: HTMLElement) {
       if (errorIssues instanceof HTMLElement) {
         errorIssues.innerHTML = '';
       }
+      syncConsultantSurface();
       return;
     }
 
     canvas.clear(fetchError ?? payload?.message ?? 'Waiting for a ready document payload…');
+    preview = null;
+    consultantState = 'idle';
+    consultantCode = 'none';
+    consultantNote = 'Select a design frame to inspect overflow.';
+    consultantErrorMessage = null;
 
     if (errorPanel instanceof HTMLElement) {
       errorPanel.hidden = false;
@@ -223,6 +416,8 @@ export function mountApp(rootElement: HTMLElement) {
         });
       }
     }
+
+    syncConsultantSurface();
   };
 
   const syncSaveSurface = (editorStatus: BridgeEditorStatusSnapshot) => {
@@ -248,14 +443,155 @@ export function mountApp(rootElement: HTMLElement) {
     syncBridgeSurface();
   };
 
+  const requestConsultantProposal = async () => {
+    const readyPayload = payload?.status === 'ready' ? payload : null;
+    if (!readyPayload || readyPayload.physics !== 'design' || overflowDiagnostics.status !== 'overflow' || !overflowDiagnostics.frameId) {
+      consultantState = 'idle';
+      consultantCode = 'request_skipped';
+      consultantNote = 'A consultant proposal is only available for overflowing design frames.';
+      syncConsultantSurface();
+      return;
+    }
+
+    activeConsultantRequest?.abort();
+    activeConsultantRequest = new AbortController();
+    consultantState = 'requesting';
+    consultantCode = 'requesting';
+    consultantErrorMessage = null;
+    syncConsultantSurface();
+
+    const result = await requestBridgeLayoutConsultant(
+      {
+        frameId: overflowDiagnostics.frameId,
+        issue: {
+          kind: 'overflow',
+          measuredContentHeight: overflowDiagnostics.measuredContentHeight ?? 1,
+          measuredAvailableHeight: overflowDiagnostics.measuredAvailableHeight ?? 1,
+        },
+      },
+      { signal: activeConsultantRequest.signal },
+    ).catch((error) => {
+      return {
+        ok: false,
+        status: 'unavailable',
+        code: 'provider_unavailable',
+        workspaceRoot: readyPayload.workspaceRoot,
+        documentPath: readyPayload.documentPath,
+        configPath: readyPayload.configPath,
+        canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+        message: error instanceof Error ? error.message : String(error),
+      } as BridgeConsultantResult;
+    });
+
+    if (activeConsultantRequest.signal.aborted) {
+      return;
+    }
+    activeConsultantRequest = null;
+
+    if (result.ok) {
+      preview = {
+        frameId: result.proposal.frameId,
+        box: result.proposal.box,
+        rationale: result.proposal.rationale,
+        confidence: result.proposal.confidence,
+        sourceDocumentKey: createDocumentKey(readyPayload) ?? '',
+      };
+      canvas.setGhostPreview(preview);
+      consultantState = 'preview';
+      consultantCode = result.code;
+      consultantNote = 'Ghost preview ready. Accept to persist or reject to discard without writing.';
+      consultantErrorMessage = null;
+      syncConsultantSurface();
+      return;
+    }
+
+    preview = null;
+    canvas.setGhostPreview(null);
+    consultantState = mapConsultantFailureState(result);
+    consultantCode = result.code;
+    consultantErrorMessage = `${result.code}: ${result.message}`;
+    consultantNote = 'Consultant request did not produce a preview.';
+    syncConsultantSurface();
+  };
+
+  const acceptPreview = async () => {
+    const readyPayload = payload?.status === 'ready' ? payload : null;
+    if (!readyPayload || !preview) {
+      return;
+    }
+
+    consultantState = 'applying';
+    consultantCode = 'applying';
+    consultantErrorMessage = null;
+    syncConsultantSurface();
+
+    const candidate = composeFrameResizeCandidate(readyPayload.document, preview.frameId, preview.box);
+    const result = await submitBridgeDocumentMutation(candidate, { statusStore: editorStatusStore });
+    if (result.ok) {
+      preview = null;
+      canvas.setGhostPreview(null);
+      consultantState = 'idle';
+      consultantCode = 'accepted';
+      consultantNote = 'Proposal accepted and persisted through the canonical editor route.';
+      consultantErrorMessage = null;
+      syncConsultantSurface();
+      void refreshBridge();
+      return;
+    }
+
+    consultantState = 'error';
+    consultantCode = result.code;
+    consultantErrorMessage = `${result.code}: ${result.message}`;
+    consultantNote = 'Save failed while applying the ghost preview.';
+    syncConsultantSurface();
+  };
+
+  const rejectPreview = () => {
+    preview = null;
+    canvas.setGhostPreview(null);
+    consultantState = 'idle';
+    consultantCode = 'rejected';
+    consultantErrorMessage = null;
+    consultantNote = 'Ghost preview rejected. Canonical document unchanged.';
+    syncConsultantSurface();
+  };
+
+  if (requestButton instanceof HTMLButtonElement) {
+    requestButton.addEventListener('click', () => {
+      void requestConsultantProposal();
+    });
+  }
+  if (acceptButton instanceof HTMLButtonElement) {
+    acceptButton.addEventListener('click', () => {
+      void acceptPreview();
+    });
+  }
+  if (rejectButton instanceof HTMLButtonElement) {
+    rejectButton.addEventListener('click', rejectPreview);
+  }
+
   syncBridgeSurface();
   syncSaveSurface(editorStatusStore.getSnapshot());
+  syncConsultantSurface();
 
   const abortController = new AbortController();
   void refreshBridge(abortController.signal);
 
   const unsubscribeStatus = editorStatusStore.subscribe((editorStatus) => {
     syncSaveSurface(editorStatus);
+  });
+
+  const unsubscribeEngine = editorEngine.subscribe((snapshot) => {
+    if (!preview && consultantState !== 'requesting' && consultantState !== 'applying') {
+      consultantState = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'detecting' : 'idle';
+      consultantCode = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'measuring' : consultantCode === 'preview_stale_cleared' ? consultantCode : 'none';
+      if (snapshot.interactionMode !== 'design') {
+        consultantNote = 'Overflow detection runs only in design mode.';
+      } else if (!snapshot.selectedFrameId) {
+        consultantNote = 'Select a design frame to inspect overflow.';
+      }
+    }
+    syncConsultantSurface();
   });
 
   const unsubscribeSignals = subscribeToBridgeSignals((signal) => {
@@ -266,7 +602,9 @@ export function mountApp(rootElement: HTMLElement) {
 
   return () => {
     abortController.abort();
+    activeConsultantRequest?.abort();
     unsubscribeStatus();
+    unsubscribeEngine();
     unsubscribeSignals();
     canvas.destroy();
     editorEngine.destroy();

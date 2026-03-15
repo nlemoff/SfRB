@@ -1,5 +1,6 @@
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
+export const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
 export const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 export const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 
@@ -116,6 +117,65 @@ export type BridgeMutationError = {
 
 export type BridgeMutationResult = BridgeMutationSuccess | BridgeMutationError;
 
+export type LayoutConsultantRequest = {
+  frameId: string;
+  issue: {
+    kind: 'overflow';
+    measuredContentHeight: number;
+    measuredAvailableHeight: number;
+  };
+};
+
+export type LayoutConsultantProposal = {
+  kind: 'frame_resize';
+  frameId: string;
+  box: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  rationale: string;
+  confidence: number;
+};
+
+export type BridgeConsultantSuccess = {
+  ok: true;
+  status: 'proposal';
+  code: 'proposal_ready';
+  workspaceRoot: string;
+  documentPath: string;
+  configPath: string;
+  canonicalBootstrapPath: typeof BRIDGE_BOOTSTRAP_PATH;
+  provider: string;
+  apiKeyEnvVar: string;
+  proposal: LayoutConsultantProposal;
+};
+
+export type BridgeConsultantError = {
+  ok: false;
+  status: 'error' | 'unavailable';
+  code:
+    | 'request_invalid'
+    | 'configuration_missing'
+    | 'provider_unsupported'
+    | 'provider_unavailable'
+    | 'malformed_provider_output'
+    | 'proposal_rejected'
+    | 'frame_not_found';
+  workspaceRoot: string;
+  message: string;
+  name: string;
+  documentPath: string;
+  configPath: string;
+  canonicalBootstrapPath: typeof BRIDGE_BOOTSTRAP_PATH;
+  provider?: string;
+  apiKeyEnvVar?: string;
+  issues?: BridgeValidationIssue[];
+};
+
+export type BridgeConsultantResult = BridgeConsultantSuccess | BridgeConsultantError;
+
 export type BridgeEditorStatusSnapshot = {
   saveState: BridgeSaveState;
   lastResult: BridgeMutationResult | null;
@@ -163,6 +223,25 @@ export async function submitBridgeDocumentMutation(
   const result = (await response.json()) as BridgeMutationResult;
   options.statusStore?.settle(result);
   return result;
+}
+
+export async function requestBridgeLayoutConsultant(
+  request: LayoutConsultantRequest,
+  options: {
+    signal?: AbortSignal;
+  } = {},
+): Promise<BridgeConsultantResult> {
+  const response = await fetch(BRIDGE_LAYOUT_CONSULTANT_PATH, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(request),
+    signal: options.signal,
+  });
+
+  return (await response.json()) as BridgeConsultantResult;
 }
 
 export function createBridgeEditorStatusStore(

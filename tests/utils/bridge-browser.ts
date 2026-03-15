@@ -1,5 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -12,11 +13,45 @@ export const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 export const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
+export const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
 
 export type WorkspaceOptions = {
   physics?: 'document' | 'design';
   title?: string;
   blockText?: string;
+  provider?: string;
+  apiKeyEnvVar?: string;
+};
+
+export type BridgeBrowserPage = {
+  goto(url: string, options?: { waitUntil?: 'networkidle' | 'load' | 'domcontentloaded' }): Promise<unknown>;
+  click(selector: string): Promise<unknown>;
+  fill(selector: string, value: string): Promise<unknown>;
+  waitForSelector(selector: string): Promise<unknown>;
+  waitForFunction<R = unknown, Arg = unknown>(pageFunction: (arg: Arg) => R | Promise<R>, arg?: Arg): Promise<unknown>;
+  textContent(selector: string): Promise<string | null>;
+  getAttribute(selector: string, name: string): Promise<string | null>;
+  locator(selector: string): {
+    count(): Promise<number>;
+    textContent(): Promise<string | null>;
+    getAttribute(name: string): Promise<string | null>;
+    evaluate<R>(pageFunction: (element: HTMLElement) => R | Promise<R>): Promise<R>;
+  };
+};
+
+export type ConsultantDiagnostics = {
+  consultantState: string | null;
+  consultantCode: string | null;
+  overflowStatus: string | null;
+  overflowPx: number | null;
+  previewVisible: boolean;
+  frameId: string | null;
+  rationale: string | null;
+  errorText: string | null;
+  note: string | null;
+  payloadPreview: string | null;
+  ghostCount: number;
+  ghostFrameHeight: string | null;
 };
 
 export async function ensureBuilt(): Promise<void> {
@@ -45,6 +80,8 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
   const physics = options.physics ?? 'document';
   const title = options.title ?? 'Bridge Browser Resume';
   const blockText = options.blockText ?? 'Initial bridge browser text.';
+  const provider = options.provider ?? 'openai';
+  const apiKeyEnvVar = options.apiKeyEnvVar ?? 'OPENAI_API_KEY';
   const frames = physics === 'design'
     ? [
         {
@@ -63,8 +100,8 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
       {
         version: 1,
         ai: {
-          provider: 'openai',
-          apiKeyEnvVar: 'OPENAI_API_KEY',
+          provider,
+          apiKeyEnvVar,
         },
         workspace: {
           physics,
@@ -72,7 +109,8 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
       },
       null,
       2,
-    )}\n`,
+    )}
+`,
     'utf8',
   );
 
@@ -114,7 +152,8 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
       },
       null,
       2,
-    )}\n`,
+    )}
+`,
     'utf8',
   );
 }
@@ -123,10 +162,17 @@ export async function readWorkspaceDocument(projectRoot: string): Promise<Record
   return JSON.parse(await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8')) as Record<string, unknown>;
 }
 
-export async function waitForBridgeReady(projectRoot: string): Promise<{ child: ChildProcess; url: string; stdout: string[]; stderr: string[] }> {
+export async function readWorkspaceDocumentRaw(projectRoot: string): Promise<string> {
+  return readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8');
+}
+
+export async function waitForBridgeReady(
+  projectRoot: string,
+  options: { env?: NodeJS.ProcessEnv } = {},
+): Promise<{ child: ChildProcess; url: string; stdout: string[]; stderr: string[] }> {
   const child = spawn(process.execPath, ['dist/cli.js', 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
     cwd: process.cwd(),
-    env: process.env,
+    env: { ...process.env, ...options.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -253,6 +299,146 @@ export async function postEditorMutation(
   return {
     status: response.status,
     payload: (await response.json()) as Record<string, unknown>,
+  };
+}
+
+export async function postConsultantRequest(
+  baseUrl: string,
+  request: Record<string, unknown>,
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  const response = await fetch(new URL(BRIDGE_LAYOUT_CONSULTANT_PATH, baseUrl), {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  return {
+    status: response.status,
+    payload: (await response.json()) as Record<string, unknown>,
+  };
+}
+
+export async function waitForEditorIdle(page: BridgeBrowserPage): Promise<void> {
+  await page.waitForFunction(() => {
+    return document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle';
+  });
+}
+
+export async function openDesignWorkspace(page: BridgeBrowserPage, url: string): Promise<void> {
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#editor-canvas[data-physics-mode="design"]');
+}
+
+export async function selectConsultantFrame(page: BridgeBrowserPage, frameId = 'summaryFrame'): Promise<void> {
+  await page.click(`[data-testid="editor-frame-${frameId}"]`);
+}
+
+export async function waitForOverflowStatus(page: BridgeBrowserPage, expected: 'overflow' | 'clear' | 'settling' | 'idle'): Promise<void> {
+  await page.waitForFunction((expectedStatus: string) => {
+    return document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === expectedStatus;
+  }, expected);
+}
+
+export async function waitForConsultantState(page: BridgeBrowserPage, expected: string): Promise<void> {
+  await page.waitForFunction((expectedState: string) => {
+    return document.querySelector('#consultant-status')?.getAttribute('data-consultant-state') === expectedState;
+  }, expected);
+}
+
+export async function waitForPreviewVisibility(page: BridgeBrowserPage, visible: boolean): Promise<void> {
+  await page.waitForFunction((expectedVisibility: string) => {
+    return document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === expectedVisibility;
+  }, String(visible));
+}
+
+export async function waitForBridgeUpdateSignal(page: BridgeBrowserPage): Promise<void> {
+  await page.waitForFunction(() => {
+    const signal = document.querySelector('#bridge-last-signal')?.textContent ?? '';
+    return signal.includes('sfrb:bridge-update') && signal.includes('resume.sfrb.json');
+  });
+}
+
+export async function requestConsultantPreview(page: BridgeBrowserPage): Promise<void> {
+  await page.click('#consultant-request');
+}
+
+export async function rejectConsultantPreview(page: BridgeBrowserPage): Promise<void> {
+  await page.click('#consultant-reject');
+}
+
+export async function acceptConsultantPreview(page: BridgeBrowserPage): Promise<void> {
+  await page.click('#consultant-accept');
+}
+
+export async function readConsultantDiagnostics(page: BridgeBrowserPage, frameId = 'summaryFrame'): Promise<ConsultantDiagnostics> {
+  const overflowPx = await page.getAttribute('#consultant-measurements', 'data-overflow-px');
+  const errorNode = page.locator('#consultant-error');
+  const ghost = page.locator(`[data-testid="consultant-ghost-preview-${frameId}"]`);
+  const ghostCount = await ghost.count();
+
+  return {
+    consultantState: await page.getAttribute('#consultant-status', 'data-consultant-state'),
+    consultantCode: await page.getAttribute('#consultant-panel', 'data-consultant-code'),
+    overflowStatus: await page.getAttribute('#consultant-overflow-status', 'data-overflow-status'),
+    overflowPx: overflowPx === null || overflowPx === '' ? null : Number(overflowPx),
+    previewVisible: (await page.getAttribute('#consultant-preview-state', 'data-preview-visible')) === 'true',
+    frameId: await page.getAttribute('#consultant-frame-id', 'data-frame-id'),
+    rationale: await page.textContent('#consultant-rationale'),
+    errorText: await errorNode.evaluate((element) => {
+      if (element.hidden) {
+        return null;
+      }
+      return element.textContent;
+    }),
+    note: await page.textContent('#consultant-state-note'),
+    payloadPreview: await page.locator('#bridge-payload-preview').textContent(),
+    ghostCount,
+    ghostFrameHeight: ghostCount > 0 ? await ghost.getAttribute('data-frame-height') : null,
+  };
+}
+
+export async function createOpenAiStubServer(
+  handler: (request: http.IncomingMessage, response: http.ServerResponse<http.IncomingMessage>) => void,
+): Promise<{ baseUrl: string; close: () => Promise<void> }> {
+  const server = http.createServer((request, response) => {
+    if (request.method !== 'POST' || request.url !== '/chat/completions') {
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'not_found' }));
+      return;
+    }
+
+    handler(request, response);
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Failed to resolve stub provider address.');
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    },
   };
 }
 

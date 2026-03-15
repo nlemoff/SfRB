@@ -22,9 +22,14 @@ const {
 } = require('../document/validation.js');
 const { ConfigParseError, ConfigValidationError } = require('../config/store.js');
 const { DocumentParseError, DocumentValidationError } = require('../document/store.js');
+const {
+  parseLayoutConsultantRequest,
+  requestLayoutConsultantProposal,
+} = require('../agent/LayoutConsultant.js');
 
 const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
+const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
 const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 const runtimeDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -176,6 +181,41 @@ function toRequestFailure(workspaceRoot, message, cause) {
   };
 }
 
+function getConsultantFailureStatusCode(result) {
+  switch (result.code) {
+    case 'request_invalid':
+      return 400;
+    case 'configuration_missing':
+    case 'provider_unsupported':
+    case 'frame_not_found':
+      return 422;
+    case 'provider_unavailable':
+      return 503;
+    case 'malformed_provider_output':
+    case 'proposal_rejected':
+      return 502;
+    default:
+      return 500;
+  }
+}
+
+function toConsultantFailure(params) {
+  return {
+    ok: false,
+    status: params.status ?? 'error',
+    code: params.code,
+    workspaceRoot: params.workspaceRoot,
+    message: params.message,
+    name: params.name ?? 'BridgeConsultantError',
+    documentPath: getDocumentPath(params.workspaceRoot),
+    configPath: getConfigPath(params.workspaceRoot),
+    canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+    provider: params.provider,
+    apiKeyEnvVar: params.apiKeyEnvVar,
+    issues: params.issues,
+  };
+}
+
 async function readBridgePayload(workspaceRoot) {
   const document = await readWorkspaceDocument(workspaceRoot);
   const config = await readConfig(workspaceRoot);
@@ -190,7 +230,50 @@ async function readBridgePayload(workspaceRoot) {
   };
 }
 
-async function readJsonBody(request) {
+async function resolveConsultantConfig(workspaceRoot) {
+  const config = await readConfig(workspaceRoot);
+  const provider = config.ai?.provider;
+  const apiKeyEnvVar = config.ai?.apiKeyEnvVar;
+
+  if (typeof provider !== 'string' || provider.trim().length === 0) {
+    return toConsultantFailure({
+      workspaceRoot,
+      status: 'error',
+      code: 'configuration_missing',
+      message: 'Workspace AI provider is not configured for consultant requests.',
+      provider: typeof provider === 'string' ? provider : undefined,
+      issues: [{ path: 'ai.provider', message: 'AI provider is required for consultant requests.' }],
+    });
+  }
+
+  if (typeof apiKeyEnvVar !== 'string' || apiKeyEnvVar.trim().length === 0) {
+    return toConsultantFailure({
+      workspaceRoot,
+      status: 'error',
+      code: 'configuration_missing',
+      message: 'Workspace AI API key env var is not configured for consultant requests.',
+      provider,
+      issues: [{ path: 'ai.apiKeyEnvVar', message: 'AI API key env var is required for consultant requests.' }],
+    });
+  }
+
+  const apiKey = process.env[apiKeyEnvVar];
+  if (typeof apiKey !== 'string' || apiKey.length === 0) {
+    return toConsultantFailure({
+      workspaceRoot,
+      status: 'error',
+      code: 'configuration_missing',
+      message: `Consultant secret ${apiKeyEnvVar} is not available in the bridge process environment.`,
+      provider,
+      apiKeyEnvVar,
+      issues: [{ path: 'ai.apiKeyEnvVar', message: `Set ${apiKeyEnvVar} before requesting a consultant proposal.` }],
+    });
+  }
+
+  return { provider, apiKeyEnvVar, apiKey };
+}
+
+async function readJsonBody(request, bodyLabel = 'Bridge request body') {
   const chunks = [];
 
   for await (const chunk of request) {
@@ -199,14 +282,14 @@ async function readJsonBody(request) {
 
   const rawBody = Buffer.concat(chunks).toString('utf8');
   if (rawBody.trim().length === 0) {
-    throw new Error('Bridge mutation body must be a JSON object with a document field.');
+    throw new Error(`${bodyLabel} must be a JSON object.`);
   }
 
   try {
     return JSON.parse(rawBody);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Bridge mutation body is not valid JSON: ${detail}`);
+    throw new Error(`${bodyLabel} is not valid JSON: ${detail}`);
   }
 }
 
@@ -290,7 +373,7 @@ async function main() {
     }
 
     try {
-      const parsedBody = await readJsonBody(request);
+      const parsedBody = await readJsonBody(request, 'Bridge mutation body');
       if (!parsedBody || typeof parsedBody !== 'object' || !('document' in parsedBody)) {
         respondJson(
           response,
@@ -320,6 +403,114 @@ async function main() {
       }
 
       respondJson(response, getMutationFailureStatusCode(error), toMutationFailure(error, options.cwd));
+    }
+  });
+
+  vite.middlewares.use(BRIDGE_LAYOUT_CONSULTANT_PATH, async (request, response, next) => {
+    if (request.method !== 'POST') {
+      if (request.method === 'OPTIONS') {
+        response.statusCode = 204;
+        response.end();
+        return;
+      }
+      next();
+      return;
+    }
+
+    try {
+      const parsedBody = await readJsonBody(request, 'Bridge consultant body');
+      const consultantRequest = parseLayoutConsultantRequest(parsedBody);
+      const consultantConfig = await resolveConsultantConfig(options.cwd);
+      if ('ok' in consultantConfig && consultantConfig.ok === false) {
+        respondJson(response, getConsultantFailureStatusCode(consultantConfig), consultantConfig);
+        return;
+      }
+
+      const document = await readWorkspaceDocument(options.cwd);
+      const result = await requestLayoutConsultantProposal({
+        provider: consultantConfig.provider,
+        apiKey: consultantConfig.apiKey,
+        document,
+        request: consultantRequest,
+      });
+
+      if (!result.ok) {
+        const failure = toConsultantFailure({
+          workspaceRoot: options.cwd,
+          status: result.status,
+          code: result.code,
+          message: result.message,
+          provider: result.provider,
+          apiKeyEnvVar: consultantConfig.apiKeyEnvVar,
+          issues: result.issues,
+        });
+        respondJson(response, getConsultantFailureStatusCode(failure), failure);
+        return;
+      }
+
+      respondJson(response, 200, {
+        ok: true,
+        status: result.status,
+        code: result.code,
+        workspaceRoot: options.cwd,
+        documentPath: getDocumentPath(options.cwd),
+        configPath: getConfigPath(options.cwd),
+        canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+        provider: result.provider,
+        apiKeyEnvVar: consultantConfig.apiKeyEnvVar,
+        proposal: result.proposal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'Error' && error.message.startsWith('Bridge consultant body')) {
+        const failure = toConsultantFailure({
+          workspaceRoot: options.cwd,
+          status: 'error',
+          code: 'request_invalid',
+          message: error.message,
+          issues: [{ path: '(body)', message: error.message }],
+        });
+        respondJson(response, 400, failure);
+        return;
+      }
+
+      if (error && typeof error === 'object' && error.name === 'ZodError' && Array.isArray(error.issues)) {
+        const failure = toConsultantFailure({
+          workspaceRoot: options.cwd,
+          status: 'error',
+          code: 'request_invalid',
+          message: 'Bridge consultant body failed validation.',
+          issues: error.issues
+            .filter((issue) => issue && typeof issue.path !== 'undefined' && typeof issue.message === 'string')
+            .map((issue) => ({
+              path: Array.isArray(issue.path) && issue.path.length > 0 ? issue.path.join('.') : '(body)',
+              message: issue.message,
+            })),
+        });
+        respondJson(response, 400, failure);
+        return;
+      }
+
+      if (isWorkspaceValidationError(error)) {
+        const failure = toConsultantFailure({
+          workspaceRoot: options.cwd,
+          status: 'error',
+          code: 'configuration_missing',
+          message: error.message,
+          name: error.name,
+          issues: getErrorIssues(error),
+        });
+        respondJson(response, 422, failure);
+        return;
+      }
+
+      const failure = toConsultantFailure({
+        workspaceRoot: options.cwd,
+        status: 'error',
+        code: 'provider_unavailable',
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Error',
+      });
+      respondJson(response, 500, failure);
     }
   });
 

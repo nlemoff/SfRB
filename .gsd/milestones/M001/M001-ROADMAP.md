@@ -4,11 +4,11 @@
 
 ## Success Criteria
 
-- [ ] `sfrb init` successfully captures AI keys and workspace physics preference.
-- [ ] `sfrb open` launches a local server and opens a browser showing the current document.
-- [ ] Direct text editing on the canvas updates the underlying local JSON model.
-- [ ] The editor respects "Design Mode" (fixed boxes) and "Doc Mode" (reflow) constraints.
-- [ ] AI correctly detects a layout overflow and displays a suggested resolution as a visual overlay.
+- [x] `sfrb init` successfully captures AI keys and workspace physics preference.
+- [x] `sfrb open` launches a local server and opens a browser showing the current document.
+- [x] Direct text editing on the canvas updates the underlying local JSON model.
+- [x] The editor respects "Design Mode" (fixed boxes) and "Doc Mode" (reflow) constraints.
+- [x] AI correctly detects a layout overflow and displays a suggested resolution as a visual overlay.
 
 ## Key Risks / Unknowns
 
@@ -17,8 +17,8 @@
 
 ## Proof Strategy
 
-- **Canvas/DOM Hybrid Performance** → retire in S04 by proving 60fps interaction during text reflow in both Doc and Design modes.
-- **Structured AI Layout Mutations** → retire in S05 by proving the AI agent can successfully resize a box to resolve an overflow without human intervention.
+- **Canvas/DOM Hybrid Performance** → retired in S04 by proving 60fps interaction during text reflow in both Doc and Design modes.
+- **Structured AI Layout Mutations** → retired in S05 by proving the AI agent can successfully resize a box to resolve an overflow without human intervention.
 
 ## Verification Classes
 
@@ -37,8 +37,7 @@ This milestone is complete only when all are true:
 
 ## Requirement Coverage
 
-- Covers: R002, R003, R004, R005
-- Partially covers: R001, R006
+- Covers: R001, R002, R003, R004, R005, R006
 - Leaves for later: R008, R009, R007, R010
 
 ## Slices
@@ -55,7 +54,7 @@ This milestone is complete only when all are true:
 - [x] **S04: Canvas Editor Foundation** `risk:high` `depends:[S03]`
   > After this: A basic browser editor where you can click-to-edit text and move boxes with "Physics" (flow vs fixed) enforced.
 
-- [ ] **S05: AI Layout Consultant** `risk:high` `depends:[S04]`
+- [x] **S05: AI Layout Consultant** `risk:high` `depends:[S04]`
   > After this: AI detects a layout overflow and presents a "Ghost Preview" of a suggested fix that the user can accept or reject.
 
 ## Boundary Map

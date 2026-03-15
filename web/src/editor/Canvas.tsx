@@ -1,5 +1,6 @@
 import type { ReadyBridgePayload } from '../bridge-client';
-import type { DocumentEditorEngine, DocumentEditorSnapshot } from './engine';
+import { createGhostPreviewLayer, type GhostPreviewModel } from '../ui/GhostPreview';
+import type { DocumentEditorEngine, DocumentEditorSnapshot, FrameBox } from './engine';
 
 const canvasShellStyles = [
   'display: grid',
@@ -50,7 +51,7 @@ const designPageStyles = [
 const designFrameBaseStyles = [
   'position: absolute',
   'display: grid',
-  'grid-template-rows: auto 1fr',
+  'grid-template-rows: auto auto minmax(0, 1fr)',
   'gap: 10px',
   'padding: 14px 16px 16px',
   'border-radius: 18px',
@@ -65,14 +66,33 @@ const designFrameBaseStyles = [
 const selectedDesignFrameStyles = `${designFrameBaseStyles}; border-color: rgba(37, 99, 235, 0.72); box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.26), 0 16px 36px rgba(15, 23, 42, 0.18);`;
 const editingDesignFrameStyles = `${selectedDesignFrameStyles}; background: rgba(239, 246, 255, 0.95);`;
 
-type FrameBox = ReadyBridgePayload['document']['layout']['frames'][number]['box'];
-
 type DragState = {
   pointerId: number;
   frameId: string;
   originBox: FrameBox;
   startX: number;
   startY: number;
+};
+
+export type CanvasOverflowDiagnostics = {
+  status: 'idle' | 'settling' | 'clear' | 'overflow';
+  frameId: string | null;
+  blockId: string | null;
+  measuredContentHeight: number | null;
+  measuredAvailableHeight: number | null;
+  overflowPx: number | null;
+  documentKey: string | null;
+};
+
+export type CanvasConsultantPreview = GhostPreviewModel & {
+  sourceDocumentKey: string;
+};
+
+export type CanvasController = {
+  setReadyPayload: (payload: ReadyBridgePayload) => void;
+  setGhostPreview: (preview: CanvasConsultantPreview | null) => void;
+  clear: (message?: string) => void;
+  destroy: () => void;
 };
 
 function lineClampText(value: string): string {
@@ -118,13 +138,29 @@ function formatFrameBox(box: FrameBox | null): string {
   return `x:${box.x} y:${box.y} w:${box.width} h:${box.height}`;
 }
 
-export type CanvasController = {
-  setReadyPayload: (payload: ReadyBridgePayload) => void;
-  clear: (message?: string) => void;
-  destroy: () => void;
-};
+function createEmptyOverflowDiagnostics(): CanvasOverflowDiagnostics {
+  return {
+    status: 'idle',
+    frameId: null,
+    blockId: null,
+    measuredContentHeight: null,
+    measuredAvailableHeight: null,
+    overflowPx: null,
+    documentKey: null,
+  };
+}
 
-export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngine): CanvasController {
+function createDocumentKey(payload: ReadyBridgePayload | null): string | null {
+  return payload ? JSON.stringify(payload.document) : null;
+}
+
+export function mountCanvas(
+  rootElement: HTMLElement,
+  engine: DocumentEditorEngine,
+  options: {
+    onOverflowChange?: (diagnostics: CanvasOverflowDiagnostics) => void;
+  } = {},
+): CanvasController {
   rootElement.innerHTML = '';
 
   const shell = document.createElement('section');
@@ -183,10 +219,43 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
 
   const blockElements = new Map<string, HTMLElement>();
   const frameElements = new Map<string, HTMLElement>();
+  const pageCanvasElements = new Map<string, HTMLElement>();
+  const ghostLayers = new Map<string, ReturnType<typeof createGhostPreviewLayer>>();
   let activeTextarea: HTMLTextAreaElement | null = null;
   let activeBlockBody: HTMLElement | null = null;
   let structureKey = '';
   let dragState: DragState | null = null;
+  let payload: ReadyBridgePayload | null = null;
+  let ghostPreview: CanvasConsultantPreview | null = null;
+  let overflowTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastOverflowSignature = '';
+
+  const emitOverflow = (diagnostics: CanvasOverflowDiagnostics) => {
+    const signature = JSON.stringify(diagnostics);
+    if (signature === lastOverflowSignature) {
+      return;
+    }
+    lastOverflowSignature = signature;
+    options.onOverflowChange?.(diagnostics);
+  };
+
+  const renderGhostPreview = () => {
+    for (const layer of ghostLayers.values()) {
+      layer.render(null);
+    }
+
+    if (!payload || payload.physics !== 'design' || !ghostPreview || ghostPreview.sourceDocumentKey !== createDocumentKey(payload)) {
+      return;
+    }
+
+    const frame = payload.document.layout.frames.find((entry) => entry.id === ghostPreview.frameId);
+    if (!frame) {
+      return;
+    }
+
+    const layer = ghostLayers.get(frame.pageId);
+    layer?.render(ghostPreview);
+  };
 
   const focusTextarea = () => {
     if (!activeTextarea) {
@@ -267,6 +336,8 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
         frameElement.style.zIndex = frameElement.dataset.frameZIndex;
       }
     }
+
+    renderGhostPreview();
   };
 
   const renderBlockText = (blockId: string) => {
@@ -318,6 +389,7 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
     textarea.style.cssText = [
       'width: 100%',
       'min-height: 110px',
+      'height: 100%',
       'resize: vertical',
       'border: none',
       'outline: none',
@@ -327,6 +399,7 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
       'color: #0f172a',
       'padding: 0',
       'margin: 0',
+      'box-sizing: border-box',
     ].join('; ');
 
     textarea.addEventListener('pointerdown', (event) => {
@@ -413,10 +486,10 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
     });
   };
 
-  const renderDocumentMode = (payload: ReadyBridgePayload) => {
+  const renderDocumentMode = (nextPayload: ReadyBridgePayload) => {
     const nextStructureKey = JSON.stringify({
-      physics: payload.physics,
-      sections: payload.document.semantic.sections.map((section) => ({
+      physics: nextPayload.physics,
+      sections: nextPayload.document.semantic.sections.map((section) => ({
         id: section.id,
         title: section.title,
         blockIds: section.blockIds,
@@ -430,9 +503,11 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
       surfaceRoot.innerHTML = '';
       blockElements.clear();
       frameElements.clear();
+      pageCanvasElements.clear();
+      ghostLayers.clear();
 
-      const blocksById = new Map(payload.document.semantic.blocks.map((block) => [block.id, block]));
-      payload.document.semantic.sections.forEach((section) => {
+      const blocksById = new Map(nextPayload.document.semantic.blocks.map((block) => [block.id, block]));
+      nextPayload.document.semantic.sections.forEach((section) => {
         const sectionElement = document.createElement('section');
         sectionElement.dataset.sectionId = section.id;
         sectionElement.style.cssText = 'display: grid; gap: 12px;';
@@ -477,15 +552,15 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
     }
   };
 
-  const renderDesignMode = (payload: ReadyBridgePayload) => {
+  const renderDesignMode = (nextPayload: ReadyBridgePayload) => {
     const nextStructureKey = JSON.stringify({
-      physics: payload.physics,
-      pages: payload.document.layout.pages.map((page) => ({
+      physics: nextPayload.physics,
+      pages: nextPayload.document.layout.pages.map((page) => ({
         id: page.id,
         size: page.size,
         margin: page.margin,
       })),
-      frames: payload.document.layout.frames
+      frames: nextPayload.document.layout.frames
         .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex }))
         .sort((left, right) => left.zIndex - right.zIndex),
     });
@@ -497,16 +572,18 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
       surfaceRoot.innerHTML = '';
       blockElements.clear();
       frameElements.clear();
+      pageCanvasElements.clear();
+      ghostLayers.clear();
 
-      const blocksById = new Map(payload.document.semantic.blocks.map((block) => [block.id, block]));
-      const framesByPage = new Map<string, typeof payload.document.layout.frames>();
-      payload.document.layout.frames.forEach((frame) => {
+      const blocksById = new Map(nextPayload.document.semantic.blocks.map((block) => [block.id, block]));
+      const framesByPage = new Map<string, typeof nextPayload.document.layout.frames>();
+      nextPayload.document.layout.frames.forEach((frame) => {
         const pageFrames = framesByPage.get(frame.pageId) ?? [];
         pageFrames.push(frame);
         framesByPage.set(frame.pageId, pageFrames);
       });
 
-      payload.document.layout.pages.forEach((page) => {
+      nextPayload.document.layout.pages.forEach((page) => {
         const pageShell = document.createElement('section');
         pageShell.dataset.pageId = page.id;
         pageShell.dataset.testid = `editor-page-${page.id}`;
@@ -586,6 +663,13 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
             engine.selectFrame(frame.id);
             handle.setPointerCapture(event.pointerId);
             handle.style.cursor = 'grabbing';
+            emitOverflow({
+              ...createEmptyOverflowDiagnostics(),
+              status: 'settling',
+              frameId: frame.id,
+              blockId: frame.blockId,
+              documentKey: createDocumentKey(payload),
+            });
           });
 
           const meta = document.createElement('div');
@@ -596,7 +680,15 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
           blockBody.dataset.role = 'block-body';
           blockBody.id = `editor-block-text-${frame.blockId}`;
           blockBody.dataset.testid = `editor-block-text-${frame.blockId}`;
-          blockBody.style.cssText = 'white-space: pre-wrap; line-height: 1.55; color: #0f172a; align-self: start;';
+          blockBody.style.cssText = [
+            'white-space: pre-wrap',
+            'line-height: 1.55',
+            'color: #0f172a',
+            'align-self: stretch',
+            'overflow: hidden',
+            'min-height: 0',
+            'height: 100%',
+          ].join('; ');
           blockBody.textContent = lineClampText(engine.getDisplayText(frame.blockId) ?? block?.text ?? '');
 
           bindEditableInteractions(article, frame.blockId, frame.id);
@@ -616,26 +708,119 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
           frameElements.set(frame.id, article);
         });
 
+        const ghostLayer = createGhostPreviewLayer();
+        ghostLayers.set(page.id, ghostLayer);
+        canvas.append(ghostLayer.element);
+        pageCanvasElements.set(page.id, canvas);
+
         pageShell.append(pageHeading, canvas);
         surfaceRoot.append(pageShell);
       });
     }
+
+    renderGhostPreview();
   };
 
-  const renderPayload = (payload: ReadyBridgePayload) => {
-    const firstPage = payload.document.layout.pages[0];
-    title.textContent = payload.document.metadata.title;
-    pageMeta.textContent = `${payload.document.layout.pages.length} page${payload.document.layout.pages.length === 1 ? '' : 's'} · ${payload.document.semantic.sections.length} section${payload.document.semantic.sections.length === 1 ? '' : 's'} · ${payload.document.semantic.blocks.length} blocks · ${firstPage.size.width}×${firstPage.size.height}`;
+  const renderPayload = (nextPayload: ReadyBridgePayload) => {
+    payload = nextPayload;
+    const firstPage = nextPayload.document.layout.pages[0];
+    title.textContent = nextPayload.document.metadata.title;
+    pageMeta.textContent = `${nextPayload.document.layout.pages.length} page${nextPayload.document.layout.pages.length === 1 ? '' : 's'} · ${nextPayload.document.semantic.sections.length} section${nextPayload.document.semantic.sections.length === 1 ? '' : 's'} · ${nextPayload.document.semantic.blocks.length} blocks · ${firstPage.size.width}×${firstPage.size.height}`;
 
-    if (payload.physics === 'design') {
-      renderDesignMode(payload);
+    if (nextPayload.physics === 'design') {
+      renderDesignMode(nextPayload);
     } else {
-      renderDocumentMode(payload);
+      renderDocumentMode(nextPayload);
     }
 
     updateSnapshotSurfaces(engine.getSnapshot());
     renderSelectionState(engine.getSnapshot());
     syncEditingDom(engine.getSnapshot());
+  };
+
+  const scheduleOverflowMeasurement = (reason: 'render' | 'snapshot' | 'resize') => {
+    if (overflowTimer) {
+      clearTimeout(overflowTimer);
+      overflowTimer = null;
+    }
+
+    const snapshot = engine.getSnapshot();
+    if (!payload || payload.physics !== 'design') {
+      emitOverflow(createEmptyOverflowDiagnostics());
+      return;
+    }
+
+    const selectedFrameId = snapshot.selectedFrameId;
+    if (!selectedFrameId) {
+      emitOverflow({
+        ...createEmptyOverflowDiagnostics(),
+        documentKey: createDocumentKey(payload),
+      });
+      return;
+    }
+
+    const selectedFrame = payload.document.layout.frames.find((frame) => frame.id === selectedFrameId);
+    const documentKey = createDocumentKey(payload);
+    if (!selectedFrame) {
+      emitOverflow({
+        status: 'idle',
+        frameId: selectedFrameId,
+        blockId: null,
+        measuredContentHeight: null,
+        measuredAvailableHeight: null,
+        overflowPx: null,
+        documentKey,
+      });
+      return;
+    }
+
+    const isEditingSelected = snapshot.editingBlockId !== null && snapshot.editingBlockId === selectedFrame.blockId;
+    if (dragState || isEditingSelected) {
+      emitOverflow({
+        status: 'settling',
+        frameId: selectedFrame.id,
+        blockId: selectedFrame.blockId,
+        measuredContentHeight: null,
+        measuredAvailableHeight: null,
+        overflowPx: null,
+        documentKey,
+      });
+      return;
+    }
+
+    if (reason !== 'resize') {
+      emitOverflow({
+        status: 'settling',
+        frameId: selectedFrame.id,
+        blockId: selectedFrame.blockId,
+        measuredContentHeight: null,
+        measuredAvailableHeight: null,
+        overflowPx: null,
+        documentKey,
+      });
+    }
+
+    overflowTimer = setTimeout(() => {
+      const frameElement = frameElements.get(selectedFrame.id);
+      const body = frameElement?.querySelector<HTMLElement>('[data-role="block-body"]') ?? null;
+      if (!frameElement || !body || !payload || payload.physics !== 'design') {
+        emitOverflow(createEmptyOverflowDiagnostics());
+        return;
+      }
+
+      const measuredAvailableHeight = Math.max(0, Math.round(body.clientHeight));
+      const measuredContentHeight = Math.max(0, Math.round(body.scrollHeight));
+      const overflowPx = Math.max(0, measuredContentHeight - measuredAvailableHeight);
+      emitOverflow({
+        status: overflowPx > 0 ? 'overflow' : 'clear',
+        frameId: selectedFrame.id,
+        blockId: selectedFrame.blockId,
+        measuredContentHeight,
+        measuredAvailableHeight,
+        overflowPx,
+        documentKey: createDocumentKey(payload),
+      });
+    }, reason === 'resize' ? 120 : 220);
   };
 
   const onPointerMove = (event: PointerEvent) => {
@@ -662,15 +847,19 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
     if (handle) {
       handle.style.cursor = 'grab';
     }
-    void engine.commitFrameMove(activeDrag.frameId, reason);
+    void engine.commitFrameMove(activeDrag.frameId, reason).finally(() => {
+      scheduleOverflowMeasurement('snapshot');
+    });
   };
 
   const onPointerUp = (event: PointerEvent) => settleDrag(event, 'pointerup');
   const onPointerCancel = (event: PointerEvent) => settleDrag(event, 'pointercancel');
+  const onWindowResize = () => scheduleOverflowMeasurement('resize');
 
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerCancel);
+  window.addEventListener('resize', onWindowResize);
 
   const unsubscribe = engine.subscribe((snapshot) => {
     updateSnapshotSurfaces(snapshot);
@@ -686,19 +875,34 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
         renderBlockText(blockId);
       }
     }
+
+    scheduleOverflowMeasurement('snapshot');
   });
 
   return {
-    setReadyPayload: (payload) => {
-      shell.dataset.physicsMode = payload.physics;
-      renderPayload(payload);
+    setReadyPayload: (nextPayload) => {
+      shell.dataset.physicsMode = nextPayload.physics;
+      renderPayload(nextPayload);
+      scheduleOverflowMeasurement('render');
+    },
+    setGhostPreview: (preview) => {
+      ghostPreview = preview;
+      renderGhostPreview();
     },
     clear: (message = 'Waiting for a ready document payload…') => {
       shell.dataset.physicsMode = 'unavailable';
       structureKey = '';
+      payload = null;
+      ghostPreview = null;
       blockElements.clear();
       frameElements.clear();
+      pageCanvasElements.clear();
+      ghostLayers.clear();
       dragState = null;
+      if (overflowTimer) {
+        clearTimeout(overflowTimer);
+        overflowTimer = null;
+      }
       endEditingDom();
       title.textContent = 'Canvas unavailable';
       subtitle.textContent = 'The editor is waiting for a canonical bridge payload.';
@@ -709,12 +913,17 @@ export function mountCanvas(rootElement: HTMLElement, engine: DocumentEditorEngi
       emptyState.style.cssText = 'padding: 18px; border-radius: 18px; background: rgba(226, 232, 240, 0.5); color: #334155;';
       surfaceRoot.append(emptyState);
       updateSnapshotSurfaces(engine.getSnapshot());
+      emitOverflow(createEmptyOverflowDiagnostics());
     },
     destroy: () => {
       unsubscribe();
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('resize', onWindowResize);
+      if (overflowTimer) {
+        clearTimeout(overflowTimer);
+      }
       endEditingDom();
       rootElement.innerHTML = '';
     },
