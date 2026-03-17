@@ -216,6 +216,43 @@ function toConsultantFailure(params) {
   };
 }
 
+function resolveBridgeAiAvailability(config) {
+  const provider = config.ai?.provider;
+  const apiKeyEnvVar = config.ai?.apiKeyEnvVar;
+
+  if (typeof provider !== 'string' || provider.trim().length === 0) {
+    return {
+      status: 'skipped',
+      message: 'AI setup is skipped for this workspace. Text and tile editing still save normally.',
+    };
+  }
+
+  if (typeof apiKeyEnvVar !== 'string' || apiKeyEnvVar.trim().length === 0) {
+    return {
+      status: 'degraded',
+      provider,
+      message: 'AI is configured incompletely for this workspace. Add the expected API key env var before requesting consultant help.',
+    };
+  }
+
+  const hasSecret = typeof process.env[apiKeyEnvVar] === 'string' && process.env[apiKeyEnvVar].length > 0;
+  if (!hasSecret) {
+    return {
+      status: 'degraded',
+      provider,
+      apiKeyEnvVar,
+      message: `AI is configured, but ${apiKeyEnvVar} is missing from the bridge environment.`,
+    };
+  }
+
+  return {
+    status: 'available',
+    provider,
+    apiKeyEnvVar,
+    message: `AI consultant requests are available through ${provider}.`,
+  };
+}
+
 async function readBridgePayload(workspaceRoot) {
   const document = await readWorkspaceDocument(workspaceRoot);
   const config = await readConfig(workspaceRoot);
@@ -226,6 +263,8 @@ async function readBridgePayload(workspaceRoot) {
     documentPath: getDocumentPath(workspaceRoot),
     configPath: getConfigPath(workspaceRoot),
     physics: config.workspace.physics,
+    starter: document.metadata?.starter ?? null,
+    ai: resolveBridgeAiAvailability(config),
     document,
   };
 }
