@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "metadata": {
+    "title": "Design Demo",
+    "locale": "en-US"
+  },
+  "semantic": {
+    "sections": [
+      {
+        "id": "summary",
+        "title": "Summary",
+        "blockIds": [
+          "summaryBlock"
+        ]
+      }
+    ],
+    "blocks": [
+      {
+        "id": "summaryBlock",
+        "kind": "paragraph",
+        "text": "Demo overflow line 1: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 2: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 3: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 4: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 5: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 6: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 7: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 8: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 9: this fixed frame should overflow until the consultant proposes a taller box.\nDemo overflow line 10: this fixed frame should overflow until the consultant proposes a taller box."
+      }
+    ]
+  },
+  "layout": {
+    "pages": [
+      {
+        "id": "pageOne",
+        "size": {
+          "width": 612,
+          "height": 792
+        },
+        "margin": {
+          "top": 36,
+          "right": 36,
+          "bottom": 36,
+          "left": 36
+        }
+      }
+    ],
+    "frames": [
+      {
+        "id": "summaryFrame",
+        "pageId": "pageOne",
+        "blockId": "summaryBlock",
+        "box": {
+          "x": 36,
+          "y": 48,
+          "width": 540,
+          "height": 420
+        },
+        "zIndex": 0
+      }
+    ]
+  }
+}

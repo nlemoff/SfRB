@@ -30,7 +30,7 @@ const aiConfigSchema = z
 
 export const sfrbConfigSchema = z.object({
   version: z.literal(1).default(1),
-  ai: aiConfigSchema,
+  ai: aiConfigSchema.optional(),
   workspace: z.object({
     physics: z.enum(PHYSICS_MODES).default('document'),
   }),
@@ -38,6 +38,7 @@ export const sfrbConfigSchema = z.object({
 
 export type SfrbConfig = z.output<typeof sfrbConfigSchema>;
 export type SfrbConfigInput = z.input<typeof sfrbConfigSchema>;
+export type SfrbAiConfig = z.output<typeof aiConfigSchema>;
 
 export function isProvider(value: unknown): value is Provider {
   return typeof value === 'string' && PROVIDERS.includes(value as Provider);

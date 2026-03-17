@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "metadata": {
+    "title": "Document Demo",
+    "locale": "en-US"
+  },
+  "semantic": {
+    "sections": [
+      {
+        "id": "summary",
+        "title": "Summary",
+        "blockIds": [
+          "summaryBlock"
+        ]
+      }
+    ],
+    "blocks": [
+      {
+        "id": "summaryBlock",
+        "kind": "paragraph",
+        "text": "I build local-first tools with careful UX, explicit state, and a browser/CLI editing loop that stays in sync."
+      }
+    ]
+  },
+  "layout": {
+    "pages": [
+      {
+        "id": "pageOne",
+        "size": {
+          "width": 612,
+          "height": 792
+        },
+        "margin": {
+          "top": 36,
+          "right": 36,
+          "bottom": 36,
+          "left": 36
+        }
+      }
+    ],
+    "frames": []
+  }
+}
