@@ -2,11 +2,12 @@
 
 SfRB (Straightforward Resume Builder) is a local-first resume builder with a CLI entrypoint and a browser-based editor. It keeps one canonical `resume.sfrb.json` document model, validates workspace rules before persistence, and supports both document-style editing and fixed-layout design editing.
 
-The current stable baseline is **M001 complete**:
-- `sfrb init` creates workspace config without storing API secrets in the repo
+The current stable baseline is **M002 complete**, with **M003** now focused on export and presentation depth:
+- `sfrb init` creates real starter workspaces without storing API secrets in the repo
 - `sfrb open` launches the local bridge and browser editor
 - document mode supports inline editing
-- design mode supports frame editing and dragging
+- design mode supports frame editing, dragging, and overflow measurement
+- the guided editing flow keeps browser and CLI work tied to one canonical document model
 - the AI layout consultant can detect overflow, show a ghost preview, and persist accepted fixes through the canonical write path
 
 ## Why this project exists
@@ -29,10 +30,14 @@ This repo is still early, but it is not a toy spike anymore.
 
 What is already proven in the shipped flow:
 - canonical local authoring through `sfrb init` and `sfrb open`
+- starter workspace creation for template and blank resumes
 - validated writes back to `resume.sfrb.json`
 - document-mode inline editing
-- design-mode frame dragging and linked text editing
+- design-mode frame dragging, linked text editing, and overflow measurement
+- structured browser/CLI action parity over the canonical document model
 - bridge-backed AI overflow detection and ghost-preview acceptance/rejection
+
+The current active build track is **M003: Export & Presentation Depth**.
 
 The authoritative internal project status lives in:
 - `.gsd/PROJECT.md` — current project state
@@ -40,6 +45,8 @@ The authoritative internal project status lives in:
 - `.gsd/REQUIREMENTS.md` — capability contract and validation state
 - `.gsd/DECISIONS.md` — append-only architectural decisions
 - `.gsd/milestones/` — milestone/slice/task planning and summaries
+
+For a contributor-oriented roadmap that is easier to scan than the full GSD archive, read `OPEN_SOURCE_BUILD_PLAN.md`.
 
 ## Quick start
 
@@ -201,10 +208,10 @@ If your change is larger than a small bug fix or doc cleanup, open an issue or d
 
 These are the easiest high-value contributions right now:
 - README/docs clarity improvements
-- CLI help/output polish
 - test reliability improvements
 - browser diagnostics/observability improvements
 - fixture cleanup and temp-workspace test helpers
+- print/export surface verification helpers
 - bug fixes in validation, bridge sync, or editor state reconciliation
 - accessibility improvements in the browser editor
 
@@ -212,32 +219,34 @@ These are the easiest high-value contributions right now:
 
 If you want to work on meaningful next-step contributions, these are the kinds of PRs likely to help most:
 
-#### 1. M002 planning and execution groundwork
-- define the next milestone cleanly on top of the now-stable M001 base
-- propose credible slices for output/export, richer AI assistance, or automation
-- improve requirements coverage so later work is easier to verify
-
-#### 2. Export and output pipeline work
-- ATS-friendly export groundwork
-- semantic-to-output mapping improvements
+#### 1. M003 printable presentation and export groundwork
+- shared printable renderer work
+- bridge print/export route wiring
+- export-readiness and overflow-risk diagnostics
 - print/export verification helpers
 
-#### 3. CLI and agent workflow improvements
-- better non-interactive automation paths
-- safer workspace inspection commands
-- more explicit diagnostics for local agent use
+#### 2. CLI and automation improvements
+- safer non-interactive automation paths
+- future `export` command groundwork
+- more explicit diagnostics for local agent and CI use
 
-#### 4. Editor polish
+#### 3. Editor and presentation polish
 - accessibility improvements
 - selection/editing edge-case fixes
 - design-mode overflow measurement hardening
-- richer but still safe preview behaviors
+- calmer export-preview and artifact-oriented UI polish
 
-#### 5. Testing and verification
+#### 4. Testing and verification
 - stronger built-runtime verification
 - lower-flake browser tests
 - better smoke scripts for real workspace flows
 - better failure-path coverage
+
+#### 5. Documentation and contributor handoff
+- roadmap clarity
+- contributor onboarding docs
+- truthful slice summaries after real work lands
+- public-facing docs that stay aligned with `.gsd/` source docs
 
 ### PRs we are less likely to accept quickly
 
@@ -318,6 +327,6 @@ This README is guidance only. The `LICENSE` file is the authority.
 
 ## Status going forward
 
-M001 is complete. The next planning step is defining M002 on top of the now-stable local authoring and consultant loop.
+M001 and M002 are treated as the shipped foundation. The active build track is now M003: create a shared printable presentation surface, then add trustworthy PDF export and presentation depth on top of it.
 
-If you want to contribute and you are not sure where to start, docs, tests, diagnostics, and M002 planning are the safest high-value places to begin.
+If you want to contribute and you are not sure where to start, docs, tests, verification helpers, and M003 planning/execution work are the safest high-value places to begin.
