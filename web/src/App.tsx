@@ -403,8 +403,8 @@ export function mountApp(rootElement: HTMLElement) {
     const frameId = preview?.frameId ?? selectedFrameId ?? overflowDiagnostics.frameId;
     const previewVisible = preview !== null;
     const isDesignWorkspace = currentPayload?.physics === 'design';
-    const aiAvailable = currentPayload?.ai.status === 'available';
-    const canRequest = aiAvailable && isDesignWorkspace && overflowDiagnostics.status === 'overflow' && consultantState !== 'requesting' && consultantState !== 'applying';
+    const aiCanRequest = currentPayload?.ai.status !== 'skipped';
+    const canRequest = aiCanRequest && isDesignWorkspace && overflowDiagnostics.status === 'overflow' && consultantState !== 'requesting' && consultantState !== 'applying';
     const canAcceptOrReject = previewVisible && consultantState !== 'applying';
     const displayState: ConsultantUiState = (!previewVisible
       && consultantState !== 'requesting'
@@ -606,7 +606,7 @@ export function mountApp(rootElement: HTMLElement) {
       return;
     }
 
-    if (readyPayload.ai.status !== 'available') {
+    if (readyPayload.ai.status === 'skipped') {
       consultantState = 'unavailable';
       consultantCode = readyPayload.ai.status;
       consultantErrorMessage = null;

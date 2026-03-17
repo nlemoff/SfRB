@@ -93,7 +93,7 @@ describe('editor first-run guidance', () => {
         const page: Page = await browser.newPage();
         await openWorkspace(page, url, physics);
 
-        await expect(page.locator('[data-testid="first-run-guidance"]')).toBeTruthy();
+        await page.waitForSelector('[data-testid="first-run-guidance"]');
         expect(await page.textContent('[data-testid="lens-text-availability"]')).toContain('Available now');
         expect(await page.textContent('[data-testid="lens-freeform-availability"]')).toContain('Not shipped yet');
 
