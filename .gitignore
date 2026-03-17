@@ -33,3 +33,10 @@ coverage/
 .cache/
 tmp/
 sfrb.config.json
+
+# ── GSD baseline (auto-generated) ──
+.gsd/forensics/
+.gsd/gsd.db
+.gsd/DISCUSSION-MANIFEST.json
+.gsd/milestones/**/*-CONTINUE.md
+.gsd/milestones/**/continue.md

@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": "91f484ce",
+    "label": "freeform-debug-server",
+    "command": "node dist/cli.js open --cwd /tmp/sfrb-freeform-debug-LqQA1m --port 4312 --no-open",
+    "cwd": "/home/nlemo/SfRB/.gsd/worktrees/M002",
+    "startedAt": 1773725056160,
+    "processType": "server",
+    "group": null,
+    "readyPattern": null,
+    "readyPort": 4312,
+    "pid": 2452620
+  },
+  {
+    "id": "ac23b4b2",
+    "label": "t02-manual-shell",
+    "command": "node dist/cli.js open --cwd /tmp/sfrb-t02-cBPPu6 --port 4310 --no-open",
+    "cwd": "/home/nlemo/SfRB/.gsd/worktrees/M002",
+    "startedAt": 1773732748270,
+    "processType": "server",
+    "group": null,
+    "readyPattern": "SfRB bridge ready at http://127.0.0.1:4310",
+    "readyPort": null,
+    "pid": 2570282
+  },
+  {
+    "id": "b46198e8",
+    "label": "consultant-debug",
+    "command": "OPENAI_API_KEY=sk-test node dist/cli.js open --cwd /tmp/sfrb-consultant-debug-J3hfOD --port 4315 --no-open",
+    "cwd": "/home/nlemo/SfRB/.gsd/worktrees/M002",
+    "startedAt": 1773736207723,
+    "processType": "server",
+    "group": null,
+    "readyPattern": null,
+    "readyPort": 4315,
+    "pid": 2604418
+  },
+  {
+    "id": "94af0bb5",
+    "label": "consultant-debug-missing-secret",
+    "command": "env -u OPENAI_API_KEY node dist/cli.js open --cwd /tmp/sfrb-consultant-debug-J3hfOD --port 4316 --no-open",
+    "cwd": "/home/nlemo/SfRB/.gsd/worktrees/M002",
+    "startedAt": 1773736253614,
+    "processType": "server",
+    "group": null,
+    "readyPattern": null,
+    "readyPort": 4316,
+    "pid": 2605031
+  },
+  {
+    "id": "4f5a44ea",
+    "label": "t03-debug-open",
+    "command": "node dist/cli.js open --cwd /tmp/sfrb-t03-debug-0i6kJp --port 0 --no-open",
+    "cwd": "/home/nlemo/SfRB/.gsd/worktrees/M003",
+    "startedAt": 1773742536809,
+    "processType": "server",
+    "group": null,
+    "readyPattern": "SfRB bridge ready at http://",
+    "readyPort": null,
+    "pid": 2672988
+  },
+  {
+    "id": "3c33d0e7",
+    "label": "t03-risk-open",
+    "command": "node dist/cli.js open --cwd /tmp/sfrb-t03-risk-rzB9cY --port 0 --no-open",
+    "cwd": "/home/nlemo/SfRB/.gsd/worktrees/M003",
+    "startedAt": 1773742741542,
+    "processType": "server",
+    "group": null,
+    "readyPattern": "SfRB bridge ready at http://",
+    "readyPort": null,
+    "pid": 2677855
+  }
+]
