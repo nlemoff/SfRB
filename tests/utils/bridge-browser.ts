@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { createStarterDocument } from '../../src/document/starters';
+
 const execFileAsync = promisify(execFile);
 const tempDirs: string[] = [];
 let buildReady = false;
@@ -21,6 +23,8 @@ export type WorkspaceOptions = {
   blockText?: string;
   provider?: string;
   apiKeyEnvVar?: string;
+  starterKind?: 'template' | 'blank';
+  skipAi?: boolean;
 };
 
 export type BridgeBrowserPage = {
@@ -79,30 +83,25 @@ export async function cleanupTempProjects(): Promise<void> {
 export async function writeWorkspaceFiles(projectRoot: string, options: WorkspaceOptions = {}): Promise<void> {
   const physics = options.physics ?? 'document';
   const title = options.title ?? 'Bridge Browser Resume';
-  const blockText = options.blockText ?? 'Initial bridge browser text.';
+  const blockText = options.blockText;
   const provider = options.provider ?? 'openai';
   const apiKeyEnvVar = options.apiKeyEnvVar ?? 'OPENAI_API_KEY';
-  const frames = physics === 'design'
-    ? [
-        {
-          id: 'summaryFrame',
-          pageId: 'pageOne',
-          blockId: 'summaryBlock',
-          box: { x: 36, y: 48, width: 540, height: 96 },
-          zIndex: 0,
-        },
-      ]
-    : [];
+  const starterKind = options.starterKind ?? 'blank';
+  const skipAi = options.skipAi ?? false;
 
   await writeFile(
     path.join(projectRoot, 'sfrb.config.json'),
     `${JSON.stringify(
       {
         version: 1,
-        ai: {
-          provider,
-          apiKeyEnvVar,
-        },
+        ...(skipAi
+          ? {}
+          : {
+              ai: {
+                provider,
+                apiKeyEnvVar,
+              },
+            }),
         workspace: {
           physics,
         },
@@ -114,45 +113,17 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
     'utf8',
   );
 
+  const document = createStarterDocument(starterKind, physics);
+  document.metadata.title = title;
+
+  const summaryBlock = document.semantic.blocks.find((block) => block.id === 'summaryBlock');
+  if (summaryBlock && typeof blockText === 'string') {
+    summaryBlock.text = blockText;
+  }
+
   await writeFile(
     path.join(projectRoot, 'resume.sfrb.json'),
-    `${JSON.stringify(
-      {
-        version: 1,
-        metadata: {
-          title,
-          locale: 'en-US',
-        },
-        semantic: {
-          sections: [
-            {
-              id: 'summary',
-              title: 'Summary',
-              blockIds: ['summaryBlock'],
-            },
-          ],
-          blocks: [
-            {
-              id: 'summaryBlock',
-              kind: 'paragraph',
-              text: blockText,
-            },
-          ],
-        },
-        layout: {
-          pages: [
-            {
-              id: 'pageOne',
-              size: { width: 612, height: 792 },
-              margin: { top: 36, right: 36, bottom: 36, left: 36 },
-            },
-          ],
-          frames,
-        },
-      },
-      null,
-      2,
-    )}
+    `${JSON.stringify(document, null, 2)}
 `,
     'utf8',
   );
@@ -325,6 +296,36 @@ export async function waitForEditorIdle(page: BridgeBrowserPage): Promise<void> 
   await page.waitForFunction(() => {
     return document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle';
   });
+}
+
+export type FirstRunGuidanceDiagnostics = {
+  starterKind: string | null;
+  starterId: string | null;
+  starterGuidance: string | null;
+  aiStatus: string | null;
+  aiNote: string | null;
+  tileAvailability: string | null;
+  consultantState: string | null;
+  consultantCode: string | null;
+};
+
+export async function openWorkspace(page: BridgeBrowserPage, url: string, physics: 'document' | 'design'): Promise<void> {
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector(`#editor-canvas[data-physics-mode="${physics}"]`);
+  await page.waitForSelector('[data-testid="first-run-guidance"]');
+}
+
+export async function readFirstRunGuidance(page: BridgeBrowserPage): Promise<FirstRunGuidanceDiagnostics> {
+  return {
+    starterKind: await page.textContent('#starter-kind'),
+    starterId: await page.textContent('#starter-id'),
+    starterGuidance: await page.textContent('#starter-guidance'),
+    aiStatus: await page.textContent('#workspace-ai-status'),
+    aiNote: await page.textContent('#workspace-ai-note'),
+    tileAvailability: await page.textContent('#tile-lens-availability'),
+    consultantState: await page.getAttribute('#consultant-status', 'data-consultant-state'),
+    consultantCode: await page.getAttribute('#consultant-panel', 'data-consultant-code'),
+  };
 }
 
 export async function openDesignWorkspace(page: BridgeBrowserPage, url: string): Promise<void> {

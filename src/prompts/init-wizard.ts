@@ -9,13 +9,16 @@ import {
   isPhysicsMode,
   isProvider,
 } from '../config/schema';
+import { type StarterKind, starterKinds } from '../document/schema';
 
 export const INIT_WIZARD_TEST_INPUT_ENV = 'SFRB_INIT_TEST_INPUT';
 
 export type InitWizardAnswers = {
-  provider: Provider;
-  apiKey: string;
+  starter: StarterKind;
   physics: PhysicsMode;
+  skipAi: boolean;
+  provider?: Provider;
+  apiKey?: string;
   confirm: boolean;
 };
 
@@ -39,10 +42,14 @@ export class InitWizardCancelledError extends InitWizardError {
   }
 }
 
+function isStarterKind(value: unknown): value is StarterKind {
+  return typeof value === 'string' && starterKinds.includes(value as StarterKind);
+}
+
 function validateHarnessInput(raw: unknown): InitWizardAnswers {
   if (!raw || typeof raw !== 'object') {
     throw new InitWizardError(
-      `${INIT_WIZARD_TEST_INPUT_ENV} must be a JSON object with provider, apiKey, physics, and optional confirm fields.`,
+      `${INIT_WIZARD_TEST_INPUT_ENV} must be a JSON object with starter, physics, AI setup fields, and optional confirm/cancel fields.`,
     );
   }
 
@@ -50,6 +57,30 @@ function validateHarnessInput(raw: unknown): InitWizardAnswers {
 
   if (input.cancel === true || input.confirm === false) {
     throw new InitWizardCancelledError();
+  }
+
+  const starter = input.starter;
+  if (!isStarterKind(starter)) {
+    throw new InitWizardError(
+      `${INIT_WIZARD_TEST_INPUT_ENV}.starter must be one of: ${starterKinds.join(', ')}`,
+    );
+  }
+
+  const physics = input.physics;
+  if (!isPhysicsMode(physics)) {
+    throw new InitWizardError(
+      `${INIT_WIZARD_TEST_INPUT_ENV}.physics must be one of: ${PHYSICS_MODES.join(', ')}`,
+    );
+  }
+
+  const skipAi = input.skipAi === true;
+  if (skipAi) {
+    return {
+      starter,
+      physics,
+      skipAi: true,
+      confirm: true,
+    };
   }
 
   const provider = input.provider;
@@ -61,21 +92,16 @@ function validateHarnessInput(raw: unknown): InitWizardAnswers {
 
   const apiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : '';
   if (!apiKey) {
-    throw new InitWizardError(`${INIT_WIZARD_TEST_INPUT_ENV}.apiKey is required.`);
-  }
-
-  const physics = input.physics;
-  if (!isPhysicsMode(physics)) {
-    throw new InitWizardError(
-      `${INIT_WIZARD_TEST_INPUT_ENV}.physics must be one of: ${PHYSICS_MODES.join(', ')}`,
-    );
+    throw new InitWizardError(`${INIT_WIZARD_TEST_INPUT_ENV}.apiKey is required unless skipAi is true.`);
   }
 
   return {
+    starter,
+    physics,
+    skipAi: false,
     provider,
     apiKey,
-    physics,
-    confirm: input.confirm !== false,
+    confirm: true,
   };
 }
 
@@ -95,6 +121,15 @@ function readHarnessAnswers(env: NodeJS.ProcessEnv): InitWizardAnswers | null {
   return validateHarnessInput(parsed);
 }
 
+function shouldSkipAiPrompt(state: unknown): boolean {
+  if (!state || typeof state !== 'object' || !('answers' in state)) {
+    return false;
+  }
+
+  const answers = (state as { answers?: { skipAi?: unknown } }).answers;
+  return answers?.skipAi === true;
+}
+
 export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<InitWizardAnswers> {
   const env = runtime.env ?? process.env;
   const stdin = runtime.stdin ?? process.stdin;
@@ -107,7 +142,7 @@ export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<In
 
   if (!stdin.isTTY || !stdout.isTTY) {
     throw new InitWizardError(
-      'Interactive init requires a TTY. Re-run `sfrb init` in a terminal or provide --provider, --api-key, and --physics.',
+      'Interactive init requires a TTY. Re-run `sfrb init` in a terminal or provide --starter, --physics, and either --skip-ai or --provider/--api-key.',
     );
   }
 
@@ -117,24 +152,16 @@ export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<In
     const answers = await enquirer.prompt([
       {
         type: 'select',
-        name: 'provider',
-        message: 'Which AI provider should SfRB use?',
-        choices: PROVIDERS.map((provider) => ({
-          name: provider,
-          message: provider === 'openai' ? 'OpenAI' : 'Anthropic',
-          hint: `stores ${defaultApiKeyEnvVarForProvider(provider)}`,
+        name: 'starter',
+        message: 'Which starter workspace should SfRB create?',
+        choices: starterKinds.map((starter) => ({
+          name: starter,
+          message: starter === 'template' ? 'Template resume' : 'Blank canvas',
+          hint:
+            starter === 'template'
+              ? 'pre-filled content you can immediately edit'
+              : 'minimal valid workspace with one starter line',
         })),
-      },
-      {
-        type: 'password',
-        name: 'apiKey',
-        message: 'Paste the provider API key (captured only for validation and redacted summaries)',
-        validate(value: string) {
-          return value.trim().length > 0 || 'API key is required';
-        },
-        result(value: string) {
-          return value.trim();
-        },
       },
       {
         type: 'select',
@@ -151,8 +178,41 @@ export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<In
       },
       {
         type: 'confirm',
+        name: 'skipAi',
+        message: 'Skip AI setup for now and create an editor-only workspace?',
+        initial: true,
+      },
+      {
+        type: 'select',
+        name: 'provider',
+        message: 'Which AI provider should SfRB use?',
+        skip(state) {
+          return shouldSkipAiPrompt(state);
+        },
+        choices: PROVIDERS.map((provider) => ({
+          name: provider,
+          message: provider === 'openai' ? 'OpenAI' : 'Anthropic',
+          hint: `stores ${defaultApiKeyEnvVarForProvider(provider)}`,
+        })),
+      },
+      {
+        type: 'password',
+        name: 'apiKey',
+        message: 'Paste the provider API key (captured only for validation and redacted summaries)',
+        skip(state) {
+          return shouldSkipAiPrompt(state);
+        },
+        validate(value: string) {
+          return value.trim().length > 0 || 'API key is required';
+        },
+        result(value: string) {
+          return value.trim();
+        },
+      },
+      {
+        type: 'confirm',
         name: 'confirm',
-        message: 'Write project-local sfrb.config.json with this setup?',
+        message: 'Write project-local workspace files with this setup?',
         initial: true,
       },
     ]);

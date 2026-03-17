@@ -14,6 +14,10 @@ export type BridgeDocument = {
   metadata: {
     title: string;
     locale: string;
+    starter?: {
+      id: string;
+      kind: 'template' | 'blank';
+    };
   };
   semantic: {
     sections: Array<{
@@ -62,6 +66,16 @@ export type ReadyBridgePayload = {
   documentPath: string;
   configPath: string;
   physics: string;
+  starter: {
+    id: string;
+    kind: 'template' | 'blank';
+  } | null;
+  ai: {
+    status: 'available' | 'degraded' | 'skipped';
+    provider?: string;
+    apiKeyEnvVar?: string;
+    message: string;
+  };
   document: BridgeDocument;
 };
 

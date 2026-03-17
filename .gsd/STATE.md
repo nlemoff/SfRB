@@ -1,19 +1,20 @@
 # GSD State
 
-**Active Milestone:** None — M001 complete; next milestone planning pending
-**Active Slice:** None
-**Phase:** ready-for-next-milestone-planning
-**Requirements Status:** 0 active · 6 validated · 0 deferred · 0 out of scope
+**Active Milestone:** M003: Export & Presentation Depth
+**Active Slice:** S01: Printable Presentation Surface
+**Phase:** planning
+**Requirements Status:** 2 active · 13 validated · 2 deferred · 0 out of scope
 
 ## Milestone Registry
 - ✅ **M001:** Foundation & Physics
+- ✅ **M002:** Resume Engine & Guided Editing
+- 🔄 **M003:** Export & Presentation Depth
 
 ## Recent Decisions
-- D021 — Keep provider config/secret resolution and raw provider output handling inside the bridge; expose only validated consultant proposals or sanitized categorized failures.
-- D022 — Measure overflow in Canvas from rendered frame content, but keep consultant lifecycle and preview ownership in App so reject remains non-destructive.
+- D031: Keep M001/M002 fixed and add a contributor-facing build plan plus contributor-track annotations for M003+.
 
 ## Blockers
 - None
 
 ## Next Action
-- Plan M002 and decide the next capability set beyond M001’s completed local authoring + consultant loop.
+Review the refreshed S01 plan and contributor roadmap, then open a PR into `DEV` with the planning changes summarized.
