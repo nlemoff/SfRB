@@ -10,7 +10,7 @@ estimated_files: 6
 
 ## Description
 
-Build the canonical surface first. This task should introduce a dedicated printable renderer and a bridge-served print/export route so later browser and CLI export work targets one artifact-oriented DOM contract instead of trying to print the interactive editor surface.
+Build the canonical surface first. This task should introduce a dedicated printable renderer and a bridge-served print/export route so later browser and CLI export work targets one artifact-oriented DOM contract instead of trying to print the interactive editor surface. The implementation should also be shaped so an outside contributor can pick it up with only the files and contracts named here.
 
 Relevant skill to load before implementation: `test`.
 
@@ -27,6 +27,7 @@ Relevant skill to load before implementation: `test`.
 - [ ] The printable surface is served from the bridge as a dedicated route and reads canonical saved workspace state.
 - [ ] Printable rendering preserves page geometry and canonical content while excluding editor-only chrome.
 - [ ] Tests prove the route contract and the absence of editor controls/diagnostics on the print surface.
+- [ ] The task output is understandable enough that later contributors can treat the new renderer/route pair as the single source of truth for export work.
 
 ## Verification
 
@@ -45,7 +46,7 @@ Relevant skill to load before implementation: `test`.
 - `web/src/bridge-client.ts` — current canonical payload contract used by the browser runtime.
 - `web/src/editor/Canvas.tsx`, `web/src/editor/engine.ts` — current rendering logic and the source of reusable canonical page/frame composition knowledge.
 - `tests/utils/bridge-browser.ts` — established temp-workspace and bridge/browser test harness patterns.
-- M003 research and decisions D026 plus D041-D043 from the planning context — print fidelity must be solved before PDF transport work.
+- M003 research and decisions D026 plus D031-D032 from the planning context — print fidelity must be solved before PDF transport work, and the contract should be easy for outside contributors to extend.
 
 ## Expected Output
 

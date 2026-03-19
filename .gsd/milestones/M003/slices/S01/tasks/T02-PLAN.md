@@ -10,7 +10,7 @@ estimated_files: 6
 
 ## Description
 
-Make the surface trustworthy, not just visible. This task should add explicit readiness, overflow, and block/risk diagnostics to the printable surface so future browser export UI and CLI PDF generation can wait on one inspectable contract instead of guessing from screenshots or implicit DOM timing.
+Make the surface trustworthy, not just visible. This task should add explicit readiness, overflow, and block/risk diagnostics to the printable surface so future browser export UI and CLI PDF generation can wait on one inspectable contract instead of guessing from screenshots or implicit DOM timing. The contract should be simple enough that a contributor joining from the open-source build plan can use it without first learning editor internals.
 
 Relevant skill to load before implementation: `test`.
 
@@ -26,6 +26,7 @@ Relevant skill to load before implementation: `test`.
 - [ ] The print surface exposes machine-readable ready vs risk/blocked state.
 - [ ] Overflow/clipping visibility is explicit and does not silently collapse into a generic success state.
 - [ ] The new contract is simple for later Playwright/browser-export flows to wait on deterministically.
+- [ ] The exported markers are named and structured clearly enough to be referenced in contributor docs and future PR summaries.
 
 ## Verification
 
@@ -44,7 +45,7 @@ Relevant skill to load before implementation: `test`.
 - `web/src/editor/Canvas.tsx` — current overflow measurement and page geometry behavior to reuse where practical.
 - `web/src/bridge-client.ts` — existing payload types that should remain the source of truth for canonical state.
 - `tests/bridge/bridge-print-surface-contract.test.ts` and `tests/web/printable-presentation-surface.test.ts` — T01 tests to extend rather than replace.
-- M003 decisions D041 and D042 — export trust depends on a shared renderer plus explicit failure visibility for one-page overflow cases.
+- M003 planning decisions D026, D031, and D032 — export trust depends on sequencing reliable export after the editor engine, exposing a contributor-friendly shared renderer contract, and keeping PR/handoff summaries layered on top of the internal source of truth.
 
 ## Expected Output
 
