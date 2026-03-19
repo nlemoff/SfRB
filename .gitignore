@@ -6,7 +6,6 @@
 .gsd/auto.lock
 .gsd/metrics.json
 .gsd/completed-units.json
-.gsd/STATE.md
 .DS_Store
 Thumbs.db
 *.swp
@@ -33,3 +32,10 @@ coverage/
 .cache/
 tmp/
 sfrb.config.json
+
+# ── GSD baseline (auto-generated) ──
+.gsd/forensics/
+.gsd/gsd.db
+.gsd/DISCUSSION-MANIFEST.json
+.gsd/milestones/**/*-CONTINUE.md
+.gsd/milestones/**/continue.md
