@@ -22,10 +22,10 @@
 
 ## Proof Strategy
 
-- **Three-mode coherence** → retire in S06 by proving the same resume can move across text, tile, and freeform modes with explicit, inspectable reconciliation outcomes and no hidden browser-only state.
-- **Fine-grained tile decomposition** → retire in S03 by proving tiles can be split, moved, grouped, and locked into larger compositions without breaking canonical persistence.
-- **Structured action completeness** → retire in S02 by proving a stable canonical action contract exists and in S07 by proving the CLI can invoke the same action surface the browser uses.
-- **Natural overflow / pagination behavior** → retire in S06 by proving at least one tested policy feels trustworthy enough to preserve editing continuity across mode switches.
+- **Three-mode coherence** → retired in S06 via browser summary-contract coverage plus `node scripts/verify-s06-mode-reconciliation-smoke.mjs`, which proves a real `dist/cli.js open` workspace can leave Freeform through an explicit `rejoin_layout` or no-write `keep_locked` path while keeping the outcome inspectable on `#editor-last-action-kind`, `/__sfrb/bootstrap`, and `resume.sfrb.json`.
+- **Fine-grained tile decomposition** → retired in S03 via canonical action/document tests, bridge persistence checks, browser tile interaction tests, and the shipped `node scripts/verify-s03-tile-engine.mjs` proof that split/group/lock/translate survive the built `dist/cli.js open` runtime without write drift.
+- **Structured action completeness** → retired in S07 by proving direct CLI invocation of the same canonical action surface. `node scripts/verify-s07-cli-parity-smoke.mjs` builds the app, creates a real design workspace, drives `dist/cli.js edit` through inline JSON, action-file, and stdin inputs for representative text/layout/reconciliation actions, and proves a blocked no-write path through command output, `/__sfrb/bootstrap`, and `resume.sfrb.json`.
+- **Natural overflow / pagination behavior** → retired in S06 through the chosen continuity policy: `node scripts/verify-s06-mode-reconciliation-smoke.mjs` proves Tile → Freeform keeps measured overflow visible in the shell/canvas continuity surfaces instead of silently rewriting layout.
 
 ## Verification Classes
 
@@ -59,22 +59,22 @@ This milestone is complete only when all are true:
 - [x] **S01: Template Starts & First-Run Guidance** `risk:medium` `depends:[]`
   > After this: User can open either a strong starter resume or a blank canvas and gets clear guidance on the three editing modes.
 
-- [ ] **S02: Canonical Editor Action Model** `risk:high` `depends:[S01]`
-  > After this: Every meaningful editor edit can be described as a canonical structured action shape instead of ad hoc browser-only state.
+- [x] **S02: Canonical Editor Action Model** `risk:high` `depends:[S01]`
+  > After this: Browser/runtime persistence now flows through canonical structured actions with built-runtime proof on `/__sfrb/editor`, leaving only direct CLI invocation parity for S07.
 
-- [ ] **S03: Tile Engine & Group Locking** `risk:high` `depends:[S02]`
-  > After this: User can split, move, group, and lock fine-grained tiles into larger resume compositions that persist through the canonical document boundary.
+- [x] **S03: Tile Engine & Group Locking** `risk:high` `depends:[S02]`
+  > After this: User can split, move, group, and lock fine-grained tiles into larger resume compositions that persist through the canonical document boundary, with built-runtime proof on `/__sfrb/editor` → `/__sfrb/bootstrap` → `resume.sfrb.json` and an inspectable invalid-action no-write path.
 
-- [ ] **S04: Text Mode as Real Writing Surface** `risk:high` `depends:[S02]`
-  > After this: User can switch into a pure text editing mode that feels more like a text editor while preserving the same canonical resume state.
+- [x] **S04: Text Mode as Real Writing Surface** `risk:high` `depends:[S02]`
+  > After this: User can switch into a pure text editing mode that feels more like a text editor while preserving the same canonical resume state, with built-runtime proof across document and design workspaces on `Last action` → `/__sfrb/bootstrap` → `resume.sfrb.json`, including an invalid text-action no-write path.
 
-- [ ] **S05: Freeform Element Editor** `risk:high` `depends:[S02]`
-  > After this: User can select and move individual page elements such as text boxes, bullets, lines, and dividers in a Figma/Acrobat-style surface.
+- [x] **S05: Freeform Element Editor** `risk:high` `depends:[S02]`
+  > After this: User can select and move individual page elements such as text boxes, bullets, lines, and dividers in a Figma/Acrobat-style surface, with built-runtime proof on `Last action` → `/__sfrb/bootstrap` → `resume.sfrb.json` plus a blocked/no-write freeform failure path.
 
-- [ ] **S06: Mode Reconciliation & Layout Policies** `risk:high` `depends:[S03,S04,S05]`
-  > After this: User can move between text, tile, and freeform modes with explicit, understandable layout outcomes, including whether free-moved pieces stay locked or rejoin document logic.
+- [x] **S06: Mode Reconciliation & Layout Policies** `risk:high` `depends:[S03,S04,S05]`
+  > After this: User can move between text, tile, and freeform modes with explicit, understandable layout outcomes, including whether free-moved pieces stay locked or rejoin document logic, with shipped-runtime proof for successful reconciliation, no-write diagnostics, and carried overflow continuity via `node scripts/verify-s06-mode-reconciliation-smoke.mjs`.
 
-- [ ] **S07: CLI Editing Parity & Product Polish** `risk:medium` `depends:[S06]`
+- [x] **S07: CLI Editing Parity & Product Polish** `risk:medium` `depends:[S06]`
   > After this: The same canonical actions are invokable from the CLI, and the editor feels sleeker, simpler, and less raw for the non-technical primary user.
 
 ## Boundary Map
@@ -159,3 +159,4 @@ Consumes from S04:
 
 Consumes from S05:
 - Freeform element-editing semantics.
+ement-editing semantics.
