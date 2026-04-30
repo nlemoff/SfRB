@@ -554,6 +554,29 @@ async function main() {
   });
 
   vite.middlewares.use(async (request, response, next) => {
+    if (request.method !== 'GET' || request.url === undefined) {
+      next();
+      return;
+    }
+
+    const parsedUrl = new URL(request.url, 'http://localhost');
+    if (parsedUrl.pathname !== '/print') {
+      next();
+      return;
+    }
+
+    try {
+      const template = await readFile(path.join(webRoot, 'print.html'), 'utf8');
+      const html = await vite.transformIndexHtml('/print', template);
+      response.statusCode = 200;
+      response.setHeader('content-type', 'text/html; charset=utf-8');
+      response.end(html);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  vite.middlewares.use(async (request, response, next) => {
     if (request.method !== 'GET' || request.url === undefined || request.url !== '/') {
       next();
       return;
