@@ -1,3 +1,5 @@
+import type { TemplateId } from '../../src/document/templates/registry';
+
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
 export const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
@@ -18,6 +20,10 @@ export type BridgeDocument = {
     starter?: {
       id: string;
       kind: 'template' | 'blank';
+    };
+    template?: {
+      id: TemplateId;
+      version: string;
     };
   };
   semantic: {

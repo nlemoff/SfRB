@@ -1,4 +1,7 @@
 import type { ReadyBridgePayload, BridgeDocument } from '../bridge-client';
+import type { PrintSurfaceMode } from './print-surface';
+import { applyBlockStyle, type SemanticBlockKind, type Theme } from './theme';
+import { resolveTemplateTheme } from './templates';
 
 export type PrintableResumeState = {
   readonly pageCount: number;
@@ -8,6 +11,8 @@ export type PrintableResumeState = {
   readonly blockedReason: string | null;
   readonly riskCount: number;
   readonly maxOverflowPx: number;
+  readonly templateId: string;
+  readonly templateVersion: string;
 };
 
 type OverflowRisk = {
@@ -30,7 +35,7 @@ function isSupportedPhysics(physics: string): boolean {
 // DOM element builders
 // ---------------------------------------------------------------------------
 
-function createPageElement(page: PageDef, mode: 'preview' | 'artifact'): HTMLElement {
+function createPageElement(page: PageDef, mode: PrintSurfaceMode, theme: Theme): HTMLElement {
   const el = document.createElement('div');
   el.setAttribute('data-testid', `print-page-${page.id}`);
   el.setAttribute('data-page-id', page.id);
@@ -41,7 +46,7 @@ function createPageElement(page: PageDef, mode: 'preview' | 'artifact'): HTMLEle
     position: 'relative',
     overflow: 'hidden',
     margin: '0 auto',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.color.pageBackground,
     boxSizing: 'border-box',
     paddingTop: `${page.margin.top}px`,
     paddingRight: `${page.margin.right}px`,
@@ -58,7 +63,7 @@ function createPageElement(page: PageDef, mode: 'preview' | 'artifact'): HTMLEle
   return el;
 }
 
-function createDesignFrameElement(frame: FrameDef, block: BlockDef): HTMLElement {
+function createDesignFrameElement(frame: FrameDef, block: BlockDef, theme: Theme): HTMLElement {
   const el = document.createElement('div');
   el.setAttribute('data-testid', `print-frame-${frame.id}`);
   el.setAttribute('data-frame-id', frame.id);
@@ -74,11 +79,11 @@ function createDesignFrameElement(frame: FrameDef, block: BlockDef): HTMLElement
     boxSizing: 'border-box',
   });
 
-  el.appendChild(createBlockTextElement(block));
+  el.appendChild(createBlockTextElement(block, theme));
   return el;
 }
 
-function createDocumentFrameElement(frame: FrameDef, block: BlockDef): HTMLElement {
+function createDocumentFrameElement(frame: FrameDef, block: BlockDef, theme: Theme): HTMLElement {
   const el = document.createElement('div');
   el.setAttribute('data-testid', `print-frame-${frame.id}`);
   el.setAttribute('data-frame-id', frame.id);
@@ -89,34 +94,19 @@ function createDocumentFrameElement(frame: FrameDef, block: BlockDef): HTMLEleme
     boxSizing: 'border-box',
   });
 
-  el.appendChild(createBlockTextElement(block));
+  el.appendChild(createBlockTextElement(block, theme));
   return el;
 }
 
-function createBlockTextElement(block: BlockDef): HTMLElement {
+function createBlockTextElement(block: BlockDef, theme: Theme): HTMLElement {
   const el = document.createElement('div');
   el.setAttribute('data-testid', `print-block-${block.id}`);
   el.setAttribute('data-block-id', block.id);
   el.setAttribute('data-block-kind', block.kind);
 
-  const base: Partial<CSSStyleDeclaration> = {
-    lineHeight: '1.5',
-    marginBottom: '4px',
-  };
-
-  switch (block.kind) {
-    case 'heading':
-      Object.assign(el.style, { ...base, fontWeight: 'bold', fontSize: '18px', lineHeight: '1.3' });
-      break;
-    case 'bullet':
-      Object.assign(el.style, { ...base, fontSize: '12px', paddingLeft: '12px' });
-      break;
-    case 'fact':
-      Object.assign(el.style, { ...base, fontSize: '12px', marginBottom: '2px' });
-      break;
-    default:
-      Object.assign(el.style, { ...base, fontSize: '12px' });
-  }
+  const kind = block.kind as SemanticBlockKind;
+  const blockStyle = theme.typography.blocks[kind] ?? theme.typography.blocks.paragraph;
+  applyBlockStyle(el, blockStyle);
 
   el.textContent = block.text;
   return el;
@@ -227,6 +217,8 @@ function applyRootDiagnostics(rootElement: HTMLElement, state: PrintableResumeSt
   rootElement.setAttribute('data-blocked-reason', state.blockedReason ?? '');
   rootElement.setAttribute('data-risk-count', String(state.riskCount));
   rootElement.setAttribute('data-max-overflow-px', String(state.maxOverflowPx));
+  rootElement.setAttribute('data-template-id', state.templateId);
+  rootElement.setAttribute('data-template-version', state.templateVersion);
 }
 
 // ---------------------------------------------------------------------------
@@ -236,14 +228,16 @@ function applyRootDiagnostics(rootElement: HTMLElement, state: PrintableResumeSt
 export function renderPrintableResume(
   rootElement: HTMLElement,
   payload: ReadyBridgePayload,
-  mode: 'preview' | 'artifact',
+  mode: PrintSurfaceMode,
 ): PrintableResumeState {
   rootElement.innerHTML = '';
 
+  const theme = resolveTemplateTheme(payload.document.metadata.template?.id);
+
   Object.assign(rootElement.style, {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    color: '#1a1a1a',
-    backgroundColor: mode === 'preview' ? '#111827' : '#ffffff',
+    fontFamily: theme.typography.rootFontFamily,
+    color: theme.typography.rootColor,
+    backgroundColor: mode === 'preview' ? '#111827' : theme.color.pageBackground,
   });
 
   if (!isSupportedPhysics(payload.physics)) {
@@ -255,6 +249,8 @@ export function renderPrintableResume(
       blockedReason: 'unsupported-physics',
       riskCount: 0,
       maxOverflowPx: 0,
+      templateId: theme.id,
+      templateVersion: theme.version,
     };
     applyRootDiagnostics(rootElement, state);
     if (mode === 'preview') {
@@ -283,7 +279,7 @@ export function renderPrintableResume(
   const pageElements: HTMLElement[] = [];
 
   for (const page of doc.layout.pages) {
-    const pageEl = createPageElement(page, mode);
+    const pageEl = createPageElement(page, mode, theme);
     const pageFrames = [...doc.layout.frames.filter(f => f.pageId === page.id)]
       .sort((a, b) => a.zIndex - b.zIndex);
 
@@ -291,7 +287,7 @@ export function renderPrintableResume(
       for (const frame of pageFrames) {
         const block = blockMap.get(frame.blockId);
         if (!block) continue;
-        pageEl.appendChild(createDesignFrameElement(frame, block));
+        pageEl.appendChild(createDesignFrameElement(frame, block, theme));
       }
     } else {
       for (const section of doc.semantic.sections) {
@@ -300,9 +296,9 @@ export function renderPrintableResume(
           if (!block) continue;
           const frame = pageFrames.find(f => f.blockId === blockId);
           if (frame) {
-            pageEl.appendChild(createDocumentFrameElement(frame, block));
+            pageEl.appendChild(createDocumentFrameElement(frame, block, theme));
           } else {
-            pageEl.appendChild(createBlockTextElement(block));
+            pageEl.appendChild(createBlockTextElement(block, theme));
           }
         }
       }
@@ -326,6 +322,8 @@ export function renderPrintableResume(
     blockedReason: null,
     riskCount: risks.length,
     maxOverflowPx,
+    templateId: theme.id,
+    templateVersion: theme.version,
   };
 
   if (mode === 'preview') {
