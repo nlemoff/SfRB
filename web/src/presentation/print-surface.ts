@@ -1,5 +1,6 @@
 import { BRIDGE_BOOTSTRAP_PATH, type ReadyBridgePayload } from '../bridge-client';
 import { renderPrintableResume, type PrintableResumeState } from './render-printable-resume';
+import { defaultTheme } from './templates/default';
 
 export type PrintSurfaceMode = 'preview' | 'artifact';
 
@@ -18,6 +19,8 @@ export async function mountPrintSurface(
   rootElement.setAttribute('data-blocked-reason', 'loading');
   rootElement.setAttribute('data-risk-count', '0');
   rootElement.setAttribute('data-max-overflow-px', '0');
+  rootElement.setAttribute('data-template-id', defaultTheme.id);
+  rootElement.setAttribute('data-template-version', defaultTheme.version);
 
   let payload: ReadyBridgePayload;
 
@@ -36,6 +39,8 @@ export async function mountPrintSurface(
         blockedReason: 'payload-error',
         riskCount: 0,
         maxOverflowPx: 0,
+        templateId: defaultTheme.id,
+        templateVersion: defaultTheme.version,
       };
       applyRootDiagnostics(rootElement, blockedState);
       return blockedState;
@@ -51,6 +56,8 @@ export async function mountPrintSurface(
       blockedReason: 'fetch-failed',
       riskCount: 0,
       maxOverflowPx: 0,
+      templateId: defaultTheme.id,
+      templateVersion: defaultTheme.version,
     };
     applyRootDiagnostics(rootElement, errorState);
     return errorState;
@@ -65,4 +72,6 @@ function applyRootDiagnostics(rootElement: HTMLElement, state: PrintableResumeSt
   rootElement.setAttribute('data-blocked-reason', state.blockedReason ?? '');
   rootElement.setAttribute('data-risk-count', String(state.riskCount));
   rootElement.setAttribute('data-max-overflow-px', String(state.maxOverflowPx));
+  rootElement.setAttribute('data-template-id', state.templateId);
+  rootElement.setAttribute('data-template-version', state.templateVersion);
 }

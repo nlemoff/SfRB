@@ -451,6 +451,8 @@ export type PrintSurfaceDiagnostics = {
   riskCount: string | null;
   maxOverflowPx: string | null;
   surfaceMode: string | null;
+  templateId: string | null;
+  templateVersion: string | null;
   pageCount: number;
   hasDiagnosticsPanel: boolean;
   diagnosticsText: string | null;
@@ -492,6 +494,8 @@ export async function readPrintSurfaceDiagnostics(page: BridgeBrowserPage): Prom
     riskCount: await page.getAttribute('#root', 'data-risk-count'),
     maxOverflowPx: await page.getAttribute('#root', 'data-max-overflow-px'),
     surfaceMode: await page.getAttribute('#root', 'data-surface-mode'),
+    templateId: await page.getAttribute('#root', 'data-template-id'),
+    templateVersion: await page.getAttribute('#root', 'data-template-version'),
     pageCount,
     hasDiagnosticsPanel,
     diagnosticsText: hasDiagnosticsPanel ? await diagLocator.textContent() : null,
