@@ -5,6 +5,7 @@ import {
   type BridgeSignal,
   type ReadyBridgePayload,
   BRIDGE_BOOTSTRAP_PATH,
+  BRIDGE_PRINT_PATH,
   createBridgeEditorStatusStore,
   fetchBridgePayload,
   requestBridgeLayoutConsultant,
@@ -176,6 +177,17 @@ function createShellMarkup(): string {
               <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #cbd5e1;">Editor save state</div>
               <div id="editor-save-state-label" style="margin-top: 10px; font-size: 1.1rem; font-weight: 700;">idle</div>
               <div id="editor-save-error" data-testid="editor-save-error" style="margin-top: 8px; color: #dbeafe; line-height: 1.5;">No save errors recorded.</div>
+            </section>
+
+            <section id="export-panel" data-testid="export-panel" data-export-state="loading" style="${panelStyles}; padding: 22px; display: grid; gap: 12px; background: rgba(30, 20, 50, 0.72); border-color: rgba(168, 85, 247, 0.24);">
+              <div>
+                <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #c4b5fd;">Export</div>
+                <div id="export-state-label" data-testid="export-state-label" style="margin-top: 10px; font-size: 1.2rem; font-weight: 700; color: #f5f3ff;">Checking…</div>
+                <div id="export-state-note" data-testid="export-state-note" style="margin-top: 8px; color: #e9ddff; line-height: 1.5;">Probing the shared export surface for readiness.</div>
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="export-preview" data-testid="export-preview" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(126, 34, 206, 0.24); color: #f5f3ff; font: inherit; cursor: pointer;">Preview export</button>
+              </div>
             </section>
           </aside>
         </section>
@@ -594,6 +606,7 @@ export function mountApp(rootElement: HTMLElement) {
       editorEngine.setPayload(null);
     }
     syncBridgeSurface();
+    void readBridgePrintSurfaceSnapshot();
   };
 
   const requestConsultantProposal = async () => {
@@ -733,9 +746,95 @@ export function mountApp(rootElement: HTMLElement) {
     rejectButton.addEventListener('click', rejectPreview);
   }
 
+  // --- Export surface ---
+  const exportPanel = rootElement.querySelector('#export-panel');
+  const exportPreviewButton = rootElement.querySelector('#export-preview');
+  let exportState: string = 'loading';
+  let exportNote: string = 'Probing the shared export surface for readiness.';
+
+  const syncExportSurface = () => {
+    if (exportPanel instanceof HTMLElement) {
+      exportPanel.dataset.exportState = exportState;
+      exportPanel.style.borderColor = exportState === 'ready'
+        ? 'rgba(45, 212, 191, 0.35)'
+        : exportState === 'risk' || exportState === 'blocked'
+          ? 'rgba(248, 113, 113, 0.35)'
+          : 'rgba(168, 85, 247, 0.24)';
+    }
+    setText(rootElement, '#export-state-label', exportState);
+    setText(rootElement, '#export-state-note', exportNote);
+    setButtonState(exportPreviewButton, exportState === 'ready');
+  };
+
+  const readBridgePrintSurfaceSnapshot = async (): Promise<void> => {
+    const currentPayload = payload?.status === 'ready' ? payload : null;
+    if (!currentPayload) {
+      exportState = 'loading';
+      exportNote = 'Waiting for a ready workspace before probing the export surface.';
+      syncExportSurface();
+      return;
+    }
+
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = `${BRIDGE_PRINT_PATH}?mode=artifact`;
+      document.body.appendChild(iframe);
+
+      await new Promise<void>((resolve) => {
+        iframe.addEventListener('load', () => resolve(), { once: true });
+        setTimeout(resolve, 8000);
+      });
+
+      const iframeRoot = iframe.contentDocument?.getElementById('root');
+      if (iframeRoot) {
+        // Wait for export-state to settle
+        const waitStart = Date.now();
+        while (Date.now() - waitStart < 5000) {
+          const state = iframeRoot.getAttribute('data-export-state');
+          const reason = iframeRoot.getAttribute('data-blocked-reason');
+          if (state && (state !== 'blocked' || reason !== 'loading')) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        exportState = iframeRoot.getAttribute('data-export-state') ?? 'blocked';
+        const overflowStatus = iframeRoot.getAttribute('data-overflow-status') ?? 'unknown';
+        const riskCount = iframeRoot.getAttribute('data-risk-count') ?? '0';
+        const maxOverflowPx = iframeRoot.getAttribute('data-max-overflow-px') ?? '0';
+        const blockedReason = iframeRoot.getAttribute('data-blocked-reason') ?? '';
+
+        if (exportState === 'ready') {
+          exportNote = `Export surface reports ready. Overflow: ${overflowStatus}.`;
+        } else if (exportState === 'risk') {
+          exportNote = `Export at risk: ${riskCount} overflow(s), max ${maxOverflowPx}px. Resolve before exporting.`;
+        } else {
+          exportNote = `Export blocked: ${blockedReason || 'unknown reason'}.`;
+        }
+      } else {
+        exportState = 'blocked';
+        exportNote = 'Could not probe the export surface iframe.';
+      }
+
+      iframe.remove();
+    } catch {
+      exportState = 'blocked';
+      exportNote = 'Export surface probe failed.';
+    }
+
+    syncExportSurface();
+  };
+
+  if (exportPreviewButton instanceof HTMLButtonElement) {
+    exportPreviewButton.addEventListener('click', () => {
+      if (exportState !== 'ready') return;
+      window.open(BRIDGE_PRINT_PATH, 'sfrb-export-preview', 'width=660,height=860');
+    });
+  }
+
   syncBridgeSurface();
   syncSaveSurface(editorStatusStore.getSnapshot());
   syncConsultantSurface();
+  syncExportSurface();
 
   const abortController = new AbortController();
   void refreshBridge(abortController.signal);
