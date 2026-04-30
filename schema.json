@@ -40,6 +40,26 @@
             "kind"
           ],
           "additionalProperties": false
+        },
+        "template": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "enum": [
+                "default"
+              ]
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

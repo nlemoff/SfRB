@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { templateMetadataSchema } from './templates/registry';
+
 export const DOCUMENT_SCHEMA_VERSION = 1 as const;
 
 export const stableIdSchema = z
@@ -87,6 +89,7 @@ export const documentSchema = z
       title: z.string().min(1, 'Document title is required'),
       locale: z.string().min(2, 'Locale must be at least 2 characters').default('en-US'),
       starter: starterMetadataSchema.optional(),
+      template: templateMetadataSchema.optional(),
     }),
     semantic: z.strictObject({
       sections: z.array(semanticSectionSchema).min(1, 'Document must contain at least one semantic section'),
@@ -196,6 +199,7 @@ export type StarterKind = z.output<typeof starterKindSchema>;
 export type StarterMetadata = z.output<typeof starterMetadataSchema>;
 export type SemanticSection = z.output<typeof semanticSectionSchema>;
 export type SemanticBlock = z.output<typeof semanticBlockSchema>;
+export type SemanticBlockKind = z.output<typeof semanticBlockKindSchema>;
 export type LayoutPage = z.output<typeof pageSchema>;
 export type LayoutFrame = z.output<typeof layoutFrameSchema>;
 
