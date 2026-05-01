@@ -6,6 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { createStarterDocument } from '../../src/document/starters';
+import type { TemplateId } from '../../src/document/templates/registry';
 
 const execFileAsync = promisify(execFile);
 const tempDirs: string[] = [];
@@ -26,6 +27,7 @@ export type WorkspaceOptions = {
   apiKeyEnvVar?: string;
   starterKind?: 'template' | 'blank';
   skipAi?: boolean;
+  template?: { id: TemplateId; version: string };
 };
 
 export type BridgeBrowserPage = {
@@ -116,6 +118,10 @@ export async function writeWorkspaceFiles(projectRoot: string, options: Workspac
 
   const document = createStarterDocument(starterKind, physics);
   document.metadata.title = title;
+
+  if (options.template) {
+    document.metadata.template = { id: options.template.id, version: options.template.version };
+  }
 
   const summaryBlock = document.semantic.blocks.find((block) => block.id === 'summaryBlock');
   if (summaryBlock && typeof blockText === 'string') {
