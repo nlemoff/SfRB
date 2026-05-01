@@ -77,6 +77,32 @@ describe('print surface template markers', () => {
     }
   });
 
+  it('shows a "Template" line in the preview diagnostics band but never in artifact mode', async () => {
+    const projectRoot = await makeTempProject('sfrb-template-diagnostics-line-');
+    await writeWorkspaceFiles(projectRoot, {
+      physics: 'document',
+      template: { id: 'classic', version: '1' },
+    });
+
+    const { child, url } = await waitForBridgeReady(projectRoot);
+    const previewPage = await createPage();
+    const artifactPage = await createPage();
+
+    try {
+      await openPrintSurface(previewPage as unknown as BridgeBrowserPage, url);
+      const previewLine = await previewPage.textContent('[data-testid="print-diagnostics-template"]');
+      expect(previewLine?.trim()).toBe('Template · classic');
+
+      await openPrintSurface(artifactPage as unknown as BridgeBrowserPage, url, 'artifact');
+      const artifactLine = await artifactPage.$('[data-testid="print-diagnostics-template"]');
+      expect(artifactLine).toBeNull();
+    } finally {
+      await previewPage.close();
+      await artifactPage.close();
+      await closeBridge(child);
+    }
+  });
+
   it('renders default theme typography on the print surface (byte-stability spot checks)', async () => {
     const projectRoot = await makeTempProject('sfrb-template-default-typography-');
     await writeWorkspaceFiles(projectRoot, { physics: 'document', starterKind: 'template' });
