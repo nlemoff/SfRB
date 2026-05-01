@@ -47,7 +47,9 @@
             "id": {
               "type": "string",
               "enum": [
-                "default"
+                "default",
+                "classic",
+                "modern"
               ]
             },
             "version": {
