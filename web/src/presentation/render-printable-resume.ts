@@ -190,19 +190,32 @@ function createDiagnosticsPanel(state: PrintableResumeState): HTMLElement {
     color: '#e2e8f0',
   });
 
+  const mainLine = document.createElement('div');
   if (state.exportState === 'ready') {
     panel.style.backgroundColor = '#0f2b1d';
     panel.style.border = '1px solid #166534';
-    panel.textContent = `Export ready \u00b7 ${state.pageCount} page${state.pageCount !== 1 ? 's' : ''}`;
+    mainLine.textContent = `Export ready \u00b7 ${state.pageCount} page${state.pageCount !== 1 ? 's' : ''}`;
   } else if (state.exportState === 'risk') {
     panel.style.backgroundColor = '#2b1f0f';
     panel.style.border = '1px solid #92400e';
-    panel.textContent = `Export risk \u00b7 ${state.riskCount} overflow${state.riskCount !== 1 ? 's' : ''} \u00b7 max ${state.maxOverflowPx}px`;
+    mainLine.textContent = `Export risk \u00b7 ${state.riskCount} overflow${state.riskCount !== 1 ? 's' : ''} \u00b7 max ${state.maxOverflowPx}px`;
   } else {
     panel.style.backgroundColor = '#2b0f0f';
     panel.style.border = '1px solid #991b1b';
-    panel.textContent = `Export blocked \u00b7 ${state.blockedReason ?? 'unknown'}`;
+    mainLine.textContent = `Export blocked \u00b7 ${state.blockedReason ?? 'unknown'}`;
   }
+  panel.appendChild(mainLine);
+
+  const templateLine = document.createElement('div');
+  templateLine.setAttribute('data-testid', 'print-diagnostics-template');
+  Object.assign(templateLine.style, {
+    marginTop: '6px',
+    fontSize: '11px',
+    opacity: '0.75',
+    letterSpacing: '0.04em',
+  });
+  templateLine.textContent = `Template \u00b7 ${state.templateId}`;
+  panel.appendChild(templateLine);
 
   return panel;
 }
