@@ -835,7 +835,15 @@ export function mountApp(rootElement: HTMLElement) {
       },
     };
     setTemplatePickerNote(`Applying ${id}…`);
-    const result = await submitBridgeDocumentMutation(candidate, { statusStore: editorStatusStore });
+    let result: Awaited<ReturnType<typeof submitBridgeDocumentMutation>>;
+    try {
+      result = await submitBridgeDocumentMutation(candidate, { statusStore: editorStatusStore });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setTemplatePickerNote(`Template apply failed: bridge_unavailable${message ? ` — ${message}` : ''}`, 'bridge_unavailable');
+      return;
+    }
+
     if (result.ok) {
       setTemplatePickerNote(`Applied ${id}.`);
       void refreshBridge();
