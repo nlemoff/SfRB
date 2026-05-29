@@ -266,8 +266,8 @@ describe('sfrb init command', () => {
       {
         cwd: projectRoot,
         starter: 'template',
-        provider: 'anthropic',
-        apiKey: 'sk-ant-key-12345',
+        provider: 'deepseek',
+        apiKey: '***',
         physics: 'design',
       },
       io.runtime,
@@ -276,8 +276,8 @@ describe('sfrb init command', () => {
     expect(exitCode).toBe(0);
     await expect(readConfig(projectRoot)).resolves.toMatchObject({
       ai: {
-        provider: 'anthropic',
-        apiKeyEnvVar: 'ANTHROPIC_API_KEY',
+        provider: 'deepseek',
+        apiKeyEnvVar: 'DEEPSEEK_API_KEY',
       },
       workspace: {
         physics: 'design',

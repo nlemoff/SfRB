@@ -1,12 +1,13 @@
 import { z } from 'zod';
 
-export const PROVIDERS = ['openai', 'anthropic'] as const;
+export const PROVIDERS = ['deepseek', 'openai', 'anthropic'] as const;
 export const PHYSICS_MODES = ['document', 'design'] as const;
 
 export type Provider = (typeof PROVIDERS)[number];
 export type PhysicsMode = (typeof PHYSICS_MODES)[number];
 
 const providerEnvVarMap = {
+  deepseek: 'DEEPSEEK_API_KEY',
   openai: 'OPENAI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
 } as const satisfies Record<Provider, string>;

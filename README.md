@@ -1,52 +1,36 @@
 # SfRB
 
-SfRB (Straightforward Resume Builder) is a local-first resume builder with a CLI entrypoint and a browser-based editor. It keeps one canonical `resume.sfrb.json` document model, validates workspace rules before persistence, and supports both document-style editing and fixed-layout design editing.
+SfRB — **Straightforward Resume Builder** — is a local-first resume editor with a CLI, a browser editor, and one canonical `resume.sfrb.json` document model.
 
-The current stable baseline is **M002 complete**, with **M003** now focused on export and presentation depth:
-- `sfrb init` creates real starter workspaces without storing API secrets in the repo
-- `sfrb open` launches the local bridge and browser editor
-- document mode supports inline editing
-- design mode supports frame editing, dragging, and overflow measurement
-- the guided editing flow keeps browser and CLI work tied to one canonical document model
-- the AI layout consultant can detect overflow, show a ghost preview, and persist accepted fixes through the canonical write path
+The goal is simple: make resumes feel as editable as a document, as controllable as a design file, and as auditable as source code.
 
-## Why this project exists
+## What works today
 
-Most resume tools force a bad tradeoff:
-- document tools are easy to edit but weak on layout control
-- design tools are flexible but brittle once content changes
-- AI tools can suggest changes, but often without a trustworthy local source of truth
+- `sfrb init` creates local resume workspaces.
+- `sfrb open` launches a local bridge and browser editor.
+- `resume.sfrb.json` is the canonical document source of truth.
+- `sfrb.config.json` stores local workspace settings, not provider secrets.
+- Document mode supports inline editing.
+- Design mode supports frame editing, dragging, and overflow measurement.
+- The layout consultant can propose overflow fixes, show a ghost preview, and persist accepted changes through the same canonical write path as manual edits.
+- API keys stay in environment variables and are never sent to the browser.
 
-SfRB is trying to close that gap with:
-- a **local-first** workflow
-- a **single canonical JSON model**
-- a **CLI + browser** editing loop
-- **workspace physics** for document-mode vs design-mode behavior
-- an **AI layout consultant** that proposes fixes without bypassing the canonical write boundary
+The current baseline includes the M003 export/presentation surface and the M004 template system: named templates, a template CLI, browser template selection, and assembled template export verification.
 
-## Status
+## Why SfRB exists
 
-This repo is still early, but it is not a toy spike anymore.
+Most resume tools force one of three bad tradeoffs:
 
-What is already proven in the shipped flow:
-- canonical local authoring through `sfrb init` and `sfrb open`
-- starter workspace creation for template and blank resumes
-- validated writes back to `resume.sfrb.json`
-- document-mode inline editing
-- design-mode frame dragging, linked text editing, and overflow measurement
-- structured browser/CLI action parity over the canonical document model
-- bridge-backed AI overflow detection and ghost-preview acceptance/rejection
+- document editors are easy to write in but weak on layout control;
+- design tools give precise layout but become brittle when content changes;
+- AI resume tools suggest edits without a trustworthy local source of truth.
 
-The current active build track is **M003: Export & Presentation Depth**.
+SfRB is built around a different contract:
 
-The authoritative internal project status lives in:
-- `.gsd/PROJECT.md` — current project state
-- `.gsd/STATE.md` — quick-glance current status
-- `.gsd/REQUIREMENTS.md` — capability contract and validation state
-- `.gsd/DECISIONS.md` — append-only architectural decisions
-- `.gsd/milestones/` — milestone/slice/task planning and summaries
-
-For a contributor-oriented roadmap that is easier to scan than the full GSD archive, read `OPEN_SOURCE_BUILD_PLAN.md`.
+1. keep the resume in a validated local JSON document;
+2. expose both document-style and design-style editing;
+3. let AI propose changes, but never bypass local validation or explicit user acceptance;
+4. eventually export from a clean presentation surface, not from editor chrome.
 
 ## Quick start
 
@@ -61,15 +45,40 @@ For a contributor-oriented roadmap that is easier to scan than the full GSD arch
 npm install
 ```
 
-### Browser test setup
+### Configure AI suggestions
 
-Playwright is used for browser-level editor tests and smoke verification. It is **not** required just to build the CLI, but it **is** required for the web/editor verification paths.
-
-Install the Chromium browser used by the repo's Playwright-based tests:
+SfRB defaults new AI-enabled workspaces to DeepSeek because `deepseek-v4-flash` is cheap, fast, and supports JSON output.
 
 ```bash
-npm run test:setup:browsers
+cp .env.example .env
+# edit .env and set DEEPSEEK_API_KEY
 ```
+
+Or export the key directly before launching the bridge:
+
+```bash
+export DEEPSEEK_API_KEY="your_key_here"
+```
+
+Default AI settings:
+
+```json
+{
+  "ai": {
+    "provider": "deepseek",
+    "apiKeyEnvVar": "DEEPSEEK_API_KEY"
+  }
+}
+```
+
+The consultant uses:
+
+- DeepSeek OpenAI-compatible base URL: `https://api.deepseek.com`
+- default model: `deepseek-v4-flash`
+- optional override: `SFRB_CONSULTANT_DEEPSEEK_MODEL`
+- optional local/stub endpoint override: `SFRB_DEEPSEEK_BASE_URL`
+
+OpenAI and Anthropic remain supported when a workspace explicitly configures them.
 
 ### Build
 
@@ -79,25 +88,24 @@ npm run build
 
 ### Test
 
-Run the full Vitest suite:
-
 ```bash
 npm test
 ```
 
-Run only the browser/editor tests:
+Browser/editor tests use Playwright. Install the browser dependency when needed:
 
 ```bash
+npm run test:setup:browsers
 npm run test:web
 ```
 
-Run the built-runtime smoke verification scripts:
+Smoke verification:
 
 ```bash
 npm run verify:smoke
 ```
 
-### Schema checks
+Schema checks:
 
 ```bash
 npm run schema:generate
@@ -106,18 +114,26 @@ npm run schema:check
 
 ## CLI usage
 
-Build first so the CLI exists in `dist/`.
+Build first so the CLI exists in `dist/`:
 
 ```bash
 npm run build
 node dist/cli.js --help
 ```
 
-Available commands include:
+Common commands:
 
 ```bash
 node dist/cli.js init
 node dist/cli.js open
+```
+
+Example local workspace:
+
+```bash
+mkdir my-resume && cd my-resume
+node /path/to/SfRB/dist/cli.js init --starter template --physics document --provider deepseek --api-key "$DEEPSEEK_API_KEY"
+DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" node /path/to/SfRB/dist/cli.js open --no-open
 ```
 
 ## Project shape
@@ -127,206 +143,90 @@ Key files and boundaries:
 - `src/cli.ts` — CLI entrypoint
 - `src/commands/init.ts` — workspace initialization
 - `src/commands/open.ts` — local bridge startup
+- `src/config/schema.ts` — workspace config contract and provider/env-var mapping
 - `src/bridge/server.mjs` — browser bridge runtime
-- `src/agent/LayoutConsultant.ts` — AI consultant provider boundary and proposal validation
+- `src/agent/LayoutConsultant.ts` — AI provider boundary and local proposal validation
+- `src/document/` — canonical document schema, validation, starters, and persistence
 - `web/` — browser editor UI
 - `schema.json` — generated document schema artifact
-- `.gsd/` — planning, requirements, decision, and execution artifacts
+- `.gsd/` — planning, requirements, decisions, and milestone artifacts
 
-Canonical local workspace files:
+Canonical workspace files:
 
-- `sfrb.config.json` — workspace config, including AI provider metadata and physics mode
+- `sfrb.config.json` — workspace settings, including provider metadata and physics mode
 - `resume.sfrb.json` — canonical resume document
 
-Runtime boundaries worth understanding before you change things:
+Runtime contracts:
 
 - browser state is reconciled from `/__sfrb/bootstrap`
 - browser mutations persist through `/__sfrb/editor`
 - AI layout proposals are requested through `/__sfrb/consultant`
-- API secrets stay in environment variables, not in committed config
+- provider secrets stay in environment variables
 - the browser must never receive raw provider secrets or auth headers
 
-## How planning works
+## Planning and roadmap
 
-This repo uses the `.gsd/` directory as the planning and execution source of truth.
+The repo uses `.gsd/` as the planning and execution source of truth:
 
-### Planning model
+- `.gsd/PROJECT.md` — current project state
+- `.gsd/STATE.md` — quick-glance active status
+- `.gsd/REQUIREMENTS.md` — capability contract and validation state
+- `.gsd/DECISIONS.md` — append-only architectural decisions
+- `.gsd/milestones/` — milestone/slice/task planning and summaries
 
-Work is organized as:
-- **Milestones** — major phases, such as `M001`
-- **Slices** — vertical increments within a milestone, such as `S05`
-- **Tasks** — single-unit implementation steps inside a slice
+For a contributor-oriented roadmap, read [`OPEN_SOURCE_BUILD_PLAN.md`](./OPEN_SOURCE_BUILD_PLAN.md).
 
-Key files:
-- `.gsd/PROJECT.md` — what the project is right now
-- `.gsd/STATE.md` — what is active right now
-- `.gsd/REQUIREMENTS.md` — what capabilities are active, validated, deferred, or out of scope
-- `.gsd/DECISIONS.md` — important architectural/pattern decisions
-- `.gsd/milestones/M001/M001-ROADMAP.md` — milestone roadmap and slice completion state
-- `.gsd/milestones/M001/slices/...` — slice plan, summary, and UAT docs
+## Contribution expectations
 
-### How decisions get made
+Good changes usually:
 
-The project tries to avoid vague “someday” roadmaps.
+- preserve the canonical local document model;
+- keep `/__sfrb/bootstrap` and `/__sfrb/editor` stable unless explicitly changing that contract;
+- avoid leaking secrets into logs, browser payloads, committed config, or screenshots;
+- include the lightest sufficient tests or verification;
+- keep planning docs aligned when project state materially changes.
 
-The normal order is:
-1. identify or refine a requirement
-2. place it into a milestone/slice
-3. document the execution plan
-4. implement and verify it
-5. write summary/UAT artifacts
-6. update requirements and current-state docs only when proof exists
+High-value next contributions:
 
-That means planning files are not decoration. They are the contract for what is actually being built and what has actually been proven.
+- editor UX polish that makes the document canvas primary;
+- lower-flake browser tests and bridge smoke checks;
+- additional resume templates and template accessibility checks;
+- deterministic export verification across more document shapes;
+- accessibility and keyboard/focus improvements.
 
-### What a good planning PR looks like
-
-A planning-focused PR is welcome if it improves clarity without inventing fake certainty. Good planning PRs usually do one of these:
-- sharpen requirements so they are testable
-- split a risky slice into smaller vertical steps
-- improve milestone sequencing
-- add missing observability or verification requirements
-- reconcile stale docs after real code landed
-
-## Contributing
-
-Contributions are welcome, but this repo will be easier to work with if changes follow the project’s existing rules instead of bypassing them.
-
-### Before you open a PR
-
-Please do these first:
-- read this README
-- read `.gsd/PROJECT.md`
-- read `.gsd/STATE.md`
-- read `.gsd/REQUIREMENTS.md`
-- look at the relevant milestone/slice docs under `.gsd/milestones/`
-- check whether the change already has a planned slice or open direction
-
-If your change is larger than a small bug fix or doc cleanup, open an issue or discussion first so the direction is agreed before code lands.
-
-### Good first contributions
-
-These are the easiest high-value contributions right now:
-- README/docs clarity improvements
-- test reliability improvements
-- browser diagnostics/observability improvements
-- fixture cleanup and temp-workspace test helpers
-- print/export surface verification helpers
-- bug fixes in validation, bridge sync, or editor state reconciliation
-- accessibility improvements in the browser editor
-
-### High-value PRs we actively want
-
-If you want to work on meaningful next-step contributions, these are the kinds of PRs likely to help most:
-
-#### 1. M003 printable presentation and export groundwork
-- shared printable renderer work
-- bridge print/export route wiring
-- export-readiness and overflow-risk diagnostics
-- print/export verification helpers
-
-#### 2. CLI and automation improvements
-- safer non-interactive automation paths
-- future `export` command groundwork
-- more explicit diagnostics for local agent and CI use
-
-#### 3. Editor and presentation polish
-- accessibility improvements
-- selection/editing edge-case fixes
-- design-mode overflow measurement hardening
-- calmer export-preview and artifact-oriented UI polish
-
-#### 4. Testing and verification
-- stronger built-runtime verification
-- lower-flake browser tests
-- better smoke scripts for real workspace flows
-- better failure-path coverage
-
-#### 5. Documentation and contributor handoff
-- roadmap clarity
-- contributor onboarding docs
-- truthful slice summaries after real work lands
-- public-facing docs that stay aligned with `.gsd/` source docs
-
-### PRs we are less likely to accept quickly
-
-These are not banned, but they will need stronger justification:
-- large refactors with no clear user or reliability payoff
-- framework churn for its own sake
-- abstractions that make the current code harder to debug
-- features that bypass the canonical local document boundary
-- changes that move secrets into committed config or browser-visible state
-- UI rewrites that ignore the existing document-vs-design physics model
-
-### PR expectations
-
-A good PR here should usually:
-- stay aligned with the canonical local document model
-- preserve the `/__sfrb/bootstrap` and `/__sfrb/editor` contract unless the PR is explicitly changing it
-- avoid leaking secrets into logs, browser payloads, or committed files
-- include the lightest sufficient tests or verification
-- update `.gsd/` artifacts when the change materially affects project state, planning, or validated behavior
-- explain tradeoffs plainly
+Avoid large framework churn, secret handling changes, or UI rewrites that bypass the document-vs-design physics model.
 
 ## Branch hierarchy
 
-The repo should follow this promotion model:
+SfRB now uses a simple open-source maintainer workflow:
 
-- `main` — most up-to-date **stable** branch
-- `DEV` — integration branch for active development
-- `TEST` — pre-release validation branch between `DEV` and `main`
+```txt
+feature/fix/docs branch -> main
+```
 
-Promotion flow:
+- `main` should always be usable.
+- Every PR targets `main` directly.
+- Use GitHub Actions as the quality gate.
+- Use draft PRs for work-in-progress.
+- Cut releases/tags when a polished milestone is ready.
 
-1. branch off `DEV` for feature or fix work
-2. merge the work branch back into `DEV`
-3. promote `DEV` into `TEST`
-4. validate in `TEST`
-5. promote `TEST` into `main`
+Examples:
 
-In short:
+```txt
+feat/template-catalog       -> main
+feat/template-polish        -> main
+feat/deepseek-default       -> main
+fix/bridge-copy-race        -> main
+docs/open-source-roadmap    -> main
+```
 
-`feature/fix branch -> DEV -> TEST -> main`
+Before merging, run at least:
 
-### Branching rules
-
-- Do **not** branch new work directly from `main` unless it is an explicit hotfix process.
-- `main` should remain releasable.
-- `DEV` is where integration happens.
-- `TEST` is where promotion candidates are verified before landing in `main`.
-- Keep promotion directional: `DEV -> TEST -> main`.
-- If a branch needs backmerged policy or docs changes from stable, do that before promotion.
-- If a PR changes release/process policy, update the README and any affected `.gsd/` docs in the same change.
-
-## Release and promotion checklist
-
-Before promoting upward:
-
-- branch is based on the current intended source branch
-- `npm run build` passes
-- `npm test` passes
-- milestone/slice docs in `.gsd/` reflect actual shipped state
-- requirement/status docs are not stale
-- any license-related file additions or changes are present
-- branch is clean and ready to merge upward
+```bash
+npm run build
+npm test
+```
 
 ## License
 
 This repository is licensed under the **Apache License 2.0**. See [`LICENSE`](./LICENSE).
-
-If you redistribute this project or derivative works, the practical rules from Apache 2.0 that matter here are:
-
-- include a copy of the Apache 2.0 license
-- keep existing copyright, attribution, patent, and license notices
-- mark files you changed with prominent notices
-- if a `NOTICE` file is added later, include its required attributions when redistributing
-- do not imply warranties; the project is provided on an `AS IS` basis
-- do not assume trademark rights from the license
-
-This README is guidance only. The `LICENSE` file is the authority.
-
-## Status going forward
-
-M001 and M002 are treated as the shipped foundation. The active build track is now M003: create a shared printable presentation surface, then add trustworthy PDF export and presentation depth on top of it.
-
-If you want to contribute and you are not sure where to start, docs, tests, verification helpers, and M003 planning/execution work are the safest high-value places to begin.

@@ -18,14 +18,14 @@ afterEach(async () => {
 });
 
 describe('sfrb config contract', () => {
-  it('writes and reads a valid AI-configured config with stable defaults', async () => {
+  it('writes and reads a valid DeepSeek AI-configured config with stable defaults', async () => {
     const projectRoot = await makeTempProject();
 
     const written = await writeConfig(
       {
         ai: {
-          provider: 'openai',
-          apiKeyEnvVar: 'OPENAI_API_KEY',
+          provider: 'deepseek',
+          apiKeyEnvVar: 'DEEPSEEK_API_KEY',
         },
         workspace: {},
       },
@@ -35,8 +35,8 @@ describe('sfrb config contract', () => {
     expect(written).toEqual({
       version: 1,
       ai: {
-        provider: 'openai',
-        apiKeyEnvVar: 'OPENAI_API_KEY',
+        provider: 'deepseek',
+        apiKeyEnvVar: 'DEEPSEEK_API_KEY',
       },
       workspace: {
         physics: 'document',
@@ -45,7 +45,7 @@ describe('sfrb config contract', () => {
 
     const configPath = getConfigPath(projectRoot);
     const persisted = await readFile(configPath, 'utf8');
-    expect(persisted).toContain('"provider": "openai"');
+    expect(persisted).toContain('"provider": "deepseek"');
     expect(persisted).toContain('"physics": "document"');
 
     await expect(readConfig(projectRoot)).resolves.toEqual(written);
