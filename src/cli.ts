@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { createExportCommand } from './commands/export';
 import { createInitCommand } from './commands/init';
 import { createOpenCommand } from './commands/open';
+import { createTemplateCommand } from './commands/template';
 
 export function createCli(): Command {
   const program = new Command();
@@ -16,6 +17,7 @@ export function createCli(): Command {
   program.addCommand(createExportCommand());
   program.addCommand(createInitCommand());
   program.addCommand(createOpenCommand());
+  program.addCommand(createTemplateCommand());
 
   return program;
 }

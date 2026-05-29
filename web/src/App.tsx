@@ -1,5 +1,12 @@
 import {
+  TEMPLATE_IDS,
+  TEMPLATE_VERSIONS,
+  currentTemplateMetadata,
+  type TemplateId,
+} from '../../src/document/templates/registry';
+import {
   type BridgeConsultantResult,
+  type BridgeDocument,
   type BridgeEditorStatusSnapshot,
   type BridgePayload,
   type BridgeSignal,
@@ -177,6 +184,15 @@ function createShellMarkup(): string {
               <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #cbd5e1;">Editor save state</div>
               <div id="editor-save-state-label" style="margin-top: 10px; font-size: 1.1rem; font-weight: 700;">idle</div>
               <div id="editor-save-error" data-testid="editor-save-error" style="margin-top: 8px; color: #dbeafe; line-height: 1.5;">No save errors recorded.</div>
+            </section>
+
+            <section id="template-picker" data-testid="template-picker" data-active-template-id="default" style="${panelStyles}; padding: 22px; display: grid; gap: 12px; background: rgba(34, 24, 50, 0.55); border-color: rgba(192, 132, 252, 0.24);">
+              <div>
+                <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #d8b4fe;">Template</div>
+                <div id="template-active-label" data-testid="template-active-label" style="margin-top: 10px; font-size: 1.1rem; font-weight: 700; color: #f5f3ff;">default</div>
+                <div id="template-picker-note" data-testid="template-picker-note" style="margin-top: 8px; color: #ede9fe; line-height: 1.5;">Selecting a template persists metadata.template through the canonical write path.</div>
+              </div>
+              <div id="template-picker-buttons" data-testid="template-picker-buttons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
             </section>
 
             <section id="export-panel" data-testid="export-panel" data-export-state="loading" style="${panelStyles}; padding: 22px; display: grid; gap: 12px; background: rgba(30, 20, 50, 0.72); border-color: rgba(168, 85, 247, 0.24);">
@@ -606,6 +622,7 @@ export function mountApp(rootElement: HTMLElement) {
       editorEngine.setPayload(null);
     }
     syncBridgeSurface();
+    syncTemplatePicker();
     void readBridgePrintSurfaceSnapshot();
   };
 
@@ -745,6 +762,99 @@ export function mountApp(rootElement: HTMLElement) {
   if (rejectButton instanceof HTMLButtonElement) {
     rejectButton.addEventListener('click', rejectPreview);
   }
+
+  // --- Template picker ---
+  const templatePicker = rootElement.querySelector('#template-picker');
+  const templatePickerButtons = rootElement.querySelector('#template-picker-buttons');
+  const templateActiveLabel = rootElement.querySelector('#template-active-label');
+
+  const renderTemplatePickerButtons = () => {
+    if (!(templatePickerButtons instanceof HTMLElement)) return;
+    templatePickerButtons.innerHTML = '';
+
+    for (const id of TEMPLATE_IDS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = `template-pick-${id}`;
+      button.dataset.testid = `template-pick-${id}`;
+      button.dataset.templateId = id;
+      button.textContent = id;
+      button.style.cssText = 'padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(192, 132, 252, 0.4); background: rgba(126, 34, 206, 0.16); color: #f5f3ff; font: inherit; cursor: pointer;';
+      button.addEventListener('click', () => {
+        void applyTemplateSelection(id);
+      });
+      templatePickerButtons.appendChild(button);
+    }
+  };
+
+  const syncTemplatePicker = () => {
+    const activeId: TemplateId = payload?.status === 'ready'
+      ? (payload.document.metadata.template?.id ?? 'default')
+      : 'default';
+    if (templatePicker instanceof HTMLElement) {
+      templatePicker.dataset.activeTemplateId = activeId;
+    }
+    if (templateActiveLabel instanceof HTMLElement) {
+      templateActiveLabel.textContent = activeId;
+    }
+    if (templatePickerButtons instanceof HTMLElement) {
+      for (const button of Array.from(templatePickerButtons.querySelectorAll('button'))) {
+        const buttonId = (button as HTMLButtonElement).dataset.templateId;
+        const isActive = buttonId === activeId;
+        (button as HTMLButtonElement).style.background = isActive
+          ? 'rgba(192, 132, 252, 0.4)'
+          : 'rgba(126, 34, 206, 0.16)';
+        (button as HTMLButtonElement).style.borderColor = isActive
+          ? 'rgba(216, 180, 254, 0.8)'
+          : 'rgba(192, 132, 252, 0.4)';
+      }
+    }
+  };
+
+  const setTemplatePickerNote = (note: string, errorCode: string | null = null) => {
+    if (templatePicker instanceof HTMLElement) {
+      if (errorCode) {
+        templatePicker.dataset.error = errorCode;
+      } else {
+        delete templatePicker.dataset.error;
+      }
+    }
+    setText(rootElement, '#template-picker-note', note);
+  };
+
+  const applyTemplateSelection = async (id: TemplateId): Promise<void> => {
+    if (payload?.status !== 'ready') {
+      setTemplatePickerNote('Cannot apply template: workspace is not ready.', 'not_ready');
+      return;
+    }
+    const candidate: BridgeDocument = {
+      ...payload.document,
+      metadata: {
+        ...payload.document.metadata,
+        template: currentTemplateMetadata(id),
+      },
+    };
+    setTemplatePickerNote(`Applying ${id}…`);
+    let result: Awaited<ReturnType<typeof submitBridgeDocumentMutation>>;
+    try {
+      result = await submitBridgeDocumentMutation(candidate, { statusStore: editorStatusStore });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setTemplatePickerNote(`Template apply failed: bridge_unavailable${message ? ` — ${message}` : ''}`, 'bridge_unavailable');
+      return;
+    }
+
+    if (result.ok) {
+      setTemplatePickerNote(`Applied ${id}.`);
+      void refreshBridge();
+      return;
+    }
+
+    setTemplatePickerNote(`Template apply failed: ${result.code}${result.message ? ` — ${result.message}` : ''}`, result.code);
+  };
+
+  renderTemplatePickerButtons();
+  syncTemplatePicker();
 
   // --- Export surface ---
   const exportPanel = rootElement.querySelector('#export-panel');

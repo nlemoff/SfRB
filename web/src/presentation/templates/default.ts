@@ -1,10 +1,9 @@
+import { TEMPLATE_VERSIONS } from '../../../../src/document/templates/registry';
 import type { Theme } from '../theme';
-
-export const DEFAULT_TEMPLATE_VERSION = '1';
 
 export const defaultTheme: Theme = {
   id: 'default',
-  version: DEFAULT_TEMPLATE_VERSION,
+  version: TEMPLATE_VERSIONS.default,
   typography: {
     rootFontFamily: "'Georgia', 'Times New Roman', serif",
     rootColor: '#1a1a1a',
