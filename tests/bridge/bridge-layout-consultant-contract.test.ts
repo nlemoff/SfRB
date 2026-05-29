@@ -33,6 +33,8 @@ describe('bridge layout consultant contract', () => {
       physics: 'design',
       title: 'Consultant Success',
       blockText: 'Overflowing summary text that needs more room.',
+      provider: 'deepseek',
+      apiKeyEnvVar: 'DEEPSEEK_API_KEY',
     });
 
     const provider = await createOpenAiStubServer((_request, response) => {
@@ -59,8 +61,8 @@ describe('bridge layout consultant contract', () => {
     const beforeRaw = await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8');
     const { child, url, stderr } = await waitForBridgeReady(projectRoot, {
       env: {
-        OPENAI_API_KEY: 'sk-test-success',
-        SFRB_OPENAI_BASE_URL: provider.baseUrl,
+        DEEPSEEK_API_KEY: '***',
+        SFRB_DEEPSEEK_BASE_URL: provider.baseUrl,
       },
     });
 
@@ -83,8 +85,8 @@ describe('bridge layout consultant contract', () => {
         documentPath: path.join(projectRoot, 'resume.sfrb.json'),
         configPath: path.join(projectRoot, 'sfrb.config.json'),
         canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
-        provider: 'openai',
-        apiKeyEnvVar: 'OPENAI_API_KEY',
+        provider: 'deepseek',
+        apiKeyEnvVar: 'DEEPSEEK_API_KEY',
         proposal: {
           kind: 'frame_resize',
           frameId: 'summaryFrame',
