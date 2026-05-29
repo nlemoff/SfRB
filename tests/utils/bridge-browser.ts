@@ -16,6 +16,7 @@ export const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
 export const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
+export const BRIDGE_PRINT_PATH = '/print';
 
 export type WorkspaceOptions = {
   physics?: 'document' | 'design';
@@ -440,6 +441,76 @@ export async function createOpenAiStubServer(
         });
       });
     },
+  };
+}
+
+export type PrintSurfaceDiagnostics = {
+  exportState: string | null;
+  overflowStatus: string | null;
+  blockedReason: string | null;
+  riskCount: string | null;
+  maxOverflowPx: string | null;
+  surfaceMode: string | null;
+  templateId: string | null;
+  templateVersion: string | null;
+  pageCount: number;
+  hasDiagnosticsPanel: boolean;
+  diagnosticsText: string | null;
+};
+
+export async function openPrintSurface(
+  page: BridgeBrowserPage,
+  baseUrl: string,
+  mode: 'preview' | 'artifact' = 'preview',
+): Promise<void> {
+  const printUrl = mode === 'artifact'
+    ? new URL('/print?mode=artifact', baseUrl).href
+    : new URL('/print', baseUrl).href;
+  await page.goto(printUrl, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => {
+    const root = document.getElementById('root');
+    return root?.getAttribute('data-export-state') !== 'blocked'
+      || root?.getAttribute('data-blocked-reason') !== 'loading';
+  });
+}
+
+export async function readPrintSurfaceDiagnostics(page: BridgeBrowserPage): Promise<PrintSurfaceDiagnostics> {
+  const pageStackLocator = page.locator('[data-testid="print-page-stack"]');
+  const pageStackCount = await pageStackLocator.count();
+  let pageCount = 0;
+  if (pageStackCount > 0) {
+    pageCount = await pageStackLocator.evaluate((stack) => {
+      return stack.querySelectorAll('[data-page-id]').length;
+    });
+  }
+
+  const diagLocator = page.locator('[data-testid="print-diagnostics"]');
+  const hasDiagnosticsPanel = (await diagLocator.count()) > 0;
+
+  return {
+    exportState: await page.getAttribute('#root', 'data-export-state'),
+    overflowStatus: await page.getAttribute('#root', 'data-overflow-status'),
+    blockedReason: await page.getAttribute('#root', 'data-blocked-reason'),
+    riskCount: await page.getAttribute('#root', 'data-risk-count'),
+    maxOverflowPx: await page.getAttribute('#root', 'data-max-overflow-px'),
+    surfaceMode: await page.getAttribute('#root', 'data-surface-mode'),
+    templateId: await page.getAttribute('#root', 'data-template-id'),
+    templateVersion: await page.getAttribute('#root', 'data-template-version'),
+    pageCount,
+    hasDiagnosticsPanel,
+    diagnosticsText: hasDiagnosticsPanel ? await diagLocator.textContent() : null,
+  };
+}
+
+export async function fetchPrintRoute(baseUrl: string, mode?: 'artifact'): Promise<{ status: number; contentType: string; body: string }> {
+  const url = mode === 'artifact'
+    ? new URL('/print?mode=artifact', baseUrl).href
+    : new URL('/print', baseUrl).href;
+  const response = await fetch(url);
+  return {
+    status: response.status,
+    contentType: response.headers.get('content-type') ?? '',
+    body: await response.text(),
   };
 }
 

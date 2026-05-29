@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 
+import { createExportCommand } from './commands/export';
 import { createInitCommand } from './commands/init';
 import { createOpenCommand } from './commands/open';
 
@@ -12,6 +13,7 @@ export function createCli(): Command {
     .description('Straightforward Resume Builder CLI')
     .version('0.1.0');
 
+  program.addCommand(createExportCommand());
   program.addCommand(createInitCommand());
   program.addCommand(createOpenCommand());
 
