@@ -76,9 +76,9 @@ Guidelines:
 - Why it matters: The editor is not complete until a user can produce a real resume artifact from it.
 - Source: user
 - Primary owning slice: M003/S01
-- Supporting slices: none yet
+- Supporting slices: M003/S02, M003/S03, M004/S03
 - Validation: mapped
-- Notes: Stronger pagination/print controls can deepen later, but the first bar is reliable WYSIWYG-style export for common use.
+- Notes: Stronger pagination/print controls can deepen later, but the first bar is reliable WYSIWYG-style export for common use. M004/S03's assembled verifier confirms the trust contract holds across the active template.
 
 ### R014 — Element-level freeform editing surface
 - Class: core-capability
@@ -181,6 +181,17 @@ Guidelines:
 - Validation: validated
 - Notes: Proven by S01 through AI-optional `sfrb init`, guidance-first `sfrb open`, browser/runtime persistence checks for both starter variants, and the shipped `scripts/verify-s01-first-run.mjs` loop.
 
+### R018 — Template & theme system
+- Class: differentiator
+- Status: validated
+- Description: Users can switch the resume's presentation between named first-party templates from both the CLI and the browser, with selection persisted through the canonical write path so browser preview and PDF export always reflect the active template.
+- Why it matters: Templates make the product feel finished and let non-technical users shape presentation without touching the canonical document model.
+- Source: user
+- Primary owning slice: M004/S02
+- Supporting slices: M004/S01, M004/S03
+- Validation: validated
+- Notes: M004/S01 introduced the typed `Theme` contract and byte-stable `default`. M004/S02 added `classic`/`modern` plus `sfrb template list/show/apply` and the editor-shell picker. M004/S03 proved apply→edit→export end-to-end and shipped contributor docs for adding a template. Geometry is intentionally absent from `Theme` so the M003 export trust contract is preserved (D035).
+
 ## Deferred
 
 ### R016 — AI-assisted resume authoring and layout guidance
@@ -219,7 +230,7 @@ None.
 | R010 | primary-user-loop | validated | M002/S01 | M002/S06, M002/S07 | validated |
 | R011 | quality-attribute | active | M002/S07 | M002/S01, M002/S04, M002/S05 | mapped |
 | R012 | constraint | active | M002/S06 | M002/S03, M002/S04, M002/S05 | mapped |
-| R013 | core-capability | active | M003/S01 | none yet | mapped |
+| R013 | core-capability | active | M003/S01 | M003/S02, M003/S03, M004/S03 | mapped |
 | R014 | core-capability | active | M002/S05 | M002/S06 | mapped |
 | R015 | differentiator | active | M002/S03 | M002/S06 | mapped |
 | R001 | primary-user-loop | validated | M001/S05 | M001/S02, M001/S03, M001/S04 | validated |
@@ -228,6 +239,7 @@ None.
 | R004 | core-capability | validated | M001/S04 | M001/S03 | validated |
 | R005 | constraint | validated | M001/S02 | M001/S03, M001/S04 | validated |
 | R006 | differentiator | validated | M001/S05 | M001/S04 | validated |
+| R018 | differentiator | validated | M004/S02 | M004/S01, M004/S03 | validated |
 | R016 | differentiator | deferred | none | none | unmapped |
 | R017 | operability | deferred | none | none | unmapped |
 
@@ -235,5 +247,5 @@ None.
 
 - Active requirements: 8
 - Mapped to slices: 8
-- Validated: 7
+- Validated: 8
 - Unmapped active requirements: 0

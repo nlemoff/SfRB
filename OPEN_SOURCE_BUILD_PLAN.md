@@ -11,7 +11,9 @@ SfRB is a local-first resume builder with one canonical document model:
 - `resume.sfrb.json` is the source of truth for resume content and layout.
 - `sfrb.config.json` stores workspace configuration and physics mode.
 - `sfrb open` launches a local bridge and browser editor against that canonical state.
-- Browser edits and CLI edits are meant to stay on the same mutation model rather than drifting into separate implementations.
+- `sfrb export` generates a real PDF from the same canonical state.
+- `sfrb template list/show/apply` lets users pick from named first-party templates that ship with the build.
+- Browser edits and CLI edits stay on the same mutation model rather than drifting into separate implementations.
 
 ## 2. Milestones that are already historical
 
@@ -23,28 +25,22 @@ Delivered the local workspace contract, canonical document schema, bridge runtim
 ### M002 — Resume Engine & Guided Editing
 Delivered the actual editing product shape: starter workspaces, browser editing lenses, structured action parity, and calmer product direction for non-technical users.
 
-## 3. Current milestone: M003 — Export & Presentation Depth
+### M003 — Export & Presentation Depth
+Delivered the shared `/print` surface, deterministic ready/risk/blocked markers, and PDF export coherence. Browser export and `dist/cli.js export` derive from the same canonical model and gate on the same readiness policy. The artifact path is chrome-free; the preview path is calm. Multi-page pagination, custom paper sizes, and AI-presentation features remain explicitly deferred.
 
-### Goal
-Make the exported result trustworthy. A user should be able to build a resume in the real runtime and export a clean PDF that matches it.
+### M004 — Template & Presentation System
+Delivered a typed template system on top of M003. Highlights:
 
-### What must be true by the end of M003
-- Export comes from the same canonical model as the editor.
-- The one-page path is trustworthy.
-- Editor chrome does not leak into exported output.
-- Overflow/clipping is explicit instead of silent.
-- Browser export and CLI export share the same printable presentation surface.
+- Three first-party templates ship: `default` (M003-byte-stable), `classic` (Times serif), `modern` (Helvetica sans-serif).
+- The `Theme` contract carries typography + page background only; geometry is intentionally absent so future templates cannot silently break the M003 export trust contract.
+- Templates are picked from either the CLI (`sfrb template list/show/apply`) or a calm browser picker. Both paths persist `metadata.template` through the same canonical write path with schema + physics validation.
+- The shared print surface publishes additive `data-template-id` and `data-template-version` markers; M003 markers are unchanged.
+- Preview-only "Template · `<id>`" diagnostics line; artifact mode stays chrome-free.
+- Contributor docs at `web/src/presentation/templates/README.md` document the contract for adding a fourth template.
 
-### M003 slices
+## 3. Current state and next milestone
 
-#### S01 — Printable Presentation Surface
-Create a dedicated bridge-served print/export surface that renders canonical resume content without editor chrome and exposes stable readiness / overflow state.
-
-#### S02 — Shared PDF Export Flows
-Generate actual PDFs from that shared surface in both browser and CLI flows, with explicit blocked/warned behavior for overflow cases.
-
-#### S03 — Presentation Depth & Final Export Assembly
-Polish the export experience and verify the real end-to-end loop across browser edit, CLI edit, export preview, and final artifact output.
+Active branch lifecycle: M004 has shipped into `DEV`. The repo is in a post-M004 handoff state. The next provisional milestone is **M005 — Distribution, Automation & Ecosystem**: packaging, contributor ergonomics, scripted workflows, and broader ecosystem support now that template + export trust are in place.
 
 ## 4. Contribution lanes
 
@@ -55,7 +51,7 @@ Best for contributors who like layout/rendering work.
 
 Focus areas:
 - canonical page rendering
-- page margins and geometry
+- page margins and geometry (these are canonical document fields, not theme fields)
 - design vs document presentation behavior
 - keeping printable DOM separate from editing DOM
 
@@ -94,19 +90,20 @@ Typical files:
 - `scripts/verify-*.mjs`
 - `tests/cli/*`
 
-### Lane D — Product polish and presentation depth
-Best for contributors who like UI craft and product feel.
+### Lane D — Template / presentation work
+Best for contributors who like typography and visual craft.
 
 Focus areas:
-- calmer print/export preview
-- presentation polish
-- final export review UX
-- preserving minimalist feel while adding trust signals
+- adding a new first-party template (start with `web/src/presentation/templates/README.md`)
+- preserving the M003 chrome-free artifact rule
+- preserving the byte-stability rule for `default`
+- per-template Playwright spot-check coverage
 
 Typical files:
-- `web/src/App.tsx`
-- `web/src/presentation/*`
-- `tests/web/*`
+- `src/document/templates/registry.ts`
+- `web/src/presentation/templates/*`
+- `tests/web/template-*.test.ts`
+- `scripts/verify-m004-s02-template-catalog.mjs`
 
 ### Lane E — Proof, docs, and handoff
 Best for contributors who like making the project easier for the next person.
@@ -127,21 +124,27 @@ Typical files:
 
 When contributing, try to preserve these project-level rules:
 
-- **Do not fork the canonical model.** Export, browser, and CLI flows should continue to derive from the same saved document.
-- **Do not print the editor DOM directly.** The interactive editor contains affordances that should never leak into the final artifact.
-- **Prefer explicit failure visibility over silent degradation.** If content does not fit, the product should say so.
-- **Keep docs honest.** If a slice is only contract-complete, do not describe it as full end-to-end export.
-- **Keep M001/M002 fixed.** New planning can reinterpret future work, but it should not rewrite the history of the shipped foundation.
+- **Do not fork the canonical model.** Export, browser, CLI, and template flows all derive from the same saved document.
+- **Do not print the editor DOM directly.** The interactive editor contains affordances that should never leak into the final artifact. The artifact path stays chrome-free; preview-only chrome is acceptable inside the diagnostics panel.
+- **Prefer explicit failure visibility over silent degradation.** If content does not fit, the product should say so. If a mutation is rejected, the picker should say so.
+- **Templates are typography, not geometry.** `Theme` exposes fonts, colors, and per-block spacing; it does not (and should not) expose page size, margins, or frame boxes.
+- **Keep the registries aligned.** A template id added to `src/document/templates/registry.ts` must have a matching theme in `web/src/presentation/templates/index.ts`. The `satisfies` check enforces this at compile time.
+- **Keep docs honest.** If a slice is only contract-complete, do not describe it as full end-to-end.
+- **Keep historical milestones fixed.** New planning can reinterpret future work, but it should not rewrite the history of shipped foundation milestones.
 
-## 6. What likely comes after M003
+## 6. What likely comes after M004
 
 These are directional, not locked commitments.
 
-### M004 (provisional) — Template & Presentation System
-Deepen theme/template quality, presentation variation, and reusable visual systems without introducing a second document model.
-
 ### M005 (provisional) — Distribution, Automation & Ecosystem
-Improve packaging, contributor ergonomics, scripted workflows, and broader ecosystem support once export trust is in place.
+Improve packaging, contributor ergonomics, scripted workflows, and broader ecosystem support now that template + export trust are in place. Strong candidate seams: `npm` packaging story, `--help` UX polish, contributor scripts, packaging the runtime for distribution.
+
+Possible follow-on themes after M005, none committed:
+
+- Broader theme catalog or third-party template loaders.
+- Multi-page pagination / reflow.
+- Custom paper-size and print-control affordances.
+- AI-assisted presentation depth.
 
 ## 7. How to pick a contribution
 
@@ -150,8 +153,8 @@ If you want a good starting point:
 - pick **Lane E** if you want to improve verification or docs
 - pick **Lane B** if you want bounded runtime work
 - pick **Lane A** if you want to work on the core printable renderer
-- pick **Lane C** once S01 is complete and the print route exists
-- pick **Lane D** once the underlying export path is stable enough to polish
+- pick **Lane C** if you want CLI/PDF generation craft
+- pick **Lane D** if you want to add a fourth template — start with `web/src/presentation/templates/README.md`
 
 ## 8. Definition of done for a good contribution
 

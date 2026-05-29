@@ -20,7 +20,8 @@ A user should be able to start from a strong template or a blank canvas, edit th
 - Browser writes go through `/__sfrb/editor`, where schema + physics validation happen before persistence.
 - The bridge also exposes `/__sfrb/consultant`, but AI is intentionally de-emphasized while the editor engine and product experience take priority.
 - M002 established starter workspaces, guided editing lenses, structured action parity, and a calmer product shell for the non-technical primary user.
-- M003 is now the active milestone: build a shared printable presentation surface, then add trustworthy PDF export and presentation depth on top of it.
+- M003 shipped the shared `/print` surface, `/print?mode=artifact` chrome-free artifact route, deterministic ready/risk/blocked markers, and PDF export coherence between the browser shell and `dist/cli.js export`.
+- M004 shipped the typed Theme contract, three first-party templates (`default`, `classic`, `modern`), a canonical template registry with compile-time parity, the `sfrb template list/show/apply` CLI, a calm browser picker, and an assembled apply→edit→export proof. The exported PDF derives from the same canonical model under the active template; geometry stays canonical so the M003 trust contract is preserved.
 
 ## Architecture / Key Patterns
 
@@ -41,9 +42,9 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 - [x] M001: Foundation & Physics — Established the canonical local document model, bridge runtime, mode-aware browser editor, and AI layout consultant loop.
 - [x] M002: Resume Engine & Guided Editing — Turned the foundation into a real non-technical-user editor with starter workspaces, guided editing lenses, structured actions, and calmer product shell behavior.
-- [ ] M003: Export & Presentation Depth — Add a shared printable presentation surface, trustworthy one-page PDF export, and presentation polish that stays tied to the canonical model.
-- [ ] M004 (provisional): Template & Presentation System — Deepen themes, template quality, and reusable visual presentation without forking the canonical model.
-- [ ] M005 (provisional): Distribution, Automation & Ecosystem — Improve packaging, contributor ergonomics, and scripted workflows after export trust is established.
+- [x] M003: Export & Presentation Depth — Shipped the shared printable presentation surface, one-page PDF export trust contract, and assembled browser/CLI export coherence.
+- [x] M004: Template & Presentation System — Shipped the typed Theme contract, three first-party templates, `sfrb template` CLI parity, browser picker, and assembled apply→edit→export proof.
+- [ ] M005 (provisional): Distribution, Automation & Ecosystem — Improve packaging, contributor ergonomics, and scripted workflows now that template/export trust is established.
 
 ## Contributor On-Ramp
 
