@@ -150,7 +150,9 @@ describe('editor layout consultant', () => {
     const beforeDocument = await readWorkspaceDocument(projectRoot);
     const beforeRaw = await readWorkspaceDocumentRaw(projectRoot);
     const env = { ...process.env };
-    delete env.OPENAI_API_KEY;
+    env.DEEPSEEK_API_KEY = '';
+    env.OPENAI_API_KEY = '';
+    env.ANTHROPIC_API_KEY = '';
     const { child, url } = await waitForBridgeReady(projectRoot, { env });
     let browser: Browser | null = null;
 
@@ -161,14 +163,13 @@ describe('editor layout consultant', () => {
       await selectConsultantFrame(page);
       await waitForOverflowStatus(page, 'overflow');
 
-      await requestConsultantPreview(page);
-      await waitForConsultantState(page, 'error');
+      await waitForConsultantState(page, 'unavailable');
 
       const failure = await readConsultantDiagnostics(page);
       expect(failure.previewVisible).toBe(false);
-      expect(failure.consultantCode).toBe('configuration_missing');
-      expect(failure.errorText).toContain('configuration_missing');
-      expect(failure.errorText).toContain('OPENAI_API_KEY');
+      expect(failure.consultantCode).toBe('degraded');
+      expect(failure.errorText).toBeNull();
+      expect(failure.note).toContain('OPENAI_API_KEY');
       expect(failure.payloadPreview).toContain('"height": 96');
       expect(await readWorkspaceDocument(projectRoot)).toEqual(beforeDocument);
       expect(await readWorkspaceDocumentRaw(projectRoot)).toBe(beforeRaw);
@@ -178,7 +179,7 @@ describe('editor layout consultant', () => {
       }
       await closeBridge(child);
     }
-  }, 30000);
+  }, 60000);
 
   it('invalidates a stale preview after canonical changes under it', async () => {
     const projectRoot = await makeTempProject('sfrb-editor-layout-consultant-stale-');

@@ -15,7 +15,7 @@ The goal is simple: make resumes feel as editable as a document, as controllable
 - The layout consultant can propose overflow fixes, show a ghost preview, and persist accepted changes through the same canonical write path as manual edits.
 - API keys stay in environment variables and are never sent to the browser.
 
-The current active build track is **M003: Export & Presentation Depth** — a shared printable presentation surface and trustworthy PDF/export workflow.
+The current baseline includes the M003 export/presentation surface and the M004 template system: named templates, a template CLI, browser template selection, and assembled template export verification.
 
 ## Why SfRB exists
 
@@ -188,27 +188,39 @@ Good changes usually:
 
 High-value next contributions:
 
-- M003 printable presentation/export groundwork;
-- deterministic PDF/export verification;
 - editor UX polish that makes the document canvas primary;
 - lower-flake browser tests and bridge smoke checks;
+- additional resume templates and template accessibility checks;
+- deterministic export verification across more document shapes;
 - accessibility and keyboard/focus improvements.
 
 Avoid large framework churn, secret handling changes, or UI rewrites that bypass the document-vs-design physics model.
 
 ## Branch hierarchy
 
-The intended promotion model is:
+SfRB now uses a simple open-source maintainer workflow:
 
 ```txt
-feature/fix branch -> DEV -> TEST -> main
+feature/fix/docs branch -> main
 ```
 
-- `main` — stable branch
-- `DEV` — integration branch for active development
-- `TEST` — pre-release validation branch
+- `main` should always be usable.
+- Every PR targets `main` directly.
+- Use GitHub Actions as the quality gate.
+- Use draft PRs for work-in-progress.
+- Cut releases/tags when a polished milestone is ready.
 
-Before promoting upward, run at least:
+Examples:
+
+```txt
+feat/template-catalog       -> main
+feat/template-polish        -> main
+feat/deepseek-default       -> main
+fix/bridge-copy-race        -> main
+docs/open-source-roadmap    -> main
+```
+
+Before merging, run at least:
 
 ```bash
 npm run build
