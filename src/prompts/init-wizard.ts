@@ -191,7 +191,7 @@ export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<In
         },
         choices: PROVIDERS.map((provider) => ({
           name: provider,
-          message: provider === 'openai' ? 'OpenAI' : 'Anthropic',
+          message: provider === 'deepseek' ? 'DeepSeek (default: deepseek-v4-flash)' : provider === 'openai' ? 'OpenAI' : 'Anthropic',
           hint: `stores ${defaultApiKeyEnvVarForProvider(provider)}`,
         })),
       },

@@ -84,6 +84,49 @@ type ProviderClient = {
 };
 
 const providerClients: Record<string, ProviderClient> = {
+  deepseek: {
+    requestProposal: async (input) => {
+      const response = await requestJson({
+        url: `${process.env.SFRB_DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com'}/chat/completions`,
+        headers: {
+          authorization: `Bearer ${input.apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: {
+          model: process.env.SFRB_CONSULTANT_DEEPSEEK_MODEL ?? 'deepseek-v4-flash',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an SfRB layout consultant. Reply with JSON only. Produce exactly one safe frame resize proposal for the requested frame. Keep the frameId unchanged. Use finite positive box numbers. Do not propose changes for any other frame.',
+            },
+            {
+              role: 'user',
+              content: JSON.stringify(buildProviderPromptPayload(input)),
+            },
+          ],
+          response_format: {
+            type: 'json_object',
+          },
+        },
+      });
+
+      if (!response.ok) {
+        return response;
+      }
+
+      const content = extractOpenAiContent(response.content);
+      if (content === null) {
+        return {
+          ok: false,
+          status: 'unavailable',
+          message: 'Provider response did not include a structured completion.',
+        };
+      }
+
+      return { ok: true, content };
+    },
+  },
   openai: {
     requestProposal: async (input) => {
       const response = await requestJson({
