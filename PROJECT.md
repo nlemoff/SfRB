@@ -2,31 +2,30 @@
 
 ## What This Is
 
-SfRB (Straightforward Resume Builder) is an open-source resume editor that combines document editing, design-tool spatial control, and property inspection into a single unified interface. It runs as a local CLI tool that spawns a web-based editor, allowing for both human-driven GUI interactions and agent-driven CLI/API mutations on a universal document model.
+SfRB (Straightforward Resume Builder) is an open-source, local-first resume editor that combines document editing, design-tool spatial control, PDF export, templates, and optional AI layout suggestions around one canonical `resume.sfrb.json` document model.
+
+The `sfrb` CLI creates and opens local workspaces. `sfrb open` starts a local web bridge and browser editor; `sfrb export` renders the canonical document through the shared print surface into a PDF.
 
 ## Core Value
 
-The hybrid interaction model that treats the resume as a first-class spatial canvas with structured semantic data, enabling both design-level precision and AI-native automation without sacrificing ATS compatibility.
+The hybrid interaction model treats the resume as both structured semantic data and a spatial canvas. Users can make document-like edits, design-like layout adjustments, and AI-assisted overflow fixes without giving up local ownership, validation, or auditability.
 
 ## Current State
 
-Project initialized with Apache 2.0 license. S01 and S02 are complete: the repo now has a working `sfrb init` flow, a validated project-local `sfrb.config.json`, a canonical `resume.sfrb.json` document boundary, generated `schema.json`, and workspace-physics-aware document validation. The next milestone step is S03, which will open and live-sync this validated document model through a local web bridge.
+The main branch includes:
 
-## Architecture / Key Patterns
+- workspace initialization with validated `sfrb.config.json` and `resume.sfrb.json`
+- workspace physics validation for document/design behavior
+- a local bridge and browser editor
+- canonical browser mutation routes
+- optional BYOK AI layout consultant proposals
+- shared `/print` presentation surface
+- browser and CLI PDF export
+- first-party templates (`default`, `classic`, `modern`) with CLI and browser selection
+- GitHub Actions CI for build, schema check, and tests
 
-- **CLI-First**: All operations exposed via CLI for external agent accessibility.
-- **Local Web Bridge**: CLI starts a local Node/Vite server to serve the browser UI.
-- **Universal Document Model**: A JSON schema representing both semantic content (experience, skills) and spatial layout (x, y, w, h).
-- **BYOK (Bring Your Own Key)**: User-provided LLM keys for AI features.
-- **Layout Consultant**: AI detects layout conflicts (overflows) and suggests structural resolutions with previews.
+## Planning
 
-## Capability Contract
+Current planning lives in [`ROADMAP.md`](./ROADMAP.md), GitHub issues, and PR descriptions.
 
-See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement status, and coverage mapping.
-
-## Milestone Sequence
-
-- [ ] M001: Foundation & Physics — CLI, doc model, web bridge, and canvas physics.
-- [ ] M002: Intelligence & Output — BYOK integration, AI layout consultant, and ATS-friendly PDF export.
-- [ ] M003: Automation & Extensibility — Programmatic API, CLI parity, and template system.
-- [ ] M004: Ecosystem — Style tiles, community presets, and advanced AI modules.
+Historical `.gsd` planning artifacts were moved to [`docs/history/gsd/`](./docs/history/gsd/) for archive/reference only. Do not add new active planning there.
