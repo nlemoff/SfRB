@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SfRB (Straightforward Resume Builder) is a local-first, CLI-first resume editor. The `sfrb` CLI spawns a Vite-backed local bridge that serves a React editor in the browser. One canonical `resume.sfrb.json` is the only authoritative document state.
 
-Active milestone: **M003 — Export & Presentation Depth** (shared printable surface + trustworthy PDF export).
+Current focus: keep `main` usable, preserve the canonical document/edit/export/template contracts, and use `ROADMAP.md` + GitHub issues/PRs for active planning.
 
 ## Commands
 
@@ -55,19 +55,18 @@ The whole product is one canonical document boundary, mediated by a local HTTP b
 - **CLI parity.** Every meaningful editor or export action must be representable as a structured operation invokable from the CLI — even if the browser is the primary UX.
 - **No provider secrets in the browser or in committed config.** Bridge reads env vars; browser sees only sanitized payloads.
 - **Bridge file is `.mjs`** and loads compiled CJS via `createRequire`. Run `npm run build` before running the bridge against `src/` changes.
-- **Tests excluded from `.gsd/`** (see `vitest.config.ts`); `.gsd/` is planning, not code.
+- **Historical planning archive** lives under `docs/history/gsd/`. It is reference material only; do not add new active planning there.
 
 ## Planning source of truth
 
-For project state, requirements, and milestone/slice status, read `.gsd/` before assuming context:
+Active planning lives in plain Markdown plus GitHub issues/PRs:
 
-- `.gsd/PROJECT.md` — what the project is right now
-- `.gsd/STATE.md` — what is active right now
-- `.gsd/REQUIREMENTS.md` — capability contract + validation state
-- `.gsd/DECISIONS.md` — append-only architectural decisions
-- `.gsd/milestones/` — slice plans, summaries, UAT
+- `ROADMAP.md` — current state, next work, and contribution lanes
+- `README.md` — contributor quick start and project overview
+- GitHub issues — scoped future work
+- PR descriptions — implementation notes and verification evidence
 
-`OPEN_SOURCE_BUILD_PLAN.md` is the public-facing summary of the same.
+Historical planning artifacts from the old workflow live under `docs/history/gsd/` for reference only. Do not create new `.gsd/` planning files.
 
 ---
 

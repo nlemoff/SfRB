@@ -1,21 +1,20 @@
 # SfRB
 
-SfRB — **Straightforward Resume Builder** — is a local-first resume editor with a CLI, a browser editor, and one canonical `resume.sfrb.json` document model.
+SfRB — **Straightforward Resume Builder** — is a local-first resume editor with a CLI, browser editor, canonical JSON document model, PDF export, templates, and optional AI layout suggestions.
 
 The goal is simple: make resumes feel as editable as a document, as controllable as a design file, and as auditable as source code.
 
 ## What works today
 
-- `sfrb init` creates local resume workspaces.
-- `sfrb open` launches a local bridge and browser editor.
-- `resume.sfrb.json` is the canonical document source of truth.
-- `sfrb.config.json` stores local workspace settings, not provider secrets.
-- Document mode supports inline editing.
-- Design mode supports frame editing, dragging, and overflow measurement.
+- `sfrb init` creates a local resume workspace with `sfrb.config.json` and `resume.sfrb.json`.
+- `sfrb open` launches a local bridge and browser editor for that workspace.
+- `sfrb export` renders a chrome-free PDF from the same canonical document model used by the editor.
+- `sfrb template list/show/apply` manages first-party templates from the CLI.
+- The browser editor supports document-mode inline editing, design-mode frame editing/dragging, overflow measurement, template selection, and browser export.
+- The shared `/print` presentation surface powers both preview and artifact export.
 - The layout consultant can propose overflow fixes, show a ghost preview, and persist accepted changes through the same canonical write path as manual edits.
 - API keys stay in environment variables and are never sent to the browser.
-
-The current baseline includes the M003 export/presentation surface and the M004 template system: named templates, a template CLI, browser template selection, and assembled template export verification.
+- CI builds, checks the generated schema, and runs the test suite on every PR to `main`.
 
 ## Why SfRB exists
 
@@ -29,8 +28,8 @@ SfRB is built around a different contract:
 
 1. keep the resume in a validated local JSON document;
 2. expose both document-style and design-style editing;
-3. let AI propose changes, but never bypass local validation or explicit user acceptance;
-4. eventually export from a clean presentation surface, not from editor chrome.
+3. export from a clean presentation surface, not from editor chrome;
+4. let AI propose changes, but never bypass local validation or explicit user acceptance.
 
 ## Quick start
 
@@ -38,16 +37,18 @@ SfRB is built around a different contract:
 
 - Node.js `>=20`
 - npm
+- Chromium via Playwright for browser/export tests and PDF export
 
 ### Install
 
 ```bash
 npm install
+npm run test:setup:browsers
 ```
 
 ### Configure AI suggestions
 
-SfRB defaults new AI-enabled workspaces to DeepSeek because `deepseek-v4-flash` is cheap, fast, and supports JSON output.
+AI suggestions are optional. SfRB defaults new AI-enabled workspaces to DeepSeek because `deepseek-v4-flash` is cheap, fast, and supports JSON output.
 
 ```bash
 cp .env.example .env
@@ -75,42 +76,10 @@ The consultant uses:
 
 - DeepSeek OpenAI-compatible base URL: `https://api.deepseek.com`
 - default model: `deepseek-v4-flash`
-- optional override: `SFRB_CONSULTANT_DEEPSEEK_MODEL`
+- optional model override: `SFRB_CONSULTANT_DEEPSEEK_MODEL`
 - optional local/stub endpoint override: `SFRB_DEEPSEEK_BASE_URL`
 
 OpenAI and Anthropic remain supported when a workspace explicitly configures them.
-
-### Build
-
-```bash
-npm run build
-```
-
-### Test
-
-```bash
-npm test
-```
-
-Browser/editor tests use Playwright. Install the browser dependency when needed:
-
-```bash
-npm run test:setup:browsers
-npm run test:web
-```
-
-Smoke verification:
-
-```bash
-npm run verify:smoke
-```
-
-Schema checks:
-
-```bash
-npm run schema:generate
-npm run schema:check
-```
 
 ## CLI usage
 
@@ -121,19 +90,45 @@ npm run build
 node dist/cli.js --help
 ```
 
-Common commands:
+Create and open a workspace:
 
 ```bash
-node dist/cli.js init
-node dist/cli.js open
+mkdir my-resume
+cd my-resume
+node /path/to/SfRB/dist/cli.js init --starter template --physics document --provider deepseek --api-key "$DEEPSEEK_API_KEY"
+DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" node /path/to/SfRB/dist/cli.js open
 ```
 
-Example local workspace:
+Export a PDF:
 
 ```bash
-mkdir my-resume && cd my-resume
-node /path/to/SfRB/dist/cli.js init --starter template --physics document --provider deepseek --api-key "$DEEPSEEK_API_KEY"
-DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" node /path/to/SfRB/dist/cli.js open --no-open
+node /path/to/SfRB/dist/cli.js export --cwd /path/to/my-resume --output /path/to/resume.pdf
+```
+
+Manage templates:
+
+```bash
+node /path/to/SfRB/dist/cli.js template list
+node /path/to/SfRB/dist/cli.js template show modern
+node /path/to/SfRB/dist/cli.js template apply modern --cwd /path/to/my-resume
+```
+
+First-party templates currently shipped with the build:
+
+- `default` — byte-stable baseline template
+- `classic` — serif resume style
+- `modern` — sans-serif resume style
+
+## Development commands
+
+```bash
+npm run build              # TypeScript build + bridge runtime copy
+npm test                   # Vitest suite
+npm run test:web           # Browser/editor-focused tests
+npm run verify:package     # Pack, install into a temp project, and smoke-test installed CLI init/template/export
+npm run verify:smoke       # Build + bridge/editor/layout consultant smoke checks
+npm run schema:generate    # Regenerate schema.json from source
+npm run schema:check       # Assert schema.json is current
 ```
 
 ## Project shape
@@ -143,13 +138,18 @@ Key files and boundaries:
 - `src/cli.ts` — CLI entrypoint
 - `src/commands/init.ts` — workspace initialization
 - `src/commands/open.ts` — local bridge startup
+- `src/commands/export.ts` — PDF export through the shared print surface
+- `src/commands/template.ts` — template list/show/apply CLI
 - `src/config/schema.ts` — workspace config contract and provider/env-var mapping
 - `src/bridge/server.mjs` — browser bridge runtime
 - `src/agent/LayoutConsultant.ts` — AI provider boundary and local proposal validation
-- `src/document/` — canonical document schema, validation, starters, and persistence
-- `web/` — browser editor UI
+- `src/document/` — canonical document schema, validation, starters, templates, and persistence
+- `web/` — browser editor UI, bridge client, printable presentation surface, and template styles
+- `tests/` — CLI, bridge, document, and browser contract tests
+- `scripts/verify-*.mjs` — smoke and milestone verification scripts
 - `schema.json` — generated document schema artifact
-- `.gsd/` — planning, requirements, decisions, and milestone artifacts
+- `ROADMAP.md` — current roadmap and contribution lanes
+- `docs/history/gsd/` — archived historical planning notes from the old `.gsd` workflow
 
 Canonical workspace files:
 
@@ -161,30 +161,30 @@ Runtime contracts:
 - browser state is reconciled from `/__sfrb/bootstrap`
 - browser mutations persist through `/__sfrb/editor`
 - AI layout proposals are requested through `/__sfrb/consultant`
+- print/export rendering is served from `/print`
 - provider secrets stay in environment variables
 - the browser must never receive raw provider secrets or auth headers
 
 ## Planning and roadmap
 
-The repo uses `.gsd/` as the planning and execution source of truth:
+SfRB has moved off the old `.gsd` planning workflow. Current planning should live in plain Markdown and GitHub issues/PRs:
 
-- `.gsd/PROJECT.md` — current project state
-- `.gsd/STATE.md` — quick-glance active status
-- `.gsd/REQUIREMENTS.md` — capability contract and validation state
-- `.gsd/DECISIONS.md` — append-only architectural decisions
-- `.gsd/milestones/` — milestone/slice/task planning and summaries
+- [`ROADMAP.md`](./ROADMAP.md) — contributor-facing roadmap, shipped milestones, next work, and contribution lanes
+- GitHub issues — scoped feature/fix/docs tasks
+- PR descriptions — implementation notes, verification evidence, and design rationale
+- [`docs/history/gsd/`](./docs/history/gsd/) — read-only historical planning archive
 
-For a contributor-oriented roadmap, read [`OPEN_SOURCE_BUILD_PLAN.md`](./OPEN_SOURCE_BUILD_PLAN.md).
+Do not add new planning under `.gsd/`.
 
 ## Contribution expectations
 
 Good changes usually:
 
 - preserve the canonical local document model;
-- keep `/__sfrb/bootstrap` and `/__sfrb/editor` stable unless explicitly changing that contract;
+- keep `/__sfrb/bootstrap`, `/__sfrb/editor`, `/__sfrb/consultant`, and `/print` stable unless explicitly changing those contracts;
 - avoid leaking secrets into logs, browser payloads, committed config, or screenshots;
 - include the lightest sufficient tests or verification;
-- keep planning docs aligned when project state materially changes.
+- update `ROADMAP.md` or focused docs when project state materially changes.
 
 High-value next contributions:
 
@@ -192,13 +192,14 @@ High-value next contributions:
 - lower-flake browser tests and bridge smoke checks;
 - additional resume templates and template accessibility checks;
 - deterministic export verification across more document shapes;
-- accessibility and keyboard/focus improvements.
+- accessibility and keyboard/focus improvements;
+- packaging/distribution polish for a better open-source install path.
 
 Avoid large framework churn, secret handling changes, or UI rewrites that bypass the document-vs-design physics model.
 
 ## Branch hierarchy
 
-SfRB now uses a simple open-source maintainer workflow:
+SfRB uses a simple open-source maintainer workflow:
 
 ```txt
 feature/fix/docs branch -> main
@@ -206,24 +207,16 @@ feature/fix/docs branch -> main
 
 - `main` should always be usable.
 - Every PR targets `main` directly.
-- Use GitHub Actions as the quality gate.
+- GitHub Actions is the quality gate.
 - Use draft PRs for work-in-progress.
 - Cut releases/tags when a polished milestone is ready.
-
-Examples:
-
-```txt
-feat/template-catalog       -> main
-feat/template-polish        -> main
-feat/deepseek-default       -> main
-fix/bridge-copy-race        -> main
-docs/open-source-roadmap    -> main
-```
 
 Before merging, run at least:
 
 ```bash
 npm run build
+npm run schema:check
+npm run verify:package
 npm test
 ```
 

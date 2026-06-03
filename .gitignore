@@ -1,11 +1,4 @@
-
-# ── GSD baseline (auto-generated) ──
-.gsd/activity/
-.gsd/runtime/
-.gsd/worktrees/
-.gsd/auto.lock
-.gsd/metrics.json
-.gsd/completed-units.json
+# OS / editor
 .DS_Store
 Thumbs.db
 *.swp
@@ -14,29 +7,35 @@ Thumbs.db
 .idea/
 .vscode/
 *.code-workspace
+
+# Local agent/tooling state
 .factory/
+.bg-shell/
+
+# Environment
 .env
 .env.*
 !.env.example
+
+# Dependencies / builds
 node_modules/
 .next/
 dist/
 build/
+coverage/
+.cache/
+tmp/
+
+# Python/Rust/vendor scratch
 __pycache__/
 *.pyc
 .venv/
 venv/
 target/
 vendor/
-*.log
-coverage/
-.cache/
-tmp/
-sfrb.config.json
 
-# ── GSD baseline (auto-generated) ──
-.gsd/forensics/
-.gsd/gsd.db
-.gsd/DISCUSSION-MANIFEST.json
-.gsd/milestones/**/*-CONTINUE.md
-.gsd/milestones/**/continue.md
+# Logs
+*.log
+
+# SfRB local workspace config
+sfrb.config.json
