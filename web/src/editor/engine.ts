@@ -17,6 +17,8 @@ export type EditorLens = 'text' | 'tile' | 'freeform';
 export type DocumentEditorSnapshot = {
   selectedBlockId: string | null;
   selectedFrameId: string | null;
+  /** Additional frames shift-clicked into the selection (primary excluded). */
+  multiSelectedFrameIds: string[];
   editingBlockId: string | null;
   draftText: string | null;
   draftDirty: boolean;
@@ -33,6 +35,8 @@ export type DocumentEditorEngine = {
   setActiveLens: (lens: EditorLens) => void;
   selectBlock: (blockId: string | null) => void;
   selectFrame: (frameId: string | null) => void;
+  toggleFrameInSelection: (frameId: string) => void;
+  revertFrameOverrides: (frameIds: string[]) => void;
   startEditing: (blockId: string) => void;
   updateDraft: (text: string) => void;
   endEditing: () => void;
@@ -99,6 +103,7 @@ export function createDocumentEditorEngine(options: {
   let payload: ReadyBridgePayload | null = null;
   let selectedBlockId: string | null = null;
   let selectedFrameId: string | null = null;
+  const multiSelectedFrameIds = new Set<string>();
   let editingBlockId: string | null = null;
   let draftText: string | null = null;
   let draftDirty = false;
@@ -118,6 +123,7 @@ export function createDocumentEditorEngine(options: {
   const buildSnapshot = (): DocumentEditorSnapshot => ({
     selectedBlockId,
     selectedFrameId,
+    multiSelectedFrameIds: [...multiSelectedFrameIds],
     editingBlockId,
     draftText,
     draftDirty,
@@ -289,6 +295,13 @@ export function createDocumentEditorEngine(options: {
 
       if (payload?.physics !== 'design') {
         selectedFrameId = null;
+        multiSelectedFrameIds.clear();
+      }
+
+      for (const frameId of multiSelectedFrameIds) {
+        if (!getBaseFrameBox(frameId)) {
+          multiSelectedFrameIds.delete(frameId);
+        }
       }
 
       emit();
@@ -313,6 +326,7 @@ export function createDocumentEditorEngine(options: {
       if (lens === 'text') {
         selectedFrameId = null;
       }
+      multiSelectedFrameIds.clear();
       emit();
     },
     selectBlock: (blockId) => {
@@ -325,6 +339,37 @@ export function createDocumentEditorEngine(options: {
     selectFrame: (frameId) => {
       selectedFrameId = frameId;
       selectedBlockId = frameId ? getFrameBlockId(payload, frameId) : null;
+      multiSelectedFrameIds.clear();
+      emit();
+    },
+    toggleFrameInSelection: (frameId) => {
+      if (payload?.physics !== 'design' || activeLens === 'text') {
+        return;
+      }
+
+      if (!selectedFrameId) {
+        selectedFrameId = frameId;
+        selectedBlockId = getFrameBlockId(payload, frameId);
+        emit();
+        return;
+      }
+
+      if (frameId === selectedFrameId) {
+        emit();
+        return;
+      }
+
+      if (multiSelectedFrameIds.has(frameId)) {
+        multiSelectedFrameIds.delete(frameId);
+      } else {
+        multiSelectedFrameIds.add(frameId);
+      }
+      emit();
+    },
+    revertFrameOverrides: (frameIds) => {
+      for (const frameId of frameIds) {
+        frameBoxOverrides.delete(frameId);
+      }
       emit();
     },
     startEditing: (blockId) => {

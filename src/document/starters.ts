@@ -165,6 +165,19 @@ export function createStarterDocument(kind: StarterKind, physics: PhysicsMode): 
             { blank: kind === 'blank' },
           )
         : [],
+      // The template starter opens as an assembled composition: the hero name
+      // and summary ship locked together so the tile lens demonstrates the
+      // group/lock model immediately.
+      frameGroups: physics === 'design' && kind === 'template'
+        ? [
+            {
+              id: 'heroComposition',
+              pageId: DEFAULT_PAGE.id,
+              frameIds: ['heroNameFrame', 'heroSummaryFrame'],
+              locked: true,
+            },
+          ]
+        : [],
     },
   });
 }

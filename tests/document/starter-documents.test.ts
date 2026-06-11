@@ -125,4 +125,19 @@ describe('starter documents', () => {
     expect(templateDocument.semantic.blocks[0]?.text).toContain('Alex Carter');
     expect(templateDocument.semantic.blocks[1]?.text).toContain('local-first tools');
   });
+
+  it('ships the design template starter as an assembled locked composition', () => {
+    const templateDesign = createStarterDocument('template', 'design');
+    expect(templateDesign.layout.frameGroups).toEqual([
+      {
+        id: 'heroComposition',
+        pageId: 'pageOne',
+        frameIds: ['heroNameFrame', 'heroSummaryFrame'],
+        locked: true,
+      },
+    ]);
+
+    expect(createStarterDocument('template', 'document').layout.frameGroups).toEqual([]);
+    expect(createStarterDocument('blank', 'design').layout.frameGroups).toEqual([]);
+  });
 });

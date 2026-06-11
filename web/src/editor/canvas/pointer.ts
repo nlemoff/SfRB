@@ -1,6 +1,7 @@
 import type { DocumentEditorEngine, FrameBox } from '../engine';
 
-type DragState = {
+type SingleDragState = {
+  kind: 'single';
   pointerId: number;
   frameId: string;
   originBox: FrameBox;
@@ -8,8 +9,25 @@ type DragState = {
   startY: number;
 };
 
+type GroupDragState = {
+  kind: 'group';
+  pointerId: number;
+  groupId: string;
+  members: Array<{ id: string; originBox: FrameBox }>;
+  startX: number;
+  startY: number;
+};
+
+type DragState = SingleDragState | GroupDragState;
+
 export type PointerController = {
   beginFrameDrag: (event: PointerEvent, frame: { id: string; blockId: string }, originBox: FrameBox, handle: HTMLElement) => void;
+  beginGroupDrag: (
+    event: PointerEvent,
+    groupId: string,
+    members: Array<{ id: string; originBox: FrameBox }>,
+    handle: HTMLElement,
+  ) => void;
   nudgeFrame: (frameId: string, dx: number, dy: number) => void;
   isDragging: () => boolean;
   attach: () => void;
@@ -22,8 +40,9 @@ export function createPointerController(deps: {
   rootElement: HTMLElement;
   onDragStart: (frameId: string, blockId: string) => void;
   onDragSettled: () => void;
+  onGroupDragSettled: (groupId: string, memberIds: string[], dx: number, dy: number) => void;
 }): PointerController {
-  const { engine, rootElement, onDragStart, onDragSettled } = deps;
+  const { engine, rootElement, onDragStart, onDragSettled, onGroupDragSettled } = deps;
   let dragState: DragState | null = null;
   let nudgeCommitTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -32,12 +51,25 @@ export function createPointerController(deps: {
       return;
     }
 
-    const nextBox = {
-      ...dragState.originBox,
-      x: Math.round(dragState.originBox.x + (event.clientX - dragState.startX)),
-      y: Math.round(dragState.originBox.y + (event.clientY - dragState.startY)),
-    };
-    engine.updateFrameBox(dragState.frameId, nextBox);
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+
+    if (dragState.kind === 'single') {
+      engine.updateFrameBox(dragState.frameId, {
+        ...dragState.originBox,
+        x: Math.round(dragState.originBox.x + deltaX),
+        y: Math.round(dragState.originBox.y + deltaY),
+      });
+      return;
+    }
+
+    for (const member of dragState.members) {
+      engine.updateFrameBox(member.id, {
+        ...member.originBox,
+        x: Math.round(member.originBox.x + deltaX),
+        y: Math.round(member.originBox.y + deltaY),
+      });
+    }
   };
 
   const settleDrag = (event: PointerEvent, reason: 'pointerup' | 'pointercancel') => {
@@ -47,13 +79,30 @@ export function createPointerController(deps: {
 
     const activeDrag = dragState;
     dragState = null;
-    const handle = rootElement.querySelector(`[data-testid="frame-handle-${activeDrag.frameId}"]`) as HTMLElement | null;
+
+    if (activeDrag.kind === 'single') {
+      const handle = rootElement.querySelector(`[data-testid="frame-handle-${activeDrag.frameId}"]`) as HTMLElement | null;
+      if (handle) {
+        handle.style.cursor = 'grab';
+      }
+      void engine.commitFrameMove(activeDrag.frameId, reason).finally(() => {
+        onDragSettled();
+      });
+      return;
+    }
+
+    const handle = rootElement.querySelector(`[data-testid="tile-group-handle-${activeDrag.groupId}"]`) as HTMLElement | null;
     if (handle) {
       handle.style.cursor = 'grab';
     }
-    void engine.commitFrameMove(activeDrag.frameId, reason).finally(() => {
-      onDragSettled();
-    });
+    const dx = Math.round(event.clientX - activeDrag.startX);
+    const dy = Math.round(event.clientY - activeDrag.startY);
+    onGroupDragSettled(
+      activeDrag.groupId,
+      activeDrag.members.map((member) => member.id),
+      dx,
+      dy,
+    );
   };
 
   const onPointerUp = (event: PointerEvent) => settleDrag(event, 'pointerup');
@@ -62,6 +111,7 @@ export function createPointerController(deps: {
   return {
     beginFrameDrag: (event, frame, originBox, handle) => {
       dragState = {
+        kind: 'single',
         pointerId: event.pointerId,
         frameId: frame.id,
         originBox,
@@ -72,6 +122,18 @@ export function createPointerController(deps: {
       handle.setPointerCapture(event.pointerId);
       handle.style.cursor = 'grabbing';
       onDragStart(frame.id, frame.blockId);
+    },
+    beginGroupDrag: (event, groupId, members, handle) => {
+      dragState = {
+        kind: 'group',
+        pointerId: event.pointerId,
+        groupId,
+        members,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+      handle.setPointerCapture(event.pointerId);
+      handle.style.cursor = 'grabbing';
     },
     nudgeFrame: (frameId, dx, dy) => {
       const currentBox = engine.getFrameBox(frameId);

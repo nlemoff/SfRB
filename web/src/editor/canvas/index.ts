@@ -2,7 +2,7 @@ import type { ReadyBridgePayload } from '../../bridge-client';
 import type { GhostPreviewLayer, GhostPreviewModel } from '../../ui/GhostPreview';
 import type { DocumentEditorEngine, DocumentEditorSnapshot, EditorLens, FrameBox } from '../engine';
 import { renderFlowSurface } from './flow-surface';
-import { renderTileSurface, setFrameElementPosition } from './tile-surface';
+import { renderTileSurface, setFrameElementPosition, setTileActionNote, type TileSurfaceController } from './tile-surface';
 import { createOverflowController, createDocumentKey, type CanvasOverflowDiagnostics } from './overflow';
 import { createPointerController } from './pointer';
 import { createTextEditingController } from './text-editing';
@@ -136,6 +136,7 @@ export function mountCanvas(
   let payload: ReadyBridgePayload | null = null;
   let ghostPreview: CanvasConsultantPreview | null = null;
   let activeSurface: ActiveSurface = 'none';
+  let tileControls: TileSurfaceController | null = null;
 
   const textEditing = createTextEditingController({
     engine,
@@ -161,6 +162,25 @@ export function mountCanvas(
     },
     onDragSettled: () => {
       overflow.schedule('snapshot');
+    },
+    onGroupDragSettled: (groupId, memberIds, dx, dy) => {
+      if (dx === 0 && dy === 0) {
+        return;
+      }
+      void engine.dispatch({ op: 'move-group', groupId, dx, dy }).then(
+        (result) => {
+          if (result.ok) {
+            setTileActionNote(rootElement, `Moved group "${groupId}" as one composition.`);
+            return;
+          }
+          engine.revertFrameOverrides(memberIds);
+          setTileActionNote(rootElement, `${result.code}: ${result.message}`);
+        },
+        (error: unknown) => {
+          engine.revertFrameOverrides(memberIds);
+          setTileActionNote(rootElement, `Bridge unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        },
+      );
     },
   });
   pointer.attach();
@@ -241,11 +261,15 @@ export function mountCanvas(
       const blockId = frameElement.dataset.blockId ?? null;
       const isEditing = blockId !== null && snapshot.editingBlockId === blockId;
       const isSelected = snapshot.selectedFrameId === frameId;
+      const isMultiSelected = snapshot.multiSelectedFrameIds.includes(frameId);
       frameElement.style.cssText = isEditing
         ? editingDesignFrameStyles
         : isSelected
           ? selectedDesignFrameStyles
-          : designFrameBaseStyles;
+          : isMultiSelected
+            ? `${designFrameBaseStyles}; border-color: rgba(37, 99, 235, 0.72); border-style: dashed;`
+            : designFrameBaseStyles;
+      frameElement.dataset.multiSelected = String(isMultiSelected);
       frameElement.setAttribute('aria-current', isSelected ? 'true' : 'false');
 
       const box = engine.getFrameBox(frameId);
@@ -261,6 +285,15 @@ export function mountCanvas(
   };
 
   const bindEditableInteractions = (element: HTMLElement, blockId: string, frameId?: string) => {
+    // Shift-click extends the selection. Without this, mousedown would move
+    // focus first and the focus handler would reset the multi-selection
+    // before the click handler could toggle it.
+    element.addEventListener('pointerdown', (event) => {
+      if (frameId && event.shiftKey) {
+        event.preventDefault();
+      }
+    });
+
     element.addEventListener('focus', () => {
       if (frameId) {
         engine.selectFrame(frameId);
@@ -269,9 +302,13 @@ export function mountCanvas(
       }
     });
 
-    element.addEventListener('click', () => {
+    element.addEventListener('click', (event) => {
       if (frameId) {
-        engine.selectFrame(frameId);
+        if (event.shiftKey) {
+          engine.toggleFrameInSelection(frameId);
+        } else {
+          engine.selectFrame(frameId);
+        }
       } else {
         engine.selectBlock(blockId);
         engine.startEditing(blockId);
@@ -303,6 +340,14 @@ export function mountCanvas(
         frames: nextPayload.document.layout.frames
           .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex }))
           .sort((left, right) => left.zIndex - right.zIndex),
+        // Group membership and lock state drive badges, handles, and frame
+        // datasets, so group changes must rebuild the surface (box-only moves
+        // intentionally do not).
+        groups: nextPayload.document.layout.frameGroups.map((group) => ({
+          id: group.id,
+          frameIds: group.frameIds,
+          locked: group.locked,
+        })),
       });
     }
 
@@ -332,13 +377,13 @@ export function mountCanvas(
       clearSurfaceState();
       activeSurface = nextSurface;
       shell.dataset.activeSurface = nextSurface;
+      tileControls = null;
 
       if (nextSurface === 'tile') {
         subtitle.textContent = 'Design mode renders canonical page geometry and linked fixed frames; drag the handle to persist box coordinates, or double-click a frame to edit its text.';
-        renderTileSurface({
+        tileControls = renderTileSurface({
           engine,
           surfaceRoot,
-          blockElements,
           frameElements,
           pageCanvasElements,
           ghostLayers,
@@ -406,6 +451,19 @@ export function mountCanvas(
     }
 
     event.preventDefault();
+
+    const lockedGroup = engine
+      .getPayload()
+      ?.document.layout.frameGroups.find((group) => group.locked && group.frameIds.includes(frameId));
+    if (lockedGroup) {
+      engine.selectFrame(frameId);
+      setTileActionNote(
+        rootElement,
+        `Frame "${frameId}" is locked in group "${lockedGroup.id}" — drag the group handle or unlock it.`,
+      );
+      return;
+    }
+
     const step = event.shiftKey ? 10 : 1;
     engine.selectFrame(frameId);
     pointer.nudgeFrame(frameId, delta[0] * step, delta[1] * step);
@@ -427,6 +485,7 @@ export function mountCanvas(
     updateSnapshotSurfaces(snapshot);
     renderSelectionState(snapshot);
     textEditing.syncEditingDom(snapshot);
+    tileControls?.syncToolbar(snapshot);
 
     for (const blockId of blockElements.keys()) {
       textEditing.renderBlockText(blockId);
@@ -458,6 +517,7 @@ export function mountCanvas(
       payload = null;
       ghostPreview = null;
       activeSurface = 'none';
+      tileControls = null;
       clearSurfaceState();
       pointer.cancel();
       overflow.dispose();
