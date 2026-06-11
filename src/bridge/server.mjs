@@ -190,7 +190,9 @@ function getConsultantFailureStatusCode(result) {
     case 'frame_not_found':
       return 422;
     case 'provider_unavailable':
+    case 'provider_rate_limited':
       return 503;
+    case 'provider_auth':
     case 'malformed_provider_output':
     case 'proposal_rejected':
       return 502;

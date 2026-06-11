@@ -181,6 +181,8 @@ export type BridgeConsultantError = {
     | 'configuration_missing'
     | 'provider_unsupported'
     | 'provider_unavailable'
+    | 'provider_auth'
+    | 'provider_rate_limited'
     | 'malformed_provider_output'
     | 'proposal_rejected'
     | 'frame_not_found';

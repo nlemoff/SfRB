@@ -33,6 +33,8 @@ export type LayoutResizeProposal = z.output<typeof rawLayoutResizeProposalSchema
 export type LayoutConsultantFailureCode =
   | 'provider_unsupported'
   | 'provider_unavailable'
+  | 'provider_auth'
+  | 'provider_rate_limited'
   | 'malformed_provider_output'
   | 'proposal_rejected'
   | 'frame_not_found';
@@ -75,7 +77,8 @@ type ProviderResponse =
     }
   | {
       ok: false;
-      status: 'unavailable';
+      status: 'error' | 'unavailable';
+      code: 'provider_auth' | 'provider_rate_limited' | 'provider_unavailable';
       message: string;
     };
 
@@ -120,6 +123,7 @@ const providerClients: Record<string, ProviderClient> = {
         return {
           ok: false,
           status: 'unavailable',
+          code: 'provider_unavailable',
           message: 'Provider response did not include a structured completion.',
         };
       }
@@ -168,6 +172,7 @@ const providerClients: Record<string, ProviderClient> = {
         return {
           ok: false,
           status: 'unavailable',
+          code: 'provider_unavailable',
           message: 'Provider response did not include a structured completion.',
         };
       }
@@ -207,6 +212,7 @@ const providerClients: Record<string, ProviderClient> = {
         return {
           ok: false,
           status: 'unavailable',
+          code: 'provider_unavailable',
           message: 'Provider response did not include a text completion.',
         };
       }
@@ -267,7 +273,7 @@ export async function requestLayoutConsultantProposal(input: LayoutConsultantInv
     return {
       ok: false,
       status: providerResponse.status,
-      code: 'provider_unavailable',
+      code: providerResponse.code,
       provider: input.provider,
       message: providerResponse.message,
     };
@@ -476,9 +482,31 @@ async function requestJson(input: {
     });
 
     if (!response.ok) {
+      // Status-only classification: provider response bodies are never
+      // surfaced, so auth and rate-limit failures stay distinguishable
+      // without leaking provider output.
+      if (response.status === 401 || response.status === 403) {
+        return {
+          ok: false,
+          status: 'error',
+          code: 'provider_auth',
+          message: `Provider rejected the configured credentials with status ${response.status}.`,
+        };
+      }
+
+      if (response.status === 429) {
+        return {
+          ok: false,
+          status: 'unavailable',
+          code: 'provider_rate_limited',
+          message: `Provider rate limited the request with status ${response.status}.`,
+        };
+      }
+
       return {
         ok: false,
         status: 'unavailable',
+        code: 'provider_unavailable',
         message: `Provider request failed with status ${response.status}.`,
       };
     }
@@ -491,6 +519,7 @@ async function requestJson(input: {
     return {
       ok: false,
       status: 'unavailable',
+      code: 'provider_unavailable',
       message: `Provider request failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
