@@ -367,11 +367,11 @@ export function mountCanvas(
         surface: 'tile',
         pages: nextPayload.document.layout.pages.map((page) => ({ id: page.id, size: page.size, margin: page.margin })),
         frames: nextPayload.document.layout.frames
-          .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex }))
+          .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex, placement: frame.placement }))
           .sort((left, right) => left.zIndex - right.zIndex),
-        // Group membership and lock state drive badges, handles, and frame
-        // datasets, so group changes must rebuild the surface (box-only moves
-        // intentionally do not).
+        // Group membership, lock state, and placement drive badges, handles,
+        // and frame datasets, so those changes must rebuild the surface
+        // (box-only moves intentionally do not).
         groups: nextPayload.document.layout.frameGroups.map((group) => ({
           id: group.id,
           frameIds: group.frameIds,
@@ -514,6 +514,16 @@ export function mountCanvas(
           `Frame "${frameId}" is locked in group "${lockedGroup.id}" — drag the group handle or unlock it.`,
         );
       }
+      return;
+    }
+
+    const framePlacement = engine.getPayload()?.document.layout.frames.find((frame) => frame.id === frameId)?.placement;
+    if (activeSurface === 'tile' && framePlacement === 'free') {
+      engine.selectFrame(frameId);
+      setTileActionNote(
+        rootElement,
+        `Frame "${frameId}" keeps its freeform placement — edit it in the freeform lens or rejoin the layout.`,
+      );
       return;
     }
 

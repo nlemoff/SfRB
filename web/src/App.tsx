@@ -18,6 +18,7 @@ import { createDocumentEditorEngine } from './editor/engine';
 import { syncConsultantPanel } from './shell/consultant-panel';
 import { bindLensSwitcher } from './shell/lens-switcher';
 import { createShellMarkup } from './shell/markup';
+import { createReconciliationDialog } from './shell/reconciliation-dialog';
 import { injectShellStyles } from './shell/styles';
 import {
   renderTemplateButtons,
@@ -124,6 +125,48 @@ export function mountApp(rootElement: HTMLElement) {
   });
 
   const lensSwitcher = bindLensSwitcher(rootElement, editorEngine);
+
+  // --- Freeform exit reconciliation ---
+  const updateTransitionStrip = (outcome: 'rejoin_layout' | 'keep_locked') => {
+    const strip = rootElement.querySelector('#editor-mode-transition-strip');
+    if (!(strip instanceof HTMLElement)) {
+      return;
+    }
+    const carried = overflowDiagnostics.status === 'overflow' && overflowDiagnostics.frameId
+      ? ` Carried overflow: frame ${overflowDiagnostics.frameId}, +${overflowDiagnostics.overflowPx ?? 0}px.`
+      : '';
+    strip.dataset.outcome = outcome;
+    strip.textContent = outcome === 'rejoin_layout'
+      ? `Freeform placements rejoined the layout; tiles are movable again.${carried}`
+      : `Freeform placements kept; those elements stay put until you rejoin them.${carried}`;
+    strip.hidden = false;
+  };
+
+  const resolveReconciliation = (outcome: 'rejoin_layout' | 'keep_locked') => {
+    void editorEngine.resolvePendingLensExit(outcome).then(
+      (result) => {
+        if (result && !result.ok) {
+          reconciliationDialog.setNote(`${result.code}: ${result.message}`);
+          return;
+        }
+        reconciliationDialog.close();
+        updateTransitionStrip(outcome);
+        void refreshBridge();
+      },
+      (error: unknown) => {
+        reconciliationDialog.setNote(`Bridge unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      },
+    );
+  };
+
+  const reconciliationDialog = createReconciliationDialog(rootElement, {
+    onRejoin: () => resolveReconciliation('rejoin_layout'),
+    onKeep: () => resolveReconciliation('keep_locked'),
+    onCancel: () => {
+      editorEngine.cancelPendingLensExit();
+      reconciliationDialog.close();
+    },
+  });
 
   const syncGuideSurface = () => {
     const readyPayload = payload?.status === 'ready' ? payload : null;
@@ -540,6 +583,12 @@ export function mountApp(rootElement: HTMLElement) {
   });
 
   const unsubscribeEngine = editorEngine.subscribe((snapshot) => {
+    if (snapshot.pendingLensExit !== null && !reconciliationDialog.isOpen()) {
+      reconciliationDialog.open();
+    } else if (snapshot.pendingLensExit === null && reconciliationDialog.isOpen()) {
+      reconciliationDialog.close();
+    }
+
     if (!preview && consultantState !== 'requesting' && consultantState !== 'applying') {
       consultantState = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'detecting' : 'idle';
       consultantCode = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'measuring' : consultantCode === 'preview_stale_cleared' ? consultantCode : 'none';

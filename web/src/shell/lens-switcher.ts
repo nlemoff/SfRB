@@ -39,7 +39,10 @@ export function bindLensSwitcher(rootElement: HTMLElement, engine: DocumentEdito
     }
     engine.setActiveLens(lens);
     sync(currentPayload);
-    optionFor(lens)?.focus();
+    // A deferred switch means the reconciliation dialog now owns focus.
+    if (engine.getSnapshot().pendingLensExit === null) {
+      optionFor(engine.getSnapshot().activeLens)?.focus();
+    }
   };
 
   for (const lens of LENS_ORDER) {

@@ -276,6 +276,7 @@ export function renderTileSurface(deps: {
         article.dataset.groupId = group.id;
         article.dataset.groupLocked = String(group.locked);
       }
+      article.dataset.placement = frame.placement;
       article.tabIndex = 0;
       article.setAttribute('aria-label', `${block?.kind ?? 'frame'}: ${(block?.text ?? frame.id).slice(0, 40)}`);
       article.style.cssText = designFrameBaseStyles;
@@ -307,6 +308,12 @@ export function renderTileSurface(deps: {
         if (currentGroup?.locked) {
           engine.selectFrame(frame.id);
           setNote(`Frame "${frame.id}" is locked in group "${currentGroup.id}" — drag the group handle or unlock it.`);
+          return;
+        }
+
+        if (frame.placement === 'free') {
+          engine.selectFrame(frame.id);
+          setNote(`Frame "${frame.id}" keeps its freeform placement — edit it in the freeform lens or rejoin the layout.`);
           return;
         }
 

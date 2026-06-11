@@ -365,6 +365,45 @@ const SHELL_CSS = `
   .sfrb-visually-deemphasized {
     color: #94a3b8;
   }
+
+  .sfrb-transition-strip {
+    margin-bottom: 18px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 0.9rem;
+  }
+
+  .sfrb-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    background: rgba(15, 23, 42, 0.45);
+  }
+
+  .sfrb-dialog-overlay[hidden] {
+    display: none;
+  }
+
+  .sfrb-dialog-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+    padding: 22px 24px;
+    max-width: 440px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .sfrb-dialog-card h2 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
 `;
 
 export function injectShellStyles(): void {

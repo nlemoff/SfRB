@@ -26,6 +26,8 @@ export type DocumentEditorSnapshot = {
   saveError: string | null;
   interactionMode: 'document' | 'design' | 'unavailable';
   activeLens: EditorLens;
+  /** Lens the user asked for while freeform changes still need reconciling. */
+  pendingLensExit: EditorLens | null;
 };
 
 export type DocumentEditorEngine = {
@@ -39,6 +41,8 @@ export type DocumentEditorEngine = {
   revertFrameOverrides: (frameIds: string[]) => void;
   getFreeformTouchedFrameIds: () => string[];
   clearFreeformTouched: () => void;
+  resolvePendingLensExit: (outcome: 'rejoin_layout' | 'keep_locked') => Promise<BridgeMutationResult | null>;
+  cancelPendingLensExit: () => void;
   startEditing: (blockId: string) => void;
   updateDraft: (text: string) => void;
   endEditing: () => void;
@@ -113,6 +117,7 @@ export function createDocumentEditorEngine(options: {
   let draftText: string | null = null;
   let draftDirty = false;
   let activeLens: EditorLens = 'text';
+  let pendingLensExit: EditorLens | null = null;
   let saveState: BridgeSaveState = options.statusStore.getSnapshot().saveState;
   let saveError: string | null = options.statusStore.getSnapshot().errorMessage;
   const displayTextOverrides = new Map<string, string>();
@@ -136,6 +141,7 @@ export function createDocumentEditorEngine(options: {
     saveError,
     interactionMode: getInteractionMode(),
     activeLens,
+    pendingLensExit,
   });
 
   const emit = () => {
@@ -338,11 +344,67 @@ export function createDocumentEditorEngine(options: {
         draftDirty = false;
       }
 
+      // Leaving freeform with session placements is an explicit decision:
+      // pause the switch until the user reconciles or cancels.
+      const liveTouched = [...freeformTouchedFrameIds].filter((frameId) => getCanonicalFrameBox(payload, frameId) !== null);
+      if (activeLens === 'freeform' && liveTouched.length > 0) {
+        pendingLensExit = lens;
+        emit();
+        return;
+      }
+
+      freeformTouchedFrameIds.clear();
       activeLens = lens;
       if (lens === 'text') {
         selectedFrameId = null;
       }
       multiSelectedFrameIds.clear();
+      emit();
+    },
+    resolvePendingLensExit: async (outcome) => {
+      if (pendingLensExit === null) {
+        return null;
+      }
+
+      const targetLens = pendingLensExit;
+      const frameIds = [...freeformTouchedFrameIds].filter((frameId) => getCanonicalFrameBox(payload, frameId) !== null);
+
+      if (frameIds.length > 0) {
+        const result = await submitBridgeOperation(
+          { op: 'reconcile-freeform', outcome, frameIds },
+          { statusStore: options.statusStore },
+        );
+        if (!result.ok) {
+          emit();
+          return result;
+        }
+
+        freeformTouchedFrameIds.clear();
+        pendingLensExit = null;
+        activeLens = targetLens;
+        if (targetLens === 'text') {
+          selectedFrameId = null;
+        }
+        multiSelectedFrameIds.clear();
+        emit();
+        return result;
+      }
+
+      freeformTouchedFrameIds.clear();
+      pendingLensExit = null;
+      activeLens = targetLens;
+      if (targetLens === 'text') {
+        selectedFrameId = null;
+      }
+      multiSelectedFrameIds.clear();
+      emit();
+      return null;
+    },
+    cancelPendingLensExit: () => {
+      if (pendingLensExit === null) {
+        return;
+      }
+      pendingLensExit = null;
       emit();
     },
     selectBlock: (blockId) => {

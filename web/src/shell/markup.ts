@@ -43,6 +43,8 @@ export function createShellMarkup(): string {
         </button>
       </div>
 
+      <div id="editor-mode-transition-strip" data-testid="editor-mode-transition-strip" data-outcome="" role="status" hidden class="sfrb-transition-strip"></div>
+
       <main class="sfrb-columns">
         <section class="sfrb-panel sfrb-canvas-panel" aria-label="Editor canvas">
           <div id="editor-host"></div>
@@ -97,6 +99,18 @@ export function createShellMarkup(): string {
           </section>
         </aside>
       </main>
+
+      <div id="reconciliation-dialog" data-testid="reconciliation-dialog" role="dialog" aria-modal="true" aria-labelledby="reconciliation-dialog-title" hidden class="sfrb-dialog-overlay">
+        <div class="sfrb-dialog-card">
+          <h2 id="reconciliation-dialog-title">Leaving the freeform lens</h2>
+          <p id="reconciliation-dialog-note" class="sfrb-note">Your freeform placements are saved. Decide how they should behave outside the freeform lens.</p>
+          <div class="sfrb-button-row">
+            <button id="reconcile-rejoin" data-testid="reconcile-rejoin" type="button" class="sfrb-button sfrb-button-primary">Rejoin layout</button>
+            <button id="reconcile-keep" data-testid="reconcile-keep" type="button" class="sfrb-button">Keep freeform placement</button>
+            <button id="reconcile-cancel" data-testid="reconcile-cancel" type="button" class="sfrb-button">Cancel</button>
+          </div>
+        </div>
+      </div>
 
       <details id="workspace-inspector" data-testid="workspace-inspector" class="sfrb-inspector">
         <summary>Workspace inspector</summary>
