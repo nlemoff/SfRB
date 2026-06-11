@@ -30,6 +30,11 @@ export const modernTheme: Theme = {
         lineHeight: '1.45',
         marginBottom: '2px',
       },
+      divider: {
+        fontSize: '11px',
+        lineHeight: '1',
+        marginBottom: '8px',
+      },
     },
   },
   color: {

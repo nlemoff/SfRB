@@ -36,6 +36,7 @@ export type BridgeDocument = {
       id: string;
       kind: string;
       text: string;
+      splitFrom?: string;
     }>;
   };
   layout: {
@@ -63,6 +64,13 @@ export type BridgeDocument = {
         height: number;
       };
       zIndex: number;
+      placement: 'managed' | 'free';
+    }>;
+    frameGroups: Array<{
+      id: string;
+      pageId: string;
+      frameIds: string[];
+      locked: boolean;
     }>;
   };
 };

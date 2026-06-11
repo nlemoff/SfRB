@@ -30,6 +30,11 @@ export const defaultTheme: Theme = {
         lineHeight: '1.5',
         marginBottom: '2px',
       },
+      divider: {
+        fontSize: '12px',
+        lineHeight: '1',
+        marginBottom: '8px',
+      },
     },
   },
   color: {

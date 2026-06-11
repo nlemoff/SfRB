@@ -73,6 +73,13 @@ export function validateDocumentForPhysics(
         message: `Document workspaces forbid fixed layout frames like "${frame.id}". Remove layout.frames.${frameIndex} or switch workspace.physics to "design" in ${configPath}.`,
       });
     });
+
+    document.layout.frameGroups.forEach((group, groupIndex) => {
+      issues.push({
+        path: formatIssuePath(['layout', 'frameGroups', groupIndex]),
+        message: `Document workspaces forbid frame groups like "${group.id}". Remove layout.frameGroups.${groupIndex} or switch workspace.physics to "design" in ${configPath}.`,
+      });
+    });
   }
 
   if (physics === 'design') {

@@ -108,6 +108,11 @@ function createBlockTextElement(block: BlockDef, theme: Theme): HTMLElement {
   const blockStyle = theme.typography.blocks[kind] ?? theme.typography.blocks.paragraph;
   applyBlockStyle(el, blockStyle);
 
+  if (kind === 'divider') {
+    el.style.borderTop = '1px solid currentColor';
+    return el;
+  }
+
   el.textContent = block.text;
   return el;
 }

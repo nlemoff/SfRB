@@ -1,5 +1,5 @@
 import type { PhysicsMode } from '../config/schema';
-import { parseDocument, type LayoutFrame, type SemanticBlock, type SemanticSection, type SfrbDocument, type StarterKind } from './schema';
+import { parseDocument, type LayoutFrameInput, type SemanticBlock, type SemanticSection, type SfrbDocument, type StarterKind } from './schema';
 
 const DEFAULT_PAGE = {
   id: 'pageOne',
@@ -88,7 +88,7 @@ function createBlankContent(): { title: string; sections: SemanticSection[]; blo
   };
 }
 
-function createFramesForBlocks(blockIds: string[], options?: { blank?: boolean }): LayoutFrame[] {
+function createFramesForBlocks(blockIds: string[], options?: { blank?: boolean }): LayoutFrameInput[] {
   if (options?.blank) {
     return [
       {
