@@ -21,7 +21,7 @@
     "test:web": "vitest run tests/web",
     "test:setup:browsers": "playwright install chromium",
     "verify:package": "node scripts/verify-package-install.mjs",
-    "verify:smoke": "npm run build && node scripts/verify-s04-editor-smoke.mjs && node scripts/verify-s05-layout-consultant.mjs",
+    "verify:smoke": "npm run build && node scripts/verify-s04-editor-smoke.mjs && node scripts/verify-s05-layout-consultant.mjs && node scripts/verify-cli-edit-smoke.mjs",
     "schema:generate": "npm run build && node scripts/generate-schema.mjs",
     "schema:check": "npm run build && node scripts/check-schema.mjs"
   },

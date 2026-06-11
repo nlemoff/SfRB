@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { Command } from 'commander';
 
+import { createEditCommand } from './commands/edit';
 import { createExportCommand } from './commands/export';
 import { createInitCommand } from './commands/init';
 import { createOpenCommand } from './commands/open';
@@ -25,6 +26,7 @@ export function createCli(): Command {
     .description('Straightforward Resume Builder CLI')
     .version(readCliVersion());
 
+  program.addCommand(createEditCommand());
   program.addCommand(createExportCommand());
   program.addCommand(createInitCommand());
   program.addCommand(createOpenCommand());

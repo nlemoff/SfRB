@@ -282,6 +282,32 @@ export async function postEditorMutation(
   };
 }
 
+export async function postEditorOperation(
+  baseUrl: string,
+  operation: Record<string, unknown>,
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  return postEditorBody(baseUrl, { operation });
+}
+
+export async function postEditorBody(
+  baseUrl: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  const response = await fetch(new URL(BRIDGE_EDITOR_MUTATION_PATH, baseUrl), {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  return {
+    status: response.status,
+    payload: (await response.json()) as Record<string, unknown>,
+  };
+}
+
 export async function postConsultantRequest(
   baseUrl: string,
   request: Record<string, unknown>,
