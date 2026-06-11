@@ -138,7 +138,9 @@ describe('document schema contract', () => {
 
     expect(actual).toBe(expected);
 
-    const { stdout } = await execFileAsync('npm', ['run', 'schema:check'], {
+    // Run the check script directly: the npm wrapper rebuilds dist/, which races
+    // against parallel bridge tests that spawn processes from dist/ mid-suite.
+    const { stdout } = await execFileAsync('node', ['scripts/check-schema.mjs'], {
       cwd: process.cwd(),
     });
 
