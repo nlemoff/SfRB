@@ -95,7 +95,7 @@ describe('editor first-run guidance', () => {
 
         await page.waitForSelector('[data-testid="first-run-guidance"]');
         expect(await page.textContent('[data-testid="lens-text-availability"]')).toContain('Available now');
-        expect(await page.textContent('[data-testid="lens-freeform-availability"]')).toContain('Arriving later in this milestone');
+        expect(await page.textContent('[data-testid="lens-freeform-availability"]')).toContain(tileAvailabilitySnippet);
 
         const guidance = await readFirstRunGuidance(page);
         expect(guidance.starterKind).toContain(expectedStarterLabel);

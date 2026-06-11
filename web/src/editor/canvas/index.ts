@@ -2,6 +2,7 @@ import type { ReadyBridgePayload } from '../../bridge-client';
 import type { GhostPreviewLayer, GhostPreviewModel } from '../../ui/GhostPreview';
 import type { DocumentEditorEngine, DocumentEditorSnapshot, EditorLens, FrameBox } from '../engine';
 import { renderFlowSurface } from './flow-surface';
+import { renderFreeformSurface, setFreeformMoveState, type FreeformSurfaceController } from './freeform-surface';
 import { renderTileSurface, setFrameElementPosition, setTileActionNote, type TileSurfaceController } from './tile-surface';
 import { createOverflowController, createDocumentKey, type CanvasOverflowDiagnostics } from './overflow';
 import { createPointerController } from './pointer';
@@ -31,7 +32,7 @@ export type CanvasController = {
   destroy: () => void;
 };
 
-type ActiveSurface = 'flow' | 'tile' | 'none';
+type ActiveSurface = 'flow' | 'tile' | 'freeform' | 'none';
 
 function createLabel(value: string, elementId: string, testId: string): HTMLDivElement {
   const wrapper = document.createElement('div');
@@ -137,6 +138,7 @@ export function mountCanvas(
   let ghostPreview: CanvasConsultantPreview | null = null;
   let activeSurface: ActiveSurface = 'none';
   let tileControls: TileSurfaceController | null = null;
+  let freeformControls: FreeformSurfaceController | null = null;
 
   const textEditing = createTextEditingController({
     engine,
@@ -254,6 +256,18 @@ export function mountCanvas(
     }
 
     for (const [frameId, frameElement] of frameElements.entries()) {
+      if (activeSurface === 'freeform') {
+        const isSelected = snapshot.selectedFrameId === frameId;
+        frameElement.style.borderColor = isSelected ? 'rgba(37, 99, 235, 0.85)' : 'rgba(148, 163, 184, 0.4)';
+        frameElement.style.boxShadow = isSelected ? '0 0 0 3px rgba(96, 165, 250, 0.24)' : 'none';
+        frameElement.setAttribute('aria-current', isSelected ? 'true' : 'false');
+        const box = engine.getFrameBox(frameId);
+        if (box) {
+          setFrameElementPosition(frameElement, box);
+        }
+        continue;
+      }
+
       if (activeSurface !== 'tile') {
         continue;
       }
@@ -333,6 +347,21 @@ export function mountCanvas(
   };
 
   const computeStructureKey = (nextPayload: ReadyBridgePayload, lens: EditorLens): string => {
+    if (nextPayload.physics === 'design' && lens === 'freeform') {
+      return JSON.stringify({
+        surface: 'freeform',
+        pages: nextPayload.document.layout.pages.map((page) => ({ id: page.id, size: page.size, margin: page.margin })),
+        frames: nextPayload.document.layout.frames
+          .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex, placement: frame.placement }))
+          .sort((left, right) => left.zIndex - right.zIndex),
+        groups: nextPayload.document.layout.frameGroups.map((group) => ({
+          id: group.id,
+          frameIds: group.frameIds,
+          locked: group.locked,
+        })),
+      });
+    }
+
     if (nextPayload.physics === 'design' && lens === 'tile') {
       return JSON.stringify({
         surface: 'tile',
@@ -370,7 +399,11 @@ export function mountCanvas(
     pageMeta.textContent = `${nextPayload.document.layout.pages.length} page${nextPayload.document.layout.pages.length === 1 ? '' : 's'} · ${nextPayload.document.semantic.sections.length} section${nextPayload.document.semantic.sections.length === 1 ? '' : 's'} · ${nextPayload.document.semantic.blocks.length} blocks · ${firstPage.size.width}×${firstPage.size.height}`;
 
     const nextStructureKey = computeStructureKey(nextPayload, lens);
-    const nextSurface: ActiveSurface = nextPayload.physics === 'design' && lens === 'tile' ? 'tile' : 'flow';
+    const nextSurface: ActiveSurface = nextPayload.physics === 'design' && lens === 'tile'
+      ? 'tile'
+      : nextPayload.physics === 'design' && lens === 'freeform'
+        ? 'freeform'
+        : 'flow';
 
     if (structureKey !== nextStructureKey) {
       structureKey = nextStructureKey;
@@ -378,6 +411,7 @@ export function mountCanvas(
       activeSurface = nextSurface;
       shell.dataset.activeSurface = nextSurface;
       tileControls = null;
+      freeformControls = null;
 
       if (nextSurface === 'tile') {
         subtitle.textContent = 'Design mode renders canonical page geometry and linked fixed frames; drag the handle to persist box coordinates, or double-click a frame to edit its text.';
@@ -389,6 +423,17 @@ export function mountCanvas(
           ghostLayers,
           pointer,
           bindEditableInteractions,
+          payload: nextPayload,
+        });
+      } else if (nextSurface === 'freeform') {
+        subtitle.textContent = 'Freeform mode treats every element on the page as directly movable and resizable; leaving it reconciles your placements explicitly.';
+        freeformControls = renderFreeformSurface({
+          engine,
+          surfaceRoot,
+          frameElements,
+          pageCanvasElements,
+          ghostLayers,
+          pointer,
           payload: nextPayload,
         });
       } else {
@@ -403,7 +448,7 @@ export function mountCanvas(
       }
     }
 
-    if (nextSurface === 'tile') {
+    if (nextSurface === 'tile' || nextSurface === 'freeform') {
       renderGhostPreview();
     }
 
@@ -457,10 +502,18 @@ export function mountCanvas(
       ?.document.layout.frameGroups.find((group) => group.locked && group.frameIds.includes(frameId));
     if (lockedGroup) {
       engine.selectFrame(frameId);
-      setTileActionNote(
-        rootElement,
-        `Frame "${frameId}" is locked in group "${lockedGroup.id}" — drag the group handle or unlock it.`,
-      );
+      if (activeSurface === 'freeform') {
+        setFreeformMoveState(
+          rootElement,
+          'blocked',
+          `Element "${frameId}" is locked in group "${lockedGroup.id}" — unlock it in the tile lens first.`,
+        );
+      } else {
+        setTileActionNote(
+          rootElement,
+          `Frame "${frameId}" is locked in group "${lockedGroup.id}" — drag the group handle or unlock it.`,
+        );
+      }
       return;
     }
 
@@ -486,6 +539,7 @@ export function mountCanvas(
     renderSelectionState(snapshot);
     textEditing.syncEditingDom(snapshot);
     tileControls?.syncToolbar(snapshot);
+    freeformControls?.syncHud(snapshot);
 
     for (const blockId of blockElements.keys()) {
       textEditing.renderBlockText(blockId);
@@ -518,6 +572,7 @@ export function mountCanvas(
       ghostPreview = null;
       activeSurface = 'none';
       tileControls = null;
+      freeformControls = null;
       clearSurfaceState();
       pointer.cancel();
       overflow.dispose();

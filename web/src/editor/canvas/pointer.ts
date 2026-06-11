@@ -18,7 +18,18 @@ type GroupDragState = {
   startY: number;
 };
 
-type DragState = SingleDragState | GroupDragState;
+type ResizeDragState = {
+  kind: 'resize';
+  pointerId: number;
+  frameId: string;
+  originBox: FrameBox;
+  startX: number;
+  startY: number;
+};
+
+const MIN_FRAME_SIZE = 8;
+
+type DragState = SingleDragState | GroupDragState | ResizeDragState;
 
 export type PointerController = {
   beginFrameDrag: (event: PointerEvent, frame: { id: string; blockId: string }, originBox: FrameBox, handle: HTMLElement) => void;
@@ -28,6 +39,7 @@ export type PointerController = {
     members: Array<{ id: string; originBox: FrameBox }>,
     handle: HTMLElement,
   ) => void;
+  beginFrameResize: (event: PointerEvent, frame: { id: string; blockId: string }, originBox: FrameBox, handle: HTMLElement) => void;
   nudgeFrame: (frameId: string, dx: number, dy: number) => void;
   isDragging: () => boolean;
   attach: () => void;
@@ -63,6 +75,15 @@ export function createPointerController(deps: {
       return;
     }
 
+    if (dragState.kind === 'resize') {
+      engine.updateFrameBox(dragState.frameId, {
+        ...dragState.originBox,
+        width: Math.max(MIN_FRAME_SIZE, Math.round(dragState.originBox.width + deltaX)),
+        height: Math.max(MIN_FRAME_SIZE, Math.round(dragState.originBox.height + deltaY)),
+      });
+      return;
+    }
+
     for (const member of dragState.members) {
       engine.updateFrameBox(member.id, {
         ...member.originBox,
@@ -80,14 +101,14 @@ export function createPointerController(deps: {
     const activeDrag = dragState;
     dragState = null;
 
-    if (activeDrag.kind === 'single') {
+    if (activeDrag.kind === 'single' || activeDrag.kind === 'resize') {
+      void engine.commitFrameMove(activeDrag.frameId, reason).finally(() => {
+        onDragSettled();
+      });
       const handle = rootElement.querySelector(`[data-testid="frame-handle-${activeDrag.frameId}"]`) as HTMLElement | null;
       if (handle) {
         handle.style.cursor = 'grab';
       }
-      void engine.commitFrameMove(activeDrag.frameId, reason).finally(() => {
-        onDragSettled();
-      });
       return;
     }
 
@@ -134,6 +155,19 @@ export function createPointerController(deps: {
       };
       handle.setPointerCapture(event.pointerId);
       handle.style.cursor = 'grabbing';
+    },
+    beginFrameResize: (event, frame, originBox, handle) => {
+      dragState = {
+        kind: 'resize',
+        pointerId: event.pointerId,
+        frameId: frame.id,
+        originBox,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+      engine.selectFrame(frame.id);
+      handle.setPointerCapture(event.pointerId);
+      onDragStart(frame.id, frame.blockId);
     },
     nudgeFrame: (frameId, dx, dy) => {
       const currentBox = engine.getFrameBox(frameId);

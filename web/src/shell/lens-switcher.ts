@@ -7,9 +7,7 @@ export type LensSwitcherController = {
   sync: (payload: ReadyBridgePayload | null) => void;
 };
 
-// Freeform becomes selectable when its surface ships; until then the switcher
-// stays honest about it.
-const FREEFORM_SHIPPED = false;
+const FREEFORM_SHIPPED = true;
 
 function describeDesignOnlyAvailability(payload: ReadyBridgePayload | null): string {
   if (!payload) {

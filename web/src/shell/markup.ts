@@ -39,7 +39,7 @@ export function createShellMarkup(): string {
         <button type="button" role="radio" aria-checked="false" id="lens-pick-freeform" data-testid="lens-freeform" data-lens="freeform" class="sfrb-lens-option">
           <span class="sfrb-lens-name">Freeform</span>
           <span class="sfrb-note">Manipulate any element on the page.</span>
-          <span class="sfrb-lens-availability" data-testid="lens-freeform-availability">Arriving later in this milestone</span>
+          <span class="sfrb-lens-availability" data-testid="lens-freeform-availability">Checking current workspace…</span>
         </button>
       </div>
 

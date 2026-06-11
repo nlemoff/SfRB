@@ -37,6 +37,8 @@ export type DocumentEditorEngine = {
   selectFrame: (frameId: string | null) => void;
   toggleFrameInSelection: (frameId: string) => void;
   revertFrameOverrides: (frameIds: string[]) => void;
+  getFreeformTouchedFrameIds: () => string[];
+  clearFreeformTouched: () => void;
   startEditing: (blockId: string) => void;
   updateDraft: (text: string) => void;
   endEditing: () => void;
@@ -104,6 +106,9 @@ export function createDocumentEditorEngine(options: {
   let selectedBlockId: string | null = null;
   let selectedFrameId: string | null = null;
   const multiSelectedFrameIds = new Set<string>();
+  // Frames whose geometry was committed from the freeform lens this session;
+  // leaving freeform reconciles them explicitly (rejoin_layout | keep_locked).
+  const freeformTouchedFrameIds = new Set<string>();
   let editingBlockId: string | null = null;
   let draftText: string | null = null;
   let draftDirty = false;
@@ -178,7 +183,11 @@ export function createDocumentEditorEngine(options: {
 
     for (const [frameId, box] of frameBoxOverrides.entries()) {
       if (!frameBoxesEqual(getCanonicalFrameBox(payload, frameId), box)) {
-        operations.push({ op: 'set-frame-box', frameId, box: cloneFrameBox(box) });
+        if (activeLens === 'freeform') {
+          operations.push({ op: 'set-frame-box', frameId, box: cloneFrameBox(box), asFreeform: true });
+        } else {
+          operations.push({ op: 'set-frame-box', frameId, box: cloneFrameBox(box) });
+        }
       }
     }
 
@@ -233,6 +242,12 @@ export function createDocumentEditorEngine(options: {
         for (const [frameId, box] of pendingFrameBoxes.entries()) {
           frameBoxOverrides.set(frameId, cloneFrameBox(box));
         }
+
+        for (const operation of operations) {
+          if (operation.op === 'set-frame-box' && operation.asFreeform === true) {
+            freeformTouchedFrameIds.add(operation.frameId);
+          }
+        }
       }
       return lastResult;
     })().finally(() => {
@@ -274,6 +289,7 @@ export function createDocumentEditorEngine(options: {
       } else {
         displayTextOverrides.clear();
         frameBoxOverrides.clear();
+        freeformTouchedFrameIds.clear();
       }
 
       const nextPhysics = payload?.physics ?? 'unavailable';
@@ -372,6 +388,10 @@ export function createDocumentEditorEngine(options: {
       }
       emit();
     },
+    getFreeformTouchedFrameIds: () => [...freeformTouchedFrameIds],
+    clearFreeformTouched: () => {
+      freeformTouchedFrameIds.clear();
+    },
     startEditing: (blockId) => {
       selectedBlockId = blockId;
       if (payload?.physics === 'design' && activeLens !== 'text') {
@@ -445,6 +465,7 @@ export function createDocumentEditorEngine(options: {
       listeners.clear();
       displayTextOverrides.clear();
       frameBoxOverrides.clear();
+      freeformTouchedFrameIds.clear();
     },
   };
 }

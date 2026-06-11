@@ -41,7 +41,7 @@ describe('editor lens switcher', () => {
       expect(await page.getAttribute('#editor-canvas', 'data-active-surface')).toBe('tile');
       expect(await page.locator('[data-testid^="frame-handle"]').count()).toBeGreaterThan(0);
       expect(await page.getAttribute('[data-testid="lens-tile"]', 'aria-checked')).toBe('true');
-      expect(await page.locator('[data-testid="lens-freeform"]').isDisabled()).toBe(true);
+      expect(await page.locator('[data-testid="lens-freeform"]').isDisabled()).toBe(false);
 
       await page.click('[data-testid="lens-text"]');
       await page.waitForSelector('#editor-canvas[data-active-lens="text"]');
