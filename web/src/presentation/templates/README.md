@@ -33,7 +33,13 @@ To add a template:
 
 ## Per-block style contract
 
-`Theme.typography.blocks` carries one `BlockStyle` per `SemanticBlockKind` (`heading`, `paragraph`, `bullet`, `fact`). Each `BlockStyle` requires `fontSize`, `lineHeight`, and `marginBottom`. `fontWeight` and `paddingLeft` are optional (they're applied only when defined, so omitting them won't write inherited browser defaults to the inline style).
+`Theme.typography.blocks` carries one `BlockStyle` per `SemanticBlockKind` (`heading`, `paragraph`, `bullet`, `fact`, `divider`). Each `BlockStyle` requires `fontSize`, `lineHeight`, and `marginBottom`. `fontWeight` and `paddingLeft` are optional (they're applied only when defined, so omitting them won't write inherited browser defaults to the inline style).
+
+`divider` blocks carry no text — the renderer draws a `1px solid currentColor` top border and the `BlockStyle` only contributes spacing. A new template must still provide a `divider` entry (the `Record<SemanticBlockKind, BlockStyle>` type forces it); nominal values like `fontSize: '12px'`, `lineHeight: '1'`, `marginBottom: '8px'` are fine.
+
+## Contrast gate
+
+`tests/presentation/template-contrast.test.ts` asserts every registered theme keeps `typography.rootColor` vs `color.pageBackground` at or above WCAG AA (4.5:1) for normal text. A template with unreadable colors fails the suite — pick your palette accordingly.
 
 ## Preview-only diagnostics
 

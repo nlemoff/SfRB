@@ -15,24 +15,25 @@ npm run build                    # tsc -p tsconfig.json + copy bridge runtime in
 npm test                         # vitest run (full suite)
 npm run test:web                 # vitest run tests/web — needs Playwright Chromium
 npm run test:setup:browsers      # playwright install chromium (one-time)
-npm run verify:smoke             # build + s04 editor smoke + s05 layout consultant smoke
+npm run verify:smoke             # build + editor, consultant, CLI edit, tile, freeform, reconciliation smokes
 npm run schema:generate          # regenerate schema.json from Zod schemas
 npm run schema:check             # assert schema.json matches Zod source
 
 npx vitest run path/to/file.test.ts        # single file
 npx vitest run -t "name fragment"          # filter by test name
-node scripts/verify-s01-print-surface.mjs  # M003 verifiers run standalone
+node scripts/verify-s01-print-surface.mjs  # verifiers run standalone
 ```
 
-CLI (after build): `node dist/cli.js {init|open|export} [...]`.
+CLI (after build): `node dist/cli.js {init|open|edit|export|template} [...]`. `edit --list-ops` prints the structured operation vocabulary.
 
 ## Architecture
 
 The whole product is one canonical document boundary, mediated by a local HTTP bridge.
 
-- **CLI** (`src/cli.ts` + `src/commands/{init,open,export}.ts`) — Commander entry; compiles to CommonJS in `dist/`.
+- **CLI** (`src/cli.ts` + `src/commands/{init,open,edit,export,template}.ts`) — Commander entry; compiles to CommonJS in `dist/`.
 - **Bridge** (`src/bridge/server.mjs`) — ESM Vite dev server; uses `createRequire` to load compiled CJS modules from `dist/`. Owns all disk I/O.
-- **Web UI** (`web/src/`) — React editor (`App.tsx`, `editor/Canvas.tsx`, `editor/engine.ts`) plus the printable surface (`print-main.tsx`, `print.html`, `presentation/`).
+- **Operations** (`src/document/operations/`) — the 13-operation structured mutation vocabulary (Zod schemas, pure `applyEditorOperation`, and `runWorkspaceOperation`) shared verbatim by the bridge `{operation}` route and `sfrb edit`.
+- **Web UI** (`web/src/`) — DOM-first editor: `App.tsx` orchestrates `shell/` (markup, styles, lens switcher, panels, reconciliation dialog, inspector) and `editor/canvas/` (flow/tile/freeform surfaces, pointer, overflow, text-editing controllers) around `editor/engine.ts` (selection, lenses, drafts, op-emitting commit queue), plus the printable surface (`print-main.tsx`, `print.html`, `presentation/`).
 - **Document model** (`src/document/`) — Zod schema, store, validation, starter workspaces.
 - **Config** (`src/config/`) — Zod-validated `sfrb.config.json`, including AI provider metadata + workspace physics mode.
 - **Layout consultant** (`src/agent/LayoutConsultant.ts`) — provider boundary for AI overflow proposals.
@@ -40,8 +41,15 @@ The whole product is one canonical document boundary, mediated by a local HTTP b
 ### Bridge HTTP contract (load-bearing)
 
 - `GET /__sfrb/bootstrap` — browser reconciles full state from here. Bridge update events are *invalidation signals*, not authoritative payloads.
-- `POST /__sfrb/editor` — all browser mutations. Schema + physics validation runs here before any write to `resume.sfrb.json`.
+- `POST /__sfrb/editor` — all browser mutations, as exactly one of `{document}` (full document) or `{operation}` (structured op). Schema + physics validation runs here before any write to `resume.sfrb.json`; invalid operations return 400 `operation_invalid` with path-aware issues and never write.
 - `POST /__sfrb/consultant` — AI proposals. Provider secrets and raw provider responses must stay bridge-side; the browser only sees validated proposal payloads or sanitized failures.
+
+### Editor invariants worth knowing
+
+- The canvas keeps its serif pinned to Times New Roman: overflow-measurement expectations across tests and smokes are tuned to those text metrics.
+- Ids and `data-testid`s referenced by `tests/` and `scripts/verify-*.mjs` are a frozen contract — relocate elements freely, never rename or drop them.
+- The vitest global setup builds `dist/` once before workers start; tests must never rebuild it mid-suite.
+- One-page contract: overflow gates export rather than paginating. `placement: 'free'` frames and locked group members reject individual `set-frame-box` moves at the op layer.
 
 ### Canonical workspace files
 
