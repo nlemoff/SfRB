@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 
 import {
+  blurEditorTextarea,
   cleanupTempProjects,
   closeBridge,
   ensureBuilt,
@@ -81,8 +82,7 @@ describe('export assembly', () => {
       const textarea = await page.$('textarea');
       if (textarea) {
         await textarea.fill('Edited assembly content for export proof.');
-        // Trigger blur to persist
-        await page.click('#editor-canvas');
+        await blurEditorTextarea(page as unknown as BridgeBrowserPage);
       }
 
       // Wait for save to settle

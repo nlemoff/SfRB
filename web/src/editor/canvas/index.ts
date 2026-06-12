@@ -9,7 +9,6 @@ import { createPointerController } from './pointer';
 import { createTextEditingController } from './text-editing';
 import {
   canvasShellStyles,
-  canvasStatusStyles,
   designFrameBaseStyles,
   documentBlockStyles,
   editingDesignFrameStyles,
@@ -18,6 +17,8 @@ import {
   selectedDesignFrameStyles,
   selectedDocumentBlockStyles,
 } from './styles';
+import { motionOK, motion } from '../../ui/tokens';
+import { createStatusCell } from '../../ui/status-cell';
 
 export type { CanvasOverflowDiagnostics } from './overflow';
 
@@ -33,27 +34,6 @@ export type CanvasController = {
 };
 
 type ActiveSurface = 'flow' | 'tile' | 'freeform' | 'none';
-
-function createLabel(value: string, elementId: string, testId: string): HTMLDivElement {
-  const wrapper = document.createElement('div');
-  const label = document.createElement('div');
-  label.textContent = value;
-  label.style.cssText = 'color: #2563eb; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;';
-
-  const content = document.createElement('div');
-  content.id = elementId;
-  content.dataset.testid = testId;
-  content.style.cssText = 'margin-top: 10px; color: #0f172a; font-size: 1rem; line-height: 1.4;';
-
-  wrapper.append(label, content);
-  return wrapper;
-}
-
-function setElementText(element: Element | null, value: string): void {
-  if (element) {
-    element.textContent = value;
-  }
-}
 
 function formatFrameBox(box: FrameBox | null): string {
   if (!box) {
@@ -81,53 +61,149 @@ export function mountCanvas(
   shell.setAttribute('aria-label', 'Resume canvas');
   shell.style.cssText = canvasShellStyles;
 
-  const summaryRow = document.createElement('div');
-  summaryRow.style.cssText = canvasStatusStyles;
+  // --- Canvas bar: document identity + zoom, never scaled ---
+  const bar = document.createElement('header');
+  bar.className = 'sfrb-canvas-bar';
 
-  const modeLabel = createLabel('Interaction mode', 'editor-affordance-mode', 'editor-affordance-mode');
-  const selectedBlockLabel = createLabel('Selected block', 'editor-selected-block', 'editor-selected-block');
-  const selectedFrameLabel = createLabel('Selected frame', 'editor-selected-frame', 'editor-selected-frame');
-  const dragLabel = createLabel('Drag affordances', 'editor-drag-affordance-status', 'editor-drag-affordance-status');
-  const frameBoxLabel = createLabel('Selected frame box', 'editor-selected-frame-box', 'editor-selected-frame-box');
-  summaryRow.append(modeLabel, selectedBlockLabel, selectedFrameLabel, dragLabel, frameBoxLabel);
+  const headingGroup = document.createElement('div');
+
+  const title = document.createElement('h2');
+  title.id = 'document-title';
+  title.dataset.testid = 'document-title';
+
+  const subtitle = document.createElement('p');
+  subtitle.style.cssText = 'margin: 2px 0 0; max-width: 64ch; color: var(--sfrb-ink-faint); font-size: 12px; line-height: 1.4;';
+  headingGroup.append(title, subtitle);
+
+  const pageMeta = document.createElement('div');
+  pageMeta.id = 'editor-page-metrics';
+  pageMeta.dataset.testid = 'editor-page-metrics';
+  pageMeta.className = 'sfrb-canvas-meta';
+
+  const zoomControl = document.createElement('div');
+  zoomControl.id = 'canvas-zoom-control';
+  zoomControl.dataset.testid = 'canvas-zoom-control';
+  zoomControl.className = 'sfrb-zoom-control';
+  zoomControl.setAttribute('role', 'group');
+  zoomControl.setAttribute('aria-label', 'Canvas zoom');
+
+  bar.append(headingGroup, pageMeta, zoomControl);
+
+  // --- Status strip: frozen HUD value nodes as compact chips. Refs are kept
+  // because the strip syncs on every engine snapshot (a drag-time hot path).
+  const statusBar = document.createElement('div');
+  statusBar.className = 'sfrb-canvas-statusbar';
+  const hudCells = {
+    mode: createStatusCell('Mode', 'editor-affordance-mode', 'editor-affordance-mode'),
+    block: createStatusCell('Block', 'editor-selected-block', 'editor-selected-block'),
+    frame: createStatusCell('Frame', 'editor-selected-frame', 'editor-selected-frame'),
+    drag: createStatusCell('Drag', 'editor-drag-affordance-status', 'editor-drag-affordance-status'),
+    box: createStatusCell('Box', 'editor-selected-frame-box', 'editor-selected-frame-box'),
+  };
+  statusBar.append(hudCells.mode.cell, hudCells.block.cell, hudCells.frame.cell, hudCells.drag.cell, hudCells.box.cell);
+
+  // --- Controls host: tile toolbar / freeform HUD live outside the page so
+  // they are never clipped by page bounds nor scaled by zoom ---
+  const controlsHost = document.createElement('div');
+  controlsHost.className = 'sfrb-canvas-controls';
+
+  // --- Desk viewport and zoom scaler around the page ---
+  const viewport = document.createElement('div');
+  viewport.className = 'sfrb-canvas-viewport';
+
+  const scaler = document.createElement('div');
+  scaler.id = 'editor-canvas-scaler';
+  scaler.dataset.canvasScale = '1';
+  scaler.style.cssText = 'width: fit-content; transform-origin: top left;';
 
   const pageRoot = document.createElement('div');
   pageRoot.id = 'editor-document-page';
   pageRoot.dataset.testid = 'editor-document-page';
   pageRoot.style.cssText = pageStyles;
 
-  const header = document.createElement('header');
-  header.style.cssText = 'display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap;';
-
-  const headingGroup = document.createElement('div');
-  const eyebrow = document.createElement('div');
-  eyebrow.textContent = 'DOM-first canvas surface';
-  eyebrow.style.cssText = 'color: #475569; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;';
-
-  const title = document.createElement('h2');
-  title.id = 'document-title';
-  title.dataset.testid = 'document-title';
-  title.style.cssText = 'margin: 12px 0 6px; font-size: 2.3rem; line-height: 1.02;';
-
-  const subtitle = document.createElement('p');
-  subtitle.style.cssText = 'margin: 0; max-width: 60ch; color: #475569; line-height: 1.6;';
-  headingGroup.append(eyebrow, title, subtitle);
-
-  const pageMeta = document.createElement('div');
-  pageMeta.id = 'editor-page-metrics';
-  pageMeta.dataset.testid = 'editor-page-metrics';
-  pageMeta.style.cssText = 'padding: 14px 16px; border-radius: 18px; background: rgba(226, 232, 240, 0.66); color: #0f172a; min-width: 220px;';
-
-  header.append(headingGroup, pageMeta);
-
   const surfaceRoot = document.createElement('div');
   surfaceRoot.id = 'editor-surface-root';
   surfaceRoot.dataset.testid = 'editor-surface-root';
   surfaceRoot.style.cssText = 'display: grid; gap: 22px;';
 
-  pageRoot.append(header, surfaceRoot);
-  shell.append(summaryRow, pageRoot);
+  pageRoot.append(surfaceRoot);
+  scaler.append(pageRoot);
+  viewport.append(scaler);
+  shell.append(bar, statusBar, controlsHost, viewport);
   rootElement.append(shell);
+
+  // --- Zoom ---
+  // Default is 100%, where the scaler carries no transform property at all:
+  // pointer drags and bounding boxes behave bit-identically to an unscaled
+  // canvas. Non-1 zooms reserve the scaled layout size explicitly.
+  let zoomMode: 'fit' | 0.5 | 1 = 1;
+
+  const applyZoom = () => {
+    scaler.style.removeProperty('transform');
+    scaler.style.removeProperty('width');
+    scaler.style.removeProperty('height');
+
+    // Natural size is measured at most once per call, and not at all on the
+    // default 100% path (renderPayload calls this on every rebuild).
+    let naturalWidth = 0;
+    let naturalHeight = 0;
+    const measureNatural = () => {
+      if (naturalWidth === 0) {
+        naturalWidth = scaler.scrollWidth;
+        naturalHeight = scaler.scrollHeight;
+      }
+    };
+
+    let scale = 1;
+    if (zoomMode === 'fit') {
+      measureNatural();
+      const available = viewport.clientWidth - 48;
+      if (naturalWidth > 0 && available > 0) {
+        scale = Math.min(1.5, Math.max(0.25, available / naturalWidth));
+        scale = Math.round(scale * 100) / 100;
+      }
+      if (Math.abs(scale - 1) < 0.02) {
+        scale = 1;
+      }
+    } else {
+      scale = zoomMode;
+    }
+
+    scaler.dataset.canvasScale = String(scale);
+    if (scale !== 1) {
+      measureNatural();
+      scaler.style.transform = `scale(${scale})`;
+      scaler.style.width = `${Math.ceil(naturalWidth * scale)}px`;
+      scaler.style.height = `${Math.ceil(naturalHeight * scale)}px`;
+    }
+
+    for (const button of Array.from(zoomControl.querySelectorAll<HTMLButtonElement>('button'))) {
+      const isActive = button.dataset.zoomMode === String(zoomMode);
+      button.dataset.active = String(isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    }
+  };
+
+  const zoomOptions: Array<{ id: string; label: string; mode: 'fit' | 0.5 | 1 }> = [
+    { id: 'canvas-zoom-50', label: '50%', mode: 0.5 },
+    { id: 'canvas-zoom-100', label: '100%', mode: 1 },
+    { id: 'canvas-zoom-fit', label: 'Fit', mode: 'fit' },
+  ];
+  for (const option of zoomOptions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = option.id;
+    button.dataset.testid = option.id;
+    button.dataset.zoomMode = String(option.mode);
+    button.className = 'sfrb-zoom-btn';
+    button.textContent = option.label;
+    button.addEventListener('click', () => {
+      zoomMode = option.mode;
+      applyZoom();
+    });
+    zoomControl.append(button);
+  }
+  applyZoom();
 
   const blockElements = new Map<string, HTMLElement>();
   const frameElements = new Map<string, HTMLElement>();
@@ -159,6 +235,10 @@ export function mountCanvas(
   const pointer = createPointerController({
     engine,
     rootElement,
+    getScale: () => {
+      const scale = Number.parseFloat(scaler.dataset.canvasScale ?? '1');
+      return Number.isFinite(scale) && scale > 0 ? scale : 1;
+    },
     onDragStart: (frameId, blockId) => {
       overflow.emitSettling(frameId, blockId);
     },
@@ -208,35 +288,25 @@ export function mountCanvas(
   const updateSnapshotSurfaces = (snapshot: DocumentEditorSnapshot) => {
     shell.dataset.physicsMode = snapshot.interactionMode;
     shell.dataset.activeLens = snapshot.activeLens;
-    setElementText(rootElement.querySelector('#editor-affordance-mode'), snapshot.interactionMode);
+    hudCells.mode.value.textContent = snapshot.interactionMode;
 
-    const selectionNode = rootElement.querySelector('#editor-selected-block') as HTMLDivElement | null;
-    if (selectionNode) {
-      const selectedBlock = snapshot.selectedBlockId ?? 'None';
-      selectionNode.textContent = selectedBlock;
-      selectionNode.dataset.selectedBlockId = snapshot.selectedBlockId ?? '';
-    }
+    hudCells.block.value.textContent = snapshot.selectedBlockId ?? 'None';
+    hudCells.block.value.dataset.selectedBlockId = snapshot.selectedBlockId ?? '';
+    hudCells.block.cell.dataset.empty = String(snapshot.selectedBlockId === null);
 
-    const selectedFrameNode = rootElement.querySelector('#editor-selected-frame') as HTMLDivElement | null;
-    if (selectedFrameNode) {
-      const selectedFrame = snapshot.selectedFrameId ?? 'None';
-      selectedFrameNode.textContent = selectedFrame;
-      selectedFrameNode.dataset.selectedFrameId = snapshot.selectedFrameId ?? '';
-    }
+    hudCells.frame.value.textContent = snapshot.selectedFrameId ?? 'None';
+    hudCells.frame.value.dataset.selectedFrameId = snapshot.selectedFrameId ?? '';
+    hudCells.frame.cell.dataset.empty = String(snapshot.selectedFrameId === null);
 
-    const dragNode = rootElement.querySelector('#editor-drag-affordance-status') as HTMLDivElement | null;
-    if (dragNode) {
-      const affordances = snapshot.interactionMode === 'design' && snapshot.activeLens !== 'text' ? 'present' : 'absent';
-      dragNode.textContent = affordances;
-      dragNode.dataset.dragAffordances = affordances;
-    }
+    const affordances = snapshot.interactionMode === 'design' && snapshot.activeLens !== 'text' ? 'present' : 'absent';
+    hudCells.drag.value.textContent = affordances;
+    hudCells.drag.value.dataset.dragAffordances = affordances;
+    hudCells.drag.cell.dataset.empty = String(affordances === 'absent');
 
-    const frameBoxNode = rootElement.querySelector('#editor-selected-frame-box') as HTMLDivElement | null;
-    if (frameBoxNode) {
-      const box = snapshot.selectedFrameId ? engine.getFrameBox(snapshot.selectedFrameId) : null;
-      frameBoxNode.textContent = formatFrameBox(box);
-      frameBoxNode.dataset.frameBox = box ? JSON.stringify(box) : '';
-    }
+    const box = snapshot.selectedFrameId ? engine.getFrameBox(snapshot.selectedFrameId) : null;
+    hudCells.box.value.textContent = formatFrameBox(box);
+    hudCells.box.value.dataset.frameBox = box ? JSON.stringify(box) : '';
+    hudCells.box.cell.dataset.empty = String(box === null);
   };
 
   const renderSelectionState = (snapshot: DocumentEditorSnapshot) => {
@@ -258,8 +328,8 @@ export function mountCanvas(
     for (const [frameId, frameElement] of frameElements.entries()) {
       if (activeSurface === 'freeform') {
         const isSelected = snapshot.selectedFrameId === frameId;
-        frameElement.style.borderColor = isSelected ? 'rgba(37, 99, 235, 0.85)' : 'rgba(148, 163, 184, 0.4)';
-        frameElement.style.boxShadow = isSelected ? '0 0 0 3px rgba(96, 165, 250, 0.24)' : 'none';
+        frameElement.style.borderColor = isSelected ? 'var(--sfrb-accent)' : 'rgba(130, 148, 165, 0.4)';
+        frameElement.style.boxShadow = isSelected ? '0 0 0 3px var(--sfrb-accent-soft)' : 'none';
         frameElement.setAttribute('aria-current', isSelected ? 'true' : 'false');
         const box = engine.getFrameBox(frameId);
         if (box) {
@@ -281,7 +351,7 @@ export function mountCanvas(
         : isSelected
           ? selectedDesignFrameStyles
           : isMultiSelected
-            ? `${designFrameBaseStyles}; border-color: rgba(37, 99, 235, 0.72); border-style: dashed;`
+            ? `${designFrameBaseStyles}; border-color: var(--sfrb-accent); border-style: dashed;`
             : designFrameBaseStyles;
       frameElement.dataset.multiSelected = String(isMultiSelected);
       frameElement.setAttribute('aria-current', isSelected ? 'true' : 'false');
@@ -340,6 +410,7 @@ export function mountCanvas(
 
   const clearSurfaceState = () => {
     surfaceRoot.innerHTML = '';
+    controlsHost.innerHTML = '';
     blockElements.clear();
     frameElements.clear();
     pageCanvasElements.clear();
@@ -414,10 +485,11 @@ export function mountCanvas(
       freeformControls = null;
 
       if (nextSurface === 'tile') {
-        subtitle.textContent = 'Design mode renders canonical page geometry and linked fixed frames; drag the handle to persist box coordinates, or double-click a frame to edit its text.';
+        subtitle.textContent = 'Drag handles to move frames; double-click a frame to edit its text.';
         tileControls = renderTileSurface({
           engine,
           surfaceRoot,
+          controlsHost,
           frameElements,
           pageCanvasElements,
           ghostLayers,
@@ -426,10 +498,11 @@ export function mountCanvas(
           payload: nextPayload,
         });
       } else if (nextSurface === 'freeform') {
-        subtitle.textContent = 'Freeform mode treats every element on the page as directly movable and resizable; leaving it reconciles your placements explicitly.';
+        subtitle.textContent = "Move and resize anything directly. When you leave this lens, you'll choose how placements rejoin the layout.";
         freeformControls = renderFreeformSurface({
           engine,
           surfaceRoot,
+          controlsHost,
           frameElements,
           pageCanvasElements,
           ghostLayers,
@@ -437,13 +510,22 @@ export function mountCanvas(
           payload: nextPayload,
         });
       } else {
-        subtitle.textContent = 'Document mode renders semantic sections in flow order and commits inline text changes without fixed-position boxes.';
+        subtitle.textContent = 'Click a block to edit its words. Changes save automatically.';
         renderFlowSurface({
           engine,
           surfaceRoot,
           blockElements,
           bindEditableInteractions,
           payload: nextPayload,
+        });
+      }
+
+      applyZoom();
+
+      if (motionOK()) {
+        surfaceRoot.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 160,
+          easing: motion.ease,
         });
       }
     }
@@ -533,7 +615,12 @@ export function mountCanvas(
   };
   shell.addEventListener('keydown', onShellKeyDown);
 
-  const onWindowResize = () => overflow.schedule('resize');
+  const onWindowResize = () => {
+    if (zoomMode === 'fit') {
+      applyZoom();
+    }
+    overflow.schedule('resize');
+  };
   window.addEventListener('resize', onWindowResize);
 
   let lastRenderedLens: EditorLens = engine.getSnapshot().activeLens;
@@ -592,8 +679,19 @@ export function mountCanvas(
       pageMeta.textContent = message;
       const emptyState = document.createElement('div');
       emptyState.textContent = message;
-      emptyState.style.cssText = 'padding: 18px; border-radius: 18px; background: rgba(226, 232, 240, 0.5); color: #334155;';
+      emptyState.style.cssText = [
+        'padding: 28px 32px',
+        'border-radius: var(--sfrb-radius-md)',
+        'border: 1px dashed var(--sfrb-line)',
+        'background: var(--sfrb-panel)',
+        'color: var(--sfrb-ink-soft)',
+        'font-family: var(--sfrb-font-sans)',
+        'font-size: 13px',
+        'max-width: 420px',
+        'text-align: center',
+      ].join('; ');
       surfaceRoot.append(emptyState);
+      applyZoom();
       updateSnapshotSurfaces(engine.getSnapshot());
       overflow.emitEmpty();
     },

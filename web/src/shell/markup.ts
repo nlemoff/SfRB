@@ -5,7 +5,7 @@ export function createShellMarkup(): string {
   return `
     <div class="sfrb-shell">
       <header class="sfrb-header">
-        <h1><span class="sfrb-wordmark">SfRB</span> · Straightforward Resume Builder</h1>
+        <h1><span class="sfrb-wordmark">SfRB</span> Straightforward Resume Builder</h1>
         <div class="sfrb-chip-row">
           <div id="starter-chip" data-testid="starter-chip" data-starter-kind="loading" class="sfrb-chip">Starter · loading</div>
           <div id="workspace-ai-chip" data-testid="workspace-ai-chip" data-ai-status="loading" class="sfrb-chip">AI · loading</div>
@@ -13,34 +13,32 @@ export function createShellMarkup(): string {
       </header>
 
       <section id="first-run-guidance" data-testid="first-run-guidance" class="sfrb-panel sfrb-guidance" aria-label="First-run guidance">
-        <div>
-          <div class="sfrb-kicker">Canonical workspace</div>
+        <div class="sfrb-guidance-lead">
           <h2>One saved resume, edited through the lens that fits.</h2>
           <p id="starter-guidance" data-testid="starter-guidance">Loading starter guidance…</p>
         </div>
         <div class="sfrb-starter-card">
-          <div class="sfrb-kicker">Starter on disk</div>
           <strong id="starter-kind" data-testid="starter-kind">Loading…</strong>
-          <div id="starter-id" data-testid="starter-id">Waiting for starter metadata…</div>
+          <span id="starter-id" data-testid="starter-id">…</span>
         </div>
+        <button id="first-run-dismiss" data-testid="first-run-dismiss" type="button" class="sfrb-button">Got it</button>
       </section>
 
-      <div id="editing-lenses" data-testid="editing-lenses" class="sfrb-lens-switcher" role="radiogroup" aria-label="Editing lens" data-active-lens="text">
-        <button type="button" role="radio" aria-checked="false" id="lens-pick-text" data-testid="lens-text" data-lens="text" class="sfrb-lens-option">
-          <span class="sfrb-lens-name">Text</span>
-          <span class="sfrb-note">Rewrite the actual words.</span>
-          <span class="sfrb-lens-availability" data-testid="lens-text-availability">Available now</span>
-        </button>
-        <button type="button" role="radio" aria-checked="false" id="lens-pick-tile" data-testid="lens-tile" data-lens="tile" class="sfrb-lens-option">
-          <span class="sfrb-lens-name">Tile</span>
-          <span class="sfrb-note">Move, split, and group placed blocks.</span>
-          <span class="sfrb-lens-availability" id="tile-lens-availability" data-testid="lens-tile-availability">Checking current workspace…</span>
-        </button>
-        <button type="button" role="radio" aria-checked="false" id="lens-pick-freeform" data-testid="lens-freeform" data-lens="freeform" class="sfrb-lens-option">
-          <span class="sfrb-lens-name">Freeform</span>
-          <span class="sfrb-note">Manipulate any element on the page.</span>
-          <span class="sfrb-lens-availability" data-testid="lens-freeform-availability">Checking current workspace…</span>
-        </button>
+      <div class="sfrb-toolbar-row">
+        <div id="editing-lenses" data-testid="editing-lenses" class="sfrb-lens-switcher" role="radiogroup" aria-label="Editing lens" data-active-lens="text">
+          <button type="button" role="radio" aria-checked="false" id="lens-pick-text" data-testid="lens-text" data-lens="text" class="sfrb-lens-pill" title="Rewrite the actual words.">
+            <span class="sfrb-lens-name">Text</span>
+            <span class="sfrb-lens-availability" data-testid="lens-text-availability">Available now</span>
+          </button>
+          <button type="button" role="radio" aria-checked="false" id="lens-pick-tile" data-testid="lens-tile" data-lens="tile" class="sfrb-lens-pill" title="Move, split, and group placed blocks.">
+            <span class="sfrb-lens-name">Tile</span>
+            <span class="sfrb-lens-availability" id="tile-lens-availability" data-testid="lens-tile-availability">Checking current workspace…</span>
+          </button>
+          <button type="button" role="radio" aria-checked="false" id="lens-pick-freeform" data-testid="lens-freeform" data-lens="freeform" class="sfrb-lens-pill" title="Manipulate any element on the page.">
+            <span class="sfrb-lens-name">Freeform</span>
+            <span class="sfrb-lens-availability" data-testid="lens-freeform-availability">Checking current workspace…</span>
+          </button>
+        </div>
       </div>
 
       <div id="editor-mode-transition-strip" data-testid="editor-mode-transition-strip" data-outcome="" role="status" hidden class="sfrb-transition-strip"></div>
@@ -52,7 +50,7 @@ export function createShellMarkup(): string {
 
         <aside class="sfrb-rail" aria-label="Workspace panels">
           <section id="editor-save-status" data-testid="editor-save-status" data-save-state="idle" class="sfrb-panel sfrb-rail-panel" aria-live="polite">
-            <h3>Editor save state</h3>
+            <h3>Save state</h3>
             <div id="editor-save-state-label" class="sfrb-strong-line">idle</div>
             <div id="editor-save-error" data-testid="editor-save-error" class="sfrb-note">No save errors recorded.</div>
           </section>
@@ -77,22 +75,22 @@ export function createShellMarkup(): string {
             <div id="consultant-error" data-testid="consultant-error" class="sfrb-note" role="status" hidden>No consultant errors recorded.</div>
             <div class="sfrb-button-row">
               <button id="consultant-request" data-testid="consultant-request" type="button" class="sfrb-button sfrb-button-primary" disabled>Request proposal</button>
-              <button id="consultant-accept" data-testid="consultant-accept" type="button" class="sfrb-button" disabled>Accept preview</button>
-              <button id="consultant-reject" data-testid="consultant-reject" type="button" class="sfrb-button" disabled>Reject preview</button>
+              <button id="consultant-accept" data-testid="consultant-accept" type="button" class="sfrb-button" disabled>Accept</button>
+              <button id="consultant-reject" data-testid="consultant-reject" type="button" class="sfrb-button" disabled>Reject</button>
             </div>
           </section>
 
           <section id="template-picker" data-testid="template-picker" data-active-template-id="default" class="sfrb-panel sfrb-rail-panel">
             <h3>Template</h3>
             <div id="template-active-label" data-testid="template-active-label" class="sfrb-strong-line">default</div>
-            <div id="template-picker-note" data-testid="template-picker-note" class="sfrb-note">Selecting a template persists metadata.template through the canonical write path.</div>
+            <div id="template-picker-note" data-testid="template-picker-note" class="sfrb-note">Template choice persists with the saved document.</div>
             <div id="template-picker-buttons" data-testid="template-picker-buttons" class="sfrb-button-row"></div>
           </section>
 
           <section id="export-panel" data-testid="export-panel" data-export-state="loading" class="sfrb-panel sfrb-rail-panel">
             <h3>Export</h3>
             <div id="export-state-label" data-testid="export-state-label" class="sfrb-strong-line">Checking…</div>
-            <div id="export-state-note" data-testid="export-state-note" class="sfrb-note">Probing the shared export surface for readiness.</div>
+            <div id="export-state-note" data-testid="export-state-note" class="sfrb-note">Checking export readiness…</div>
             <div class="sfrb-button-row">
               <button id="export-preview" data-testid="export-preview" type="button" class="sfrb-button sfrb-button-primary" disabled>Preview export</button>
             </div>

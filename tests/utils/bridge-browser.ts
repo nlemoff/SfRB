@@ -333,6 +333,14 @@ export async function waitForEditorIdle(page: BridgeBrowserPage): Promise<void> 
   });
 }
 
+// The editor commits draft text when its textarea blurs. Blur by clicking the
+// canvas bar's page-metrics chrome: a frozen-id element that never overlaps
+// the editing surface, unlike the canvas center, which can land on the active
+// textarea and silently skip the commit.
+export async function blurEditorTextarea(page: BridgeBrowserPage): Promise<void> {
+  await page.click('#editor-page-metrics');
+}
+
 export type FirstRunGuidanceDiagnostics = {
   starterKind: string | null;
   starterId: string | null;
