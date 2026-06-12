@@ -1,4 +1,7 @@
+import type { EditorOperation } from '../../src/document/operations/schema';
 import type { TemplateId } from '../../src/document/templates/registry';
+
+export type { EditorOperation };
 
 export const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 export const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
@@ -36,6 +39,7 @@ export type BridgeDocument = {
       id: string;
       kind: string;
       text: string;
+      splitFrom?: string;
     }>;
   };
   layout: {
@@ -63,6 +67,13 @@ export type BridgeDocument = {
         height: number;
       };
       zIndex: number;
+      placement: 'managed' | 'free';
+    }>;
+    frameGroups: Array<{
+      id: string;
+      pageId: string;
+      frameIds: string[];
+      locked: boolean;
     }>;
   };
 };
@@ -117,6 +128,7 @@ export type BridgeMutationSuccess = {
   documentPath: string;
   configPath: string;
   physics: string;
+  operationKind?: EditorOperation['op'];
   canonicalBootstrapPath: typeof BRIDGE_BOOTSTRAP_PATH;
   savedAt: string;
 };
@@ -125,7 +137,7 @@ export type BridgeMutationError = {
   ok: false;
   status: 'error';
   saveState: 'error';
-  code: 'request_invalid' | 'document_invalid' | 'physics_invalid' | 'persistence_failed';
+  code: 'request_invalid' | 'operation_invalid' | 'document_invalid' | 'physics_invalid' | 'persistence_failed';
   workspaceRoot: string;
   message: string;
   name: string;
@@ -181,6 +193,8 @@ export type BridgeConsultantError = {
     | 'configuration_missing'
     | 'provider_unsupported'
     | 'provider_unavailable'
+    | 'provider_auth'
+    | 'provider_rate_limited'
     | 'malformed_provider_output'
     | 'proposal_rejected'
     | 'frame_not_found';
@@ -238,6 +252,30 @@ export async function submitBridgeDocumentMutation(
       'content-type': 'application/json',
     },
     body: JSON.stringify({ document }),
+    signal: options.signal,
+  });
+
+  const result = (await response.json()) as BridgeMutationResult;
+  options.statusStore?.settle(result);
+  return result;
+}
+
+export async function submitBridgeOperation(
+  operation: EditorOperation,
+  options: {
+    signal?: AbortSignal;
+    statusStore?: BridgeEditorStatusStore;
+  } = {},
+): Promise<BridgeMutationResult> {
+  options.statusStore?.markSaving();
+
+  const response = await fetch(BRIDGE_EDITOR_MUTATION_PATH, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ operation }),
     signal: options.signal,
   });
 

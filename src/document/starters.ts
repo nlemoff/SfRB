@@ -1,5 +1,5 @@
 import type { PhysicsMode } from '../config/schema';
-import { parseDocument, type LayoutFrame, type SemanticBlock, type SemanticSection, type SfrbDocument, type StarterKind } from './schema';
+import { parseDocument, type LayoutFrameInput, type SemanticBlock, type SemanticSection, type SfrbDocument, type StarterKind } from './schema';
 
 const DEFAULT_PAGE = {
   id: 'pageOne',
@@ -88,7 +88,7 @@ function createBlankContent(): { title: string; sections: SemanticSection[]; blo
   };
 }
 
-function createFramesForBlocks(blockIds: string[], options?: { blank?: boolean }): LayoutFrame[] {
+function createFramesForBlocks(blockIds: string[], options?: { blank?: boolean }): LayoutFrameInput[] {
   if (options?.blank) {
     return [
       {
@@ -164,6 +164,19 @@ export function createStarterDocument(kind: StarterKind, physics: PhysicsMode): 
             content.blocks.map((block) => block.id),
             { blank: kind === 'blank' },
           )
+        : [],
+      // The template starter opens as an assembled composition: the hero name
+      // and summary ship locked together so the tile lens demonstrates the
+      // group/lock model immediately.
+      frameGroups: physics === 'design' && kind === 'template'
+        ? [
+            {
+              id: 'heroComposition',
+              pageId: DEFAULT_PAGE.id,
+              frameIds: ['heroNameFrame', 'heroSummaryFrame'],
+              locked: true,
+            },
+          ]
         : [],
     },
   });

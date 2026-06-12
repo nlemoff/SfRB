@@ -1,14 +1,12 @@
-import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import { createStarterDocument } from '../../src/document/starters';
 import type { TemplateId } from '../../src/document/templates/registry';
 
-const execFileAsync = promisify(execFile);
 const tempDirs: string[] = [];
 let buildReady = false;
 
@@ -66,10 +64,14 @@ export async function ensureBuilt(): Promise<void> {
     return;
   }
 
-  await execFileAsync('npm', ['run', 'build'], {
-    cwd: process.cwd(),
-    env: process.env,
-  });
+  // The vitest global setup (tests/utils/global-setup.ts) builds dist/ once
+  // before workers start. Rebuilding here would race against parallel tests
+  // that spawn processes from dist/, so only verify the build is present.
+  try {
+    await access(path.resolve(process.cwd(), 'dist', 'cli.js'));
+  } catch {
+    throw new Error('dist/cli.js is missing. Run `npm run build` before running tests.');
+  }
   buildReady = true;
 }
 
@@ -272,6 +274,32 @@ export async function postEditorMutation(
       'content-type': 'application/json',
     },
     body: JSON.stringify({ document }),
+  });
+
+  return {
+    status: response.status,
+    payload: (await response.json()) as Record<string, unknown>,
+  };
+}
+
+export async function postEditorOperation(
+  baseUrl: string,
+  operation: Record<string, unknown>,
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  return postEditorBody(baseUrl, { operation });
+}
+
+export async function postEditorBody(
+  baseUrl: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  const response = await fetch(new URL(BRIDGE_EDITOR_MUTATION_PATH, baseUrl), {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
   });
 
   return {

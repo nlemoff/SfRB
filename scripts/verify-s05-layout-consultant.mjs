@@ -291,13 +291,18 @@ async function verifyMissingSecretPath(browser) {
     await page.click('[data-testid="editor-frame-summaryFrame"]');
     await waitForOverflowStatus(page, 'overflow');
     await page.click('#consultant-request');
-    await waitForConsultantState(page, 'error');
+    // A workspace whose API key env var is missing reports ai.status
+    // "degraded"; the consultant surface presents that as "unavailable" with
+    // the degraded code, while the categorized bridge failure stays visible in
+    // the error note (contract pinned by tests/web/editor-layout-consultant).
+    await waitForConsultantState(page, 'unavailable');
 
     const failure = await readConsultantDiagnostics(page);
     const afterDocument = await readWorkspaceDocument(projectRoot);
     const afterRaw = await readWorkspaceDocumentRaw(projectRoot);
     expectCondition(failure.previewVisible === false, 'Failure path should not show a ghost preview.');
-    expectCondition(failure.consultantCode === 'configuration_missing', `Expected configuration_missing code, received ${failure.consultantCode}`);
+    expectCondition(failure.consultantCode === 'degraded', `Expected degraded code, received ${failure.consultantCode}`);
+    expectCondition(String(failure.errorText).includes('configuration_missing'), 'Failure surface did not categorize the bridge failure.');
     expectCondition(String(failure.errorText).includes('OPENAI_API_KEY'), 'Failure surface did not identify the missing env var.');
     expectCondition(JSON.stringify(afterDocument) === JSON.stringify(beforeDocument), 'Canonical document structure changed during missing-secret failure.');
     expectCondition(afterRaw === beforeRaw, 'Canonical raw file changed during missing-secret failure.');

@@ -3,31 +3,46 @@ import {
   type BridgeEditorStatusStore,
   type BridgeMutationResult,
   type BridgeSaveState,
+  type EditorOperation,
   type ReadyBridgePayload,
-  submitBridgeDocumentMutation,
+  submitBridgeOperation,
 } from '../bridge-client';
 
 const DEFAULT_COMMIT_DEBOUNCE_MS = 700;
 
 export type FrameBox = BridgeDocument['layout']['frames'][number]['box'];
 
+export type EditorLens = 'text' | 'tile' | 'freeform';
+
 export type DocumentEditorSnapshot = {
   selectedBlockId: string | null;
   selectedFrameId: string | null;
+  /** Additional frames shift-clicked into the selection (primary excluded). */
+  multiSelectedFrameIds: string[];
   editingBlockId: string | null;
   draftText: string | null;
   draftDirty: boolean;
   saveState: BridgeSaveState;
   saveError: string | null;
   interactionMode: 'document' | 'design' | 'unavailable';
+  activeLens: EditorLens;
+  /** Lens the user asked for while freeform changes still need reconciling. */
+  pendingLensExit: EditorLens | null;
 };
 
 export type DocumentEditorEngine = {
   getSnapshot: () => DocumentEditorSnapshot;
   subscribe: (listener: (snapshot: DocumentEditorSnapshot) => void) => () => void;
   setPayload: (payload: ReadyBridgePayload | null) => void;
+  setActiveLens: (lens: EditorLens) => void;
   selectBlock: (blockId: string | null) => void;
   selectFrame: (frameId: string | null) => void;
+  toggleFrameInSelection: (frameId: string) => void;
+  revertFrameOverrides: (frameIds: string[]) => void;
+  getFreeformTouchedFrameIds: () => string[];
+  clearFreeformTouched: () => void;
+  resolvePendingLensExit: (outcome: 'rejoin_layout' | 'keep_locked') => Promise<BridgeMutationResult | null>;
+  cancelPendingLensExit: () => void;
   startEditing: (blockId: string) => void;
   updateDraft: (text: string) => void;
   endEditing: () => void;
@@ -35,6 +50,7 @@ export type DocumentEditorEngine = {
   commitActive: (reason: 'blur' | 'enter' | 'debounce') => Promise<BridgeMutationResult | null>;
   updateFrameBox: (frameId: string, box: FrameBox) => void;
   commitFrameMove: (frameId: string, reason: 'pointerup' | 'pointercancel') => Promise<BridgeMutationResult | null>;
+  dispatch: (operation: EditorOperation) => Promise<BridgeMutationResult>;
   getPayload: () => ReadyBridgePayload | null;
   getBlockText: (blockId: string) => string | null;
   getDisplayText: (blockId: string) => string | null;
@@ -53,30 +69,6 @@ function frameBoxesEqual(left: FrameBox | null, right: FrameBox | null): boolean
   }
 
   return left.x === right.x && left.y === right.y && left.width === right.width && left.height === right.height;
-}
-
-function replaceBlockText(document: BridgeDocument, blockId: string, text: string): BridgeDocument {
-  return {
-    ...document,
-    semantic: {
-      ...document.semantic,
-      blocks: document.semantic.blocks.map((block) => (block.id === blockId ? { ...block, text } : block)),
-    },
-  };
-}
-
-function replaceFrameBox(document: BridgeDocument, frameId: string, box: FrameBox): BridgeDocument {
-  return {
-    ...document,
-    layout: {
-      ...document.layout,
-      frames: document.layout.frames.map((frame) => (frame.id === frameId ? { ...frame, box: cloneFrameBox(box) } : frame)),
-    },
-  };
-}
-
-export function composeFrameResizeCandidate(document: BridgeDocument, frameId: string, box: FrameBox): BridgeDocument {
-  return replaceFrameBox(document, frameId, box);
 }
 
 function getCanonicalBlockText(payload: ReadyBridgePayload | null, blockId: string): string | null {
@@ -106,6 +98,10 @@ function getFrameBlockId(payload: ReadyBridgePayload | null, frameId: string): s
   return frame?.blockId ?? null;
 }
 
+function defaultLensForPhysics(physics: 'document' | 'design' | 'unavailable'): EditorLens {
+  return physics === 'design' ? 'tile' : 'text';
+}
+
 export function createDocumentEditorEngine(options: {
   statusStore: BridgeEditorStatusStore;
   commitDebounceMs?: number;
@@ -113,9 +109,15 @@ export function createDocumentEditorEngine(options: {
   let payload: ReadyBridgePayload | null = null;
   let selectedBlockId: string | null = null;
   let selectedFrameId: string | null = null;
+  const multiSelectedFrameIds = new Set<string>();
+  // Frames whose geometry was committed from the freeform lens this session;
+  // leaving freeform reconciles them explicitly (rejoin_layout | keep_locked).
+  const freeformTouchedFrameIds = new Set<string>();
   let editingBlockId: string | null = null;
   let draftText: string | null = null;
   let draftDirty = false;
+  let activeLens: EditorLens = 'text';
+  let pendingLensExit: EditorLens | null = null;
   let saveState: BridgeSaveState = options.statusStore.getSnapshot().saveState;
   let saveError: string | null = options.statusStore.getSnapshot().errorMessage;
   const displayTextOverrides = new Map<string, string>();
@@ -128,17 +130,22 @@ export function createDocumentEditorEngine(options: {
 
   const getInteractionMode = (): DocumentEditorSnapshot['interactionMode'] => payload?.physics ?? 'unavailable';
 
+  const buildSnapshot = (): DocumentEditorSnapshot => ({
+    selectedBlockId,
+    selectedFrameId,
+    multiSelectedFrameIds: [...multiSelectedFrameIds],
+    editingBlockId,
+    draftText,
+    draftDirty,
+    saveState,
+    saveError,
+    interactionMode: getInteractionMode(),
+    activeLens,
+    pendingLensExit,
+  });
+
   const emit = () => {
-    const snapshot: DocumentEditorSnapshot = {
-      selectedBlockId,
-      selectedFrameId,
-      editingBlockId,
-      draftText,
-      draftDirty,
-      saveState,
-      saveError,
-      interactionMode: getInteractionMode(),
-    };
+    const snapshot = buildSnapshot();
     for (const listener of listeners) {
       listener(snapshot);
     }
@@ -160,30 +167,37 @@ export function createDocumentEditorEngine(options: {
     return override ? cloneFrameBox(override) : getCanonicalFrameBox(payload, frameId);
   };
 
-  const composeWorkingDocument = (): BridgeDocument | null => {
+  // Dirty state is always compared against the canonical payload (never local
+  // overrides) and emitted as structured operations: the engine cannot fork
+  // the mutation model the CLI uses.
+  const composePendingOperations = (): EditorOperation[] => {
     if (!payload) {
-      return null;
+      return [];
     }
 
-    let nextDocument: BridgeDocument = payload.document;
+    const operations: EditorOperation[] = [];
 
     for (const [blockId, text] of displayTextOverrides.entries()) {
-      if (getCanonicalBlockText(payload, blockId) !== text) {
-        nextDocument = replaceBlockText(nextDocument, blockId, text);
+      if (blockId !== editingBlockId && getCanonicalBlockText(payload, blockId) !== text) {
+        operations.push({ op: 'set-block-text', blockId, text });
       }
     }
 
     if (editingBlockId && draftText !== null && draftDirty) {
-      nextDocument = replaceBlockText(nextDocument, editingBlockId, draftText);
+      operations.push({ op: 'set-block-text', blockId: editingBlockId, text: draftText });
     }
 
     for (const [frameId, box] of frameBoxOverrides.entries()) {
       if (!frameBoxesEqual(getCanonicalFrameBox(payload, frameId), box)) {
-        nextDocument = replaceFrameBox(nextDocument, frameId, box);
+        if (activeLens === 'freeform') {
+          operations.push({ op: 'set-frame-box', frameId, box: cloneFrameBox(box), asFreeform: true });
+        } else {
+          operations.push({ op: 'set-frame-box', frameId, box: cloneFrameBox(box) });
+        }
       }
     }
 
-    return nextDocument;
+    return operations;
   };
 
   const statusUnsubscribe = options.statusStore.subscribe((snapshot) => {
@@ -198,20 +212,8 @@ export function createDocumentEditorEngine(options: {
       return null;
     }
 
-    const nextDocument = composeWorkingDocument();
-    if (!nextDocument) {
-      return null;
-    }
-
-    const hasDirtyDraft = Boolean(editingBlockId && draftDirty && draftText !== null);
-    const hasFrameOverride = Array.from(frameBoxOverrides.entries()).some(([frameId, box]) => {
-      return !frameBoxesEqual(getCanonicalFrameBox(payload, frameId), box);
-    });
-    const hasTextOverride = Array.from(displayTextOverrides.entries()).some(([blockId, text]) => {
-      return getCanonicalBlockText(payload, blockId) !== text;
-    });
-
-    if (!hasDirtyDraft && !hasFrameOverride && !hasTextOverride) {
+    const operations = composePendingOperations();
+    if (operations.length === 0) {
       draftDirty = false;
       emit();
       return null;
@@ -226,48 +228,49 @@ export function createDocumentEditorEngine(options: {
     const activeDraftText = draftText;
     const pendingFrameBoxes = new Map(frameBoxOverrides.entries());
 
-    inFlightCommit = submitBridgeDocumentMutation(nextDocument, {
-      statusStore: options.statusStore,
-    })
-      .then((result) => {
-        if (result.ok) {
-          if (activeEditingBlockId && activeDraftText !== null) {
-            displayTextOverrides.set(activeEditingBlockId, activeDraftText);
-            if (editingBlockId === activeEditingBlockId && draftText === activeDraftText) {
-              draftDirty = false;
-            }
-          }
+    inFlightCommit = (async (): Promise<BridgeMutationResult | null> => {
+      let lastResult: BridgeMutationResult | null = null;
+      for (const operation of operations) {
+        lastResult = await submitBridgeOperation(operation, { statusStore: options.statusStore });
+        if (!lastResult.ok) {
+          break;
+        }
+      }
 
-          for (const [frameId, box] of pendingFrameBoxes.entries()) {
-            frameBoxOverrides.set(frameId, cloneFrameBox(box));
+      if (lastResult?.ok) {
+        if (activeEditingBlockId && activeDraftText !== null) {
+          displayTextOverrides.set(activeEditingBlockId, activeDraftText);
+          if (editingBlockId === activeEditingBlockId && draftText === activeDraftText) {
+            draftDirty = false;
           }
         }
-        return result;
-      })
-      .finally(() => {
-        inFlightCommit = null;
-        if (queuedCommit) {
-          queuedCommit = false;
-          void commitWorkingDocument();
-        } else {
-          emit();
+
+        for (const [frameId, box] of pendingFrameBoxes.entries()) {
+          frameBoxOverrides.set(frameId, cloneFrameBox(box));
         }
-      });
+
+        for (const operation of operations) {
+          if (operation.op === 'set-frame-box' && operation.asFreeform === true) {
+            freeformTouchedFrameIds.add(operation.frameId);
+          }
+        }
+      }
+      return lastResult;
+    })().finally(() => {
+      inFlightCommit = null;
+      if (queuedCommit) {
+        queuedCommit = false;
+        void commitWorkingDocument();
+      } else {
+        emit();
+      }
+    });
 
     return inFlightCommit;
   };
 
   return {
-    getSnapshot: () => ({
-      selectedBlockId,
-      selectedFrameId,
-      editingBlockId,
-      draftText,
-      draftDirty,
-      saveState,
-      saveError,
-      interactionMode: getInteractionMode(),
-    }),
+    getSnapshot: buildSnapshot,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {
@@ -275,6 +278,7 @@ export function createDocumentEditorEngine(options: {
       };
     },
     setPayload: (nextPayload) => {
+      const previousPhysics = payload?.physics ?? 'unavailable';
       payload = nextPayload;
       if (payload) {
         for (const [blockId, overrideText] of displayTextOverrides.entries()) {
@@ -291,6 +295,12 @@ export function createDocumentEditorEngine(options: {
       } else {
         displayTextOverrides.clear();
         frameBoxOverrides.clear();
+        freeformTouchedFrameIds.clear();
+      }
+
+      const nextPhysics = payload?.physics ?? 'unavailable';
+      if (nextPhysics !== previousPhysics || (nextPhysics !== 'design' && activeLens !== 'text')) {
+        activeLens = defaultLensForPhysics(nextPhysics);
       }
 
       if (editingBlockId && !draftDirty) {
@@ -307,13 +317,99 @@ export function createDocumentEditorEngine(options: {
 
       if (payload?.physics !== 'design') {
         selectedFrameId = null;
+        multiSelectedFrameIds.clear();
+      }
+
+      for (const frameId of multiSelectedFrameIds) {
+        if (!getBaseFrameBox(frameId)) {
+          multiSelectedFrameIds.delete(frameId);
+        }
       }
 
       emit();
     },
+    setActiveLens: (lens) => {
+      if (lens === activeLens) {
+        return;
+      }
+
+      if (lens !== 'text' && payload?.physics !== 'design') {
+        return;
+      }
+
+      if (editingBlockId) {
+        void commitWorkingDocument();
+        editingBlockId = null;
+        draftText = null;
+        draftDirty = false;
+      }
+
+      // Leaving freeform with session placements is an explicit decision:
+      // pause the switch until the user reconciles or cancels.
+      const liveTouched = [...freeformTouchedFrameIds].filter((frameId) => getCanonicalFrameBox(payload, frameId) !== null);
+      if (activeLens === 'freeform' && liveTouched.length > 0) {
+        pendingLensExit = lens;
+        emit();
+        return;
+      }
+
+      freeformTouchedFrameIds.clear();
+      activeLens = lens;
+      if (lens === 'text') {
+        selectedFrameId = null;
+      }
+      multiSelectedFrameIds.clear();
+      emit();
+    },
+    resolvePendingLensExit: async (outcome) => {
+      if (pendingLensExit === null) {
+        return null;
+      }
+
+      const targetLens = pendingLensExit;
+      const frameIds = [...freeformTouchedFrameIds].filter((frameId) => getCanonicalFrameBox(payload, frameId) !== null);
+
+      if (frameIds.length > 0) {
+        const result = await submitBridgeOperation(
+          { op: 'reconcile-freeform', outcome, frameIds },
+          { statusStore: options.statusStore },
+        );
+        if (!result.ok) {
+          emit();
+          return result;
+        }
+
+        freeformTouchedFrameIds.clear();
+        pendingLensExit = null;
+        activeLens = targetLens;
+        if (targetLens === 'text') {
+          selectedFrameId = null;
+        }
+        multiSelectedFrameIds.clear();
+        emit();
+        return result;
+      }
+
+      freeformTouchedFrameIds.clear();
+      pendingLensExit = null;
+      activeLens = targetLens;
+      if (targetLens === 'text') {
+        selectedFrameId = null;
+      }
+      multiSelectedFrameIds.clear();
+      emit();
+      return null;
+    },
+    cancelPendingLensExit: () => {
+      if (pendingLensExit === null) {
+        return;
+      }
+      pendingLensExit = null;
+      emit();
+    },
     selectBlock: (blockId) => {
       selectedBlockId = blockId;
-      if (payload?.physics !== 'design' || blockId === null) {
+      if (payload?.physics !== 'design' || activeLens === 'text' || blockId === null) {
         selectedFrameId = null;
       }
       emit();
@@ -321,11 +417,46 @@ export function createDocumentEditorEngine(options: {
     selectFrame: (frameId) => {
       selectedFrameId = frameId;
       selectedBlockId = frameId ? getFrameBlockId(payload, frameId) : null;
+      multiSelectedFrameIds.clear();
       emit();
+    },
+    toggleFrameInSelection: (frameId) => {
+      if (payload?.physics !== 'design' || activeLens === 'text') {
+        return;
+      }
+
+      if (!selectedFrameId) {
+        selectedFrameId = frameId;
+        selectedBlockId = getFrameBlockId(payload, frameId);
+        emit();
+        return;
+      }
+
+      if (frameId === selectedFrameId) {
+        emit();
+        return;
+      }
+
+      if (multiSelectedFrameIds.has(frameId)) {
+        multiSelectedFrameIds.delete(frameId);
+      } else {
+        multiSelectedFrameIds.add(frameId);
+      }
+      emit();
+    },
+    revertFrameOverrides: (frameIds) => {
+      for (const frameId of frameIds) {
+        frameBoxOverrides.delete(frameId);
+      }
+      emit();
+    },
+    getFreeformTouchedFrameIds: () => [...freeformTouchedFrameIds],
+    clearFreeformTouched: () => {
+      freeformTouchedFrameIds.clear();
     },
     startEditing: (blockId) => {
       selectedBlockId = blockId;
-      if (payload?.physics === 'design') {
+      if (payload?.physics === 'design' && activeLens !== 'text') {
         const linkedFrame = payload.document.layout.frames.find((frame) => frame.blockId === blockId);
         selectedFrameId = linkedFrame?.id ?? selectedFrameId;
       }
@@ -377,6 +508,9 @@ export function createDocumentEditorEngine(options: {
       void reason;
       return commitWorkingDocument();
     },
+    dispatch: (operation) => {
+      return submitBridgeOperation(operation, { statusStore: options.statusStore });
+    },
     getPayload: () => payload,
     getBlockText: (blockId) => getCanonicalBlockText(payload, blockId),
     getDisplayText: (blockId) => {
@@ -393,6 +527,7 @@ export function createDocumentEditorEngine(options: {
       listeners.clear();
       displayTextOverrides.clear();
       frameBoxOverrides.clear();
+      freeformTouchedFrameIds.clear();
     },
   };
 }

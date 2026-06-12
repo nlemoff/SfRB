@@ -12,10 +12,13 @@ SfRB is a local-first resume builder with one canonical document model:
 - `sfrb.config.json` stores workspace configuration, provider metadata, and physics mode.
 - `sfrb init` creates starter workspaces.
 - `sfrb open` launches a local bridge and browser editor against canonical state.
+- `sfrb edit` applies any structured editor operation from the CLI through the same validated write path the browser uses.
 - `sfrb export` generates a PDF from the same presentation surface used by browser preview/export.
 - `sfrb template list/show/apply` lets users pick from named first-party templates that ship with the build.
-- Browser edits and CLI edits stay on the same mutation model rather than drifting into separate implementations.
+- The browser editor offers three guided lenses (text, tile, freeform) over the one canonical document, with explicit reconciliation when leaving freeform.
+- Browser edits and CLI edits stay on the same mutation model — a shared structured-operation vocabulary — rather than drifting into separate implementations.
 - AI layout suggestions are optional, local/BYOK, and accepted through the same validated write path as manual edits.
+- The exported artifact honors the **one-page contract**: overflow is surfaced and gates the export instead of flowing to a second page.
 
 ## 2. Shipped foundation
 
@@ -52,18 +55,34 @@ Delivered a main-only branch workflow and CI quality gate:
 - GitHub Actions runs build, schema check, and tests
 - branch protection requires the `build-test` CI check
 
+### Lens system, structured operations & editor finish
+
+Delivered the full three-lens editing model and CLI mutation parity:
+
+- A 13-operation structured vocabulary (`src/document/operations/`) shared verbatim by the bridge `{operation}` route and the new `sfrb edit` command — the browser and CLI cannot fork the mutation model.
+- The tile lens: split multi-line tiles into provenance-carrying segments, group/ungroup, lock compositions that move as one canonical `move-group`, with locked-member edits as visible no-writes.
+- The freeform lens: direct element move/resize and divider elements, with `placement: managed|free` on frames and an explicit freeform-exit reconciliation (`rejoin_layout` / `keep_locked`) that never rewrites geometry.
+- An accessibility baseline: keyboard-operable canvas (tab/arrows/enter/escape), lens radiogroup, focus-trapped dialog, aria-live save state, and an automated WCAG AA template contrast gate.
+- A calm, light shell with the canvas primary and diagnostics in a collapsed inspector.
+- Schema additions (all additive, version 1): `divider` block kind, `splitFrom` provenance, frame `placement`, and `layout.frameGroups`.
+
 ## 3. Current focus
 
-The next practical milestone is **Distribution, Automation & Ecosystem**: make SfRB easier to install, verify, extend, and maintain as an open-source project now that the core document/edit/export/template loop exists.
+The next practical milestone is **Distribution, Automation & Ecosystem**: make SfRB easier to install, verify, extend, and maintain as an open-source project now that the full document/edit/export/template loop exists. SfRB is currently distributed as a git-clone tool; npm publishing remains a deliberate non-goal until a maintainer opts into it.
 
 Strong candidate seams:
 
-- packaging metadata and install smoke coverage (`npm run verify:package`)
+- install smoke coverage (`npm run verify:package`) in CI
 - `--help` UX polish and better command examples
 - contributor scripts and local verification shortcuts
-- fewer flaky browser/bridge tests
-- template accessibility and visual checks
+- template additions and visual checks on top of the contrast gate
 - docs that accurately describe the product without relying on historical planning archives
+
+Deliberately deferred (recorded decisions, revisit only intentionally):
+
+- AI-assisted content authoring beyond the overflow consultant (R016)
+- user-facing provider/model configuration UX (R017)
+- multi-page documents — the one-page contract is the v1.0 scope
 
 ## 4. Contribution lanes
 
@@ -81,7 +100,7 @@ Focus areas:
 Typical files:
 
 - `web/src/presentation/*`
-- `web/src/editor/Canvas.tsx`
+- `web/src/editor/canvas/*`
 - `web/src/bridge-client.ts`
 - `tests/web/*`
 

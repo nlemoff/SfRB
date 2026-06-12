@@ -1,13 +1,8 @@
-import {
-  TEMPLATE_IDS,
-  TEMPLATE_VERSIONS,
-  currentTemplateMetadata,
-  type TemplateId,
-} from '../../src/document/templates/registry';
+import { TEMPLATE_IDS, type TemplateId } from '../../src/document/templates/registry';
 import {
   type BridgeConsultantResult,
-  type BridgeDocument,
   type BridgeEditorStatusSnapshot,
+  type BridgeMutationResult,
   type BridgePayload,
   type BridgeSignal,
   type ReadyBridgePayload,
@@ -16,52 +11,25 @@ import {
   createBridgeEditorStatusStore,
   fetchBridgePayload,
   requestBridgeLayoutConsultant,
-  submitBridgeDocumentMutation,
   subscribeToBridgeSignals,
 } from './bridge-client';
-import { mountCanvas, type CanvasConsultantPreview, type CanvasOverflowDiagnostics } from './editor/Canvas';
-import { composeFrameResizeCandidate, createDocumentEditorEngine } from './editor/engine';
-
-const pageStyles = [
-  'min-height: 100vh',
-  'margin: 0',
-  'background: radial-gradient(circle at top left, rgba(251, 191, 36, 0.16), transparent 28%), radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 32%), linear-gradient(180deg, #13100f 0%, #0a0b0f 100%)',
-  'color: #f5efe7',
-  'font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif',
-].join('; ');
-
-const shellStyles = ['max-width: 1240px', 'margin: 0 auto', 'padding: 36px 24px 88px'].join('; ');
-const panelStyles = [
-  'background: rgba(20, 18, 21, 0.82)',
-  'border: 1px solid rgba(245, 222, 179, 0.14)',
-  'border-radius: 28px',
-  'box-shadow: 0 28px 100px rgba(0, 0, 0, 0.36)',
-  'backdrop-filter: blur(22px)',
-].join('; ');
-const pillStyles = [
-  'display: inline-flex',
-  'align-items: center',
-  'gap: 8px',
-  'padding: 8px 14px',
-  'border-radius: 999px',
-  'font-size: 0.82rem',
-  'letter-spacing: 0.08em',
-  'text-transform: uppercase',
-  'border: 1px solid rgba(245, 222, 179, 0.22)',
-  'background: rgba(245, 222, 179, 0.08)',
-  'color: #fce7c7',
-].join('; ');
-const previewStyles = [
-  'margin-top: 16px',
-  'padding: 18px',
-  'border-radius: 18px',
-  'background: rgba(7, 9, 14, 0.9)',
-  'overflow: auto',
-  'font-size: 0.82rem',
-  'line-height: 1.5',
-  'color: #c7d2fe',
-  'max-height: 560px',
-].join('; ');
+import { mountCanvas, type CanvasConsultantPreview, type CanvasOverflowDiagnostics } from './editor/canvas';
+import { createDocumentEditorEngine } from './editor/engine';
+import { syncConsultantPanel } from './shell/consultant-panel';
+import { bindLensSwitcher } from './shell/lens-switcher';
+import { createShellMarkup } from './shell/markup';
+import { createReconciliationDialog } from './shell/reconciliation-dialog';
+import { injectShellStyles } from './shell/styles';
+import {
+  renderTemplateButtons,
+  setTemplatePickerNote,
+  syncBridgePanels,
+  syncErrorPanel,
+  syncExportPanel,
+  syncGuidancePanels,
+  syncSavePanel,
+  syncTemplatePicker,
+} from './shell/workspace-panels';
 
 function formatSignalLabel(signal: BridgeSignal | null): string {
   if (!signal) {
@@ -78,217 +46,6 @@ function formatSignalLabel(signal: BridgeSignal | null): string {
 }
 
 type ConsultantUiState = 'idle' | 'detecting' | 'requesting' | 'preview' | 'applying' | 'error' | 'unavailable';
-
-function createShellMarkup(): string {
-  return `
-    <main style="${pageStyles}">
-      <div style="${shellStyles}">
-        <section id="first-run-guidance" data-testid="first-run-guidance" style="${panelStyles}; padding: 34px; margin-bottom: 24px; overflow: hidden; position: relative;">
-          <div style="position: absolute; inset: 0; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), transparent 38%, rgba(96, 165, 250, 0.08)); pointer-events: none;"></div>
-          <div style="position: relative; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr); gap: 24px; align-items: start;">
-            <div>
-              <div style="${pillStyles}">SfRB first-run shell</div>
-              <h1 style="margin: 18px 0 10px; font-size: clamp(2.5rem, 5vw, 4.8rem); line-height: 0.92; letter-spacing: -0.03em; color: #fff7ed;">Replace the starter, keep the loop.</h1>
-              <p style="margin: 0; max-width: 60ch; color: #e7ddd0; font-size: 1.06rem; line-height: 1.7;">
-                This screen is driven by canonical workspace state from <code>${BRIDGE_BOOTSTRAP_PATH}</code>. Start by replacing the shipped starter copy, then keep editing the same saved resume through text edits today and layout moves where frames already exist.
-              </p>
-              <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px;">
-                <div id="starter-chip" data-testid="starter-chip" data-starter-kind="loading" style="${pillStyles}; background: rgba(250, 204, 21, 0.12); border-color: rgba(250, 204, 21, 0.28); color: #fde68a;">Starter · loading</div>
-                <div id="workspace-ai-chip" data-testid="workspace-ai-chip" data-ai-status="loading" style="${pillStyles}; background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.28); color: #bfdbfe;">AI · loading</div>
-              </div>
-            </div>
-            <aside style="display: grid; gap: 14px; min-width: 0;">
-              <div style="padding: 18px 20px; border-radius: 22px; background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.16);">
-                <div style="font-size: 0.76rem; letter-spacing: 0.18em; text-transform: uppercase; color: #fcd34d;">Starter on disk</div>
-                <div id="starter-kind" data-testid="starter-kind" style="margin-top: 10px; font-size: 1.5rem; font-weight: 700; color: #fff7ed;">Loading…</div>
-                <div id="starter-id" data-testid="starter-id" style="margin-top: 8px; color: #f6e7c8; word-break: break-word;">Waiting for starter metadata…</div>
-              </div>
-              <div style="padding: 18px 20px; border-radius: 22px; background: rgba(96, 165, 250, 0.08); border: 1px solid rgba(96, 165, 250, 0.16);">
-                <div style="font-size: 0.76rem; letter-spacing: 0.18em; text-transform: uppercase; color: #93c5fd;">What to do first</div>
-                <div id="starter-guidance" data-testid="starter-guidance" style="margin-top: 10px; line-height: 1.65; color: #dbeafe;">Loading starter guidance…</div>
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section id="editing-lenses" data-testid="editing-lenses" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-bottom: 24px;">
-          <article data-testid="lens-text" style="${panelStyles}; padding: 24px; background: rgba(24, 20, 16, 0.9);">
-            <div style="font-size: 0.76rem; letter-spacing: 0.18em; text-transform: uppercase; color: #fca5a5;">Text lens</div>
-            <h2 style="margin: 12px 0 10px; font-size: 1.5rem; color: #fff7ed;">Rewrite the actual words.</h2>
-            <p style="margin: 0; color: #e7ddd0; line-height: 1.65;">Use this when you are replacing starter copy, tightening phrasing, or correcting facts. It ships now and persists through the canonical editor route in every workspace.</p>
-            <div data-testid="lens-text-availability" style="margin-top: 14px; color: #fda4af; font-size: 0.92rem;">Available now</div>
-          </article>
-          <article data-testid="lens-tile" style="${panelStyles}; padding: 24px; background: rgba(17, 23, 31, 0.9);">
-            <div style="font-size: 0.76rem; letter-spacing: 0.18em; text-transform: uppercase; color: #93c5fd;">Tile lens</div>
-            <h2 style="margin: 12px 0 10px; font-size: 1.5rem; color: #eff6ff;">Move placed blocks when layout matters.</h2>
-            <p style="margin: 0; color: #d7e7f7; line-height: 1.65;">Use this when the current workspace already includes placed frames and you need to nudge or resize them. It is a layout aid over the same saved resume, not a separate document mode.</p>
-            <div id="tile-lens-availability" data-testid="lens-tile-availability" style="margin-top: 14px; color: #93c5fd; font-size: 0.92rem;">Checking current workspace…</div>
-          </article>
-          <article data-testid="lens-freeform" style="${panelStyles}; padding: 24px; background: rgba(22, 18, 31, 0.9);">
-            <div style="font-size: 0.76rem; letter-spacing: 0.18em; text-transform: uppercase; color: #c4b5fd;">Freeform lens</div>
-            <h2 style="margin: 12px 0 10px; font-size: 1.5rem; color: #f5f3ff;">Treat the resume as one shared source.</h2>
-            <p style="margin: 0; color: #e9ddff; line-height: 1.65;">This lens is not shipped as a separate surface yet. For now, keep using text edits and tile adjustments where available; both still write back to the same canonical document.</p>
-            <div data-testid="lens-freeform-availability" style="margin-top: 14px; color: #c4b5fd; font-size: 0.92rem;">Not shipped yet</div>
-          </article>
-        </section>
-
-        <section style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.6fr); gap: 24px; align-items: start; margin-bottom: 24px;">
-          <article style="${panelStyles}; padding: 28px;">
-            <div id="editor-host"></div>
-          </article>
-          <aside style="display: grid; gap: 18px;">
-            <section id="bridge-status" data-testid="bridge-status" data-status="loading" style="${panelStyles}; padding: 20px; background: rgba(12, 63, 50, 0.28); border-color: rgba(45, 212, 191, 0.24);">
-              <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #d1fae5;">Bridge status</div>
-              <div id="bridge-status-label" style="margin-top: 10px; font-size: 1.35rem; font-weight: 700; color: #ecfdf5;">Loading</div>
-              <div id="bridge-last-signal" data-testid="bridge-last-signal" style="margin-top: 8px; color: #d1fae5; line-height: 1.5;">Waiting for bridge events</div>
-            </section>
-
-            <section id="workspace-ai-panel" data-testid="workspace-ai-panel" data-ai-status="loading" style="${panelStyles}; padding: 20px;">
-              <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #bfdbfe;">AI availability</div>
-              <div id="workspace-ai-status" data-testid="workspace-ai-status" style="margin-top: 10px; font-size: 1.2rem; font-weight: 700; color: #eff6ff;">Loading</div>
-              <div id="workspace-ai-note" data-testid="workspace-ai-note" style="margin-top: 8px; color: #dbeafe; line-height: 1.6;">Checking AI state…</div>
-            </section>
-
-            <section id="consultant-panel" data-testid="consultant-panel" data-consultant-state="idle" data-consultant-code="none" style="${panelStyles}; padding: 22px; display: grid; gap: 12px;">
-              <div>
-                <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #93c5fd;">AI layout consultant</div>
-                <div id="consultant-status" data-testid="consultant-status" data-consultant-state="idle" style="margin-top: 10px; font-size: 1.2rem; font-weight: 700; color: #eff6ff;">idle</div>
-                <div id="consultant-state-note" data-testid="consultant-state-note" style="margin-top: 8px; color: #cbd5e1; line-height: 1.5;">Select a design frame to inspect overflow.</div>
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
-                <div style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48);">
-                  <div style="font-size: 0.72rem; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em;">Overflow</div>
-                  <div id="consultant-overflow-status" data-testid="consultant-overflow-status" data-overflow-status="idle" style="margin-top: 8px;">idle</div>
-                </div>
-                <div style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48);">
-                  <div style="font-size: 0.72rem; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em;">Proposal frame</div>
-                  <div id="consultant-frame-id" data-testid="consultant-frame-id" data-frame-id="" style="margin-top: 8px;">None</div>
-                </div>
-              </div>
-              <div id="consultant-measurements" data-testid="consultant-measurements" data-overflow-px="" style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48); color: #cbd5e1; line-height: 1.5;">
-                No overflow diagnostics recorded.
-              </div>
-              <div id="consultant-preview-state" data-testid="consultant-preview-state" data-preview-visible="false" style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48); color: #cbd5e1; line-height: 1.5;">
-                No ghost preview active.
-              </div>
-              <div id="consultant-rationale" data-testid="consultant-rationale" style="padding: 12px; border-radius: 14px; background: rgba(2, 6, 23, 0.48); color: #dbeafe; line-height: 1.5;">Awaiting a consultant proposal.</div>
-              <div id="consultant-error" data-testid="consultant-error" style="padding: 12px; border-radius: 14px; background: rgba(127, 29, 29, 0.24); color: #fecaca; line-height: 1.5;" hidden>No consultant errors recorded.</div>
-              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button id="consultant-request" data-testid="consultant-request" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(96, 165, 250, 0.4); background: rgba(59, 130, 246, 0.24); color: #eff6ff; font: inherit; cursor: pointer;">Request proposal</button>
-                <button id="consultant-accept" data-testid="consultant-accept" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(45, 212, 191, 0.35); background: rgba(13, 148, 136, 0.22); color: #ecfeff; font: inherit; cursor: pointer;">Accept preview</button>
-                <button id="consultant-reject" data-testid="consultant-reject" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(244, 114, 182, 0.35); background: rgba(190, 24, 93, 0.18); color: #ffe4e6; font: inherit; cursor: pointer;">Reject preview</button>
-              </div>
-            </section>
-
-            <section id="editor-save-status" data-testid="editor-save-status" data-save-state="idle" style="${panelStyles}; padding: 20px; background: rgba(51, 65, 85, 0.34); border-color: rgba(148, 163, 184, 0.28);">
-              <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #cbd5e1;">Editor save state</div>
-              <div id="editor-save-state-label" style="margin-top: 10px; font-size: 1.1rem; font-weight: 700;">idle</div>
-              <div id="editor-save-error" data-testid="editor-save-error" style="margin-top: 8px; color: #dbeafe; line-height: 1.5;">No save errors recorded.</div>
-            </section>
-
-            <section id="template-picker" data-testid="template-picker" data-active-template-id="default" style="${panelStyles}; padding: 22px; display: grid; gap: 12px; background: rgba(34, 24, 50, 0.55); border-color: rgba(192, 132, 252, 0.24);">
-              <div>
-                <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #d8b4fe;">Template</div>
-                <div id="template-active-label" data-testid="template-active-label" style="margin-top: 10px; font-size: 1.1rem; font-weight: 700; color: #f5f3ff;">default</div>
-                <div id="template-picker-note" data-testid="template-picker-note" style="margin-top: 8px; color: #ede9fe; line-height: 1.5;">Selecting a template persists metadata.template through the canonical write path.</div>
-              </div>
-              <div id="template-picker-buttons" data-testid="template-picker-buttons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-            </section>
-
-            <section id="export-panel" data-testid="export-panel" data-export-state="loading" style="${panelStyles}; padding: 22px; display: grid; gap: 12px; background: rgba(30, 20, 50, 0.72); border-color: rgba(168, 85, 247, 0.24);">
-              <div>
-                <div style="font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: #c4b5fd;">Export</div>
-                <div id="export-state-label" data-testid="export-state-label" style="margin-top: 10px; font-size: 1.2rem; font-weight: 700; color: #f5f3ff;">Checking…</div>
-                <div id="export-state-note" data-testid="export-state-note" style="margin-top: 8px; color: #e9ddff; line-height: 1.5;">Probing the shared export surface for readiness.</div>
-              </div>
-              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button id="export-preview" data-testid="export-preview" type="button" disabled style="padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(126, 34, 206, 0.24); color: #f5f3ff; font: inherit; cursor: pointer;">Preview export</button>
-              </div>
-            </section>
-          </aside>
-        </section>
-
-        <section id="diagnostics-panel" data-testid="diagnostics-panel" style="${panelStyles}; padding: 24px;">
-          <div style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: baseline;">
-            <div>
-              <div style="font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: #cbd5e1;">Diagnostics</div>
-              <h2 style="margin: 10px 0 0; font-size: 1.6rem; color: #f8fafc;">Secondary surfaces for inspection and debugging.</h2>
-            </div>
-            <div style="color: #94a3b8; max-width: 44ch; line-height: 1.55;">Starter guidance stays primary above. These panels are here so a future agent can inspect paths, payloads, and bridge failures without leaving the browser.</div>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 18px;">
-            <article style="padding: 18px; border-radius: 18px; background: rgba(15, 23, 42, 0.48);">
-              <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Workspace root</div>
-              <div id="workspace-root" data-testid="workspace-root" style="margin-top: 10px; word-break: break-word; line-height: 1.5;">Loading workspace root…</div>
-            </article>
-            <article style="padding: 18px; border-radius: 18px; background: rgba(15, 23, 42, 0.48);">
-              <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Editing physics</div>
-              <div id="physics-mode" data-testid="physics-mode" style="margin-top: 10px; font-size: 1.4rem; color: #eff6ff;">Unavailable</div>
-            </article>
-            <article style="padding: 18px; border-radius: 18px; background: rgba(15, 23, 42, 0.48);">
-              <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Document path</div>
-              <div id="document-path" data-testid="document-path" style="margin-top: 10px; word-break: break-word; line-height: 1.5;">Loading document path…</div>
-            </article>
-            <article style="padding: 18px; border-radius: 18px; background: rgba(15, 23, 42, 0.48);">
-              <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Config path</div>
-              <div id="config-path" data-testid="config-path" style="margin-top: 10px; word-break: break-word; line-height: 1.5;">Loading config path…</div>
-            </article>
-          </div>
-          <div style="margin-top: 18px;">
-            <div style="color: #93c5fd; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Canonical payload preview</div>
-            <pre id="bridge-payload-preview" data-testid="bridge-payload-preview" style="${previewStyles}">Loading bridge payload…</pre>
-          </div>
-          <div id="bridge-error-panel" data-testid="bridge-error-panel" hidden style="margin-top: 18px; padding: 18px; border-radius: 18px; background: rgba(127, 29, 29, 0.35); border: 1px solid rgba(248, 113, 113, 0.45);">
-            <div style="color: #fca5a5; text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem;">Invalid workspace state</div>
-            <h2 id="bridge-error-name" style="margin: 14px 0 10px; font-size: 1.5rem;">Waiting for payload</h2>
-            <p id="bridge-error-message" data-testid="bridge-error-message" style="color: #fee2e2; line-height: 1.6; margin: 0;">Fetching bridge payload…</p>
-            <ul id="bridge-error-issues" data-testid="bridge-error-issues" style="margin: 16px 0 0; padding-left: 18px; display: grid; gap: 8px; color: #fecaca;"></ul>
-          </div>
-        </section>
-      </div>
-    </main>
-  `;
-}
-
-function setText(root: ParentNode, selector: string, value: string): void {
-  const element = root.querySelector(selector);
-  if (element) {
-    element.textContent = value;
-  }
-}
-
-function setBridgeStatusVisuals(container: HTMLElement, status: string, isError: boolean): void {
-  container.dataset.status = status;
-  container.style.background = isError ? 'rgba(127, 29, 29, 0.46)' : 'rgba(12, 63, 50, 0.28)';
-  container.style.border = isError ? '1px solid rgba(248, 113, 113, 0.4)' : '1px solid rgba(45, 212, 191, 0.24)';
-}
-
-function setSaveStatusVisuals(container: HTMLElement, editorStatus: BridgeEditorStatusSnapshot): void {
-  container.dataset.saveState = editorStatus.saveState;
-  if (editorStatus.saveState === 'error') {
-    container.style.background = 'rgba(127, 29, 29, 0.46)';
-    container.style.border = '1px solid rgba(248, 113, 113, 0.55)';
-    return;
-  }
-
-  if (editorStatus.saveState === 'saving') {
-    container.style.background = 'rgba(59, 130, 246, 0.22)';
-    container.style.border = '1px solid rgba(96, 165, 250, 0.45)';
-    return;
-  }
-
-  container.style.background = 'rgba(51, 65, 85, 0.34)';
-  container.style.border = '1px solid rgba(148, 163, 184, 0.28)';
-}
-
-function setButtonState(button: HTMLElement | null, enabled: boolean): void {
-  if (!(button instanceof HTMLButtonElement)) {
-    return;
-  }
-  button.disabled = !enabled;
-  button.style.opacity = enabled ? '1' : '0.48';
-  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-}
 
 function createDocumentKey(payload: ReadyBridgePayload | null): string | null {
   return payload ? JSON.stringify(payload.document) : null;
@@ -322,6 +79,7 @@ function getStarterGuidance(payload: ReadyBridgePayload | null): string {
 }
 
 export function mountApp(rootElement: HTMLElement) {
+  injectShellStyles();
   rootElement.innerHTML = createShellMarkup();
 
   const editorStatusStore = createBridgeEditorStatusStore();
@@ -366,63 +124,64 @@ export function mountApp(rootElement: HTMLElement) {
     },
   });
 
-  const bridgeStatus = rootElement.querySelector('#bridge-status');
-  const saveStatus = rootElement.querySelector('#editor-save-status');
-  const errorPanel = rootElement.querySelector('#bridge-error-panel');
-  const errorIssues = rootElement.querySelector('#bridge-error-issues');
-  const payloadPreview = rootElement.querySelector('#bridge-payload-preview');
-  const consultantPanel = rootElement.querySelector('#consultant-panel');
-  const consultantError = rootElement.querySelector('#consultant-error');
-  const requestButton = rootElement.querySelector('#consultant-request');
-  const acceptButton = rootElement.querySelector('#consultant-accept');
-  const rejectButton = rootElement.querySelector('#consultant-reject');
-  const workspaceAiPanel = rootElement.querySelector('#workspace-ai-panel');
+  const lensSwitcher = bindLensSwitcher(rootElement, editorEngine);
+
+  // --- Freeform exit reconciliation ---
+  const updateTransitionStrip = (outcome: 'rejoin_layout' | 'keep_locked') => {
+    const strip = rootElement.querySelector('#editor-mode-transition-strip');
+    if (!(strip instanceof HTMLElement)) {
+      return;
+    }
+    const carried = overflowDiagnostics.status === 'overflow' && overflowDiagnostics.frameId
+      ? ` Carried overflow: frame ${overflowDiagnostics.frameId}, +${overflowDiagnostics.overflowPx ?? 0}px.`
+      : '';
+    strip.dataset.outcome = outcome;
+    strip.textContent = outcome === 'rejoin_layout'
+      ? `Freeform placements rejoined the layout; tiles are movable again.${carried}`
+      : `Freeform placements kept; those elements stay put until you rejoin them.${carried}`;
+    strip.hidden = false;
+  };
+
+  const resolveReconciliation = (outcome: 'rejoin_layout' | 'keep_locked') => {
+    void editorEngine.resolvePendingLensExit(outcome).then(
+      (result) => {
+        if (result && !result.ok) {
+          reconciliationDialog.setNote(`${result.code}: ${result.message}`);
+          return;
+        }
+        reconciliationDialog.close();
+        updateTransitionStrip(outcome);
+        void refreshBridge();
+      },
+      (error: unknown) => {
+        reconciliationDialog.setNote(`Bridge unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      },
+    );
+  };
+
+  const reconciliationDialog = createReconciliationDialog(rootElement, {
+    onRejoin: () => resolveReconciliation('rejoin_layout'),
+    onKeep: () => resolveReconciliation('keep_locked'),
+    onCancel: () => {
+      editorEngine.cancelPendingLensExit();
+      reconciliationDialog.close();
+    },
+  });
 
   const syncGuideSurface = () => {
     const readyPayload = payload?.status === 'ready' ? payload : null;
-    const starterLabel = getStarterLabel(readyPayload);
-    const starterGuidance = getStarterGuidance(readyPayload);
-    const starterId = readyPayload?.starter?.id ?? 'No starter metadata recorded.';
     const aiStatus = readyPayload?.ai.status ?? (fetchError ? 'error' : 'loading');
-    const aiMessage = readyPayload?.ai.message ?? (fetchError ? fetchError : 'Checking AI state…');
-    const tileAvailability = !readyPayload
-      ? 'Waiting for workspace state…'
-      : readyPayload.physics === 'design'
-        ? 'Available now in this workspace'
-        : 'Not available in this workspace yet';
 
-    const starterChip = rootElement.querySelector('#starter-chip');
-    if (starterChip instanceof HTMLElement) {
-      starterChip.dataset.starterKind = readyPayload?.starter?.kind ?? 'custom';
-      starterChip.textContent = `Starter · ${starterLabel}`;
-    }
+    syncGuidancePanels(rootElement, {
+      starterKindAttr: readyPayload?.starter?.kind ?? 'custom',
+      starterLabel: getStarterLabel(readyPayload),
+      starterId: readyPayload?.starter?.id ?? 'No starter metadata recorded.',
+      starterGuidance: getStarterGuidance(readyPayload),
+      aiStatus,
+      aiMessage: readyPayload?.ai.message ?? (fetchError ? fetchError : 'Checking AI state…'),
+    });
 
-    const aiChip = rootElement.querySelector('#workspace-ai-chip');
-    if (aiChip instanceof HTMLElement) {
-      aiChip.dataset.aiStatus = aiStatus;
-      aiChip.textContent = `AI · ${aiStatus}`;
-    }
-
-    if (workspaceAiPanel instanceof HTMLElement) {
-      workspaceAiPanel.dataset.aiStatus = aiStatus;
-      workspaceAiPanel.style.border = aiStatus === 'available'
-        ? '1px solid rgba(96, 165, 250, 0.24)'
-        : aiStatus === 'loading'
-          ? '1px solid rgba(148, 163, 184, 0.2)'
-          : '1px solid rgba(248, 113, 113, 0.28)';
-      workspaceAiPanel.style.background = aiStatus === 'available'
-        ? 'rgba(30, 41, 59, 0.72)'
-        : aiStatus === 'loading'
-          ? 'rgba(30, 41, 59, 0.56)'
-          : 'rgba(69, 10, 10, 0.34)';
-    }
-
-    setText(rootElement, '#starter-kind', starterLabel);
-    setText(rootElement, '#starter-id', starterId);
-    setText(rootElement, '#starter-guidance', starterGuidance);
-    setText(rootElement, '#workspace-ai-status', aiStatus);
-    setText(rootElement, '#workspace-ai-note', aiMessage);
-    setText(rootElement, '#tile-lens-availability', tileAvailability);
+    lensSwitcher.sync(readyPayload);
   };
 
   const syncConsultantSurface = () => {
@@ -445,22 +204,6 @@ export function mountApp(rootElement: HTMLElement) {
       ? currentPayload.ai.status
       : consultantCode;
 
-    if (consultantPanel instanceof HTMLElement) {
-      consultantPanel.dataset.consultantState = displayState;
-      consultantPanel.dataset.consultantCode = displayCode;
-      consultantPanel.style.border = displayState === 'error' || displayState === 'unavailable'
-        ? '1px solid rgba(248, 113, 113, 0.35)'
-        : displayState === 'preview'
-          ? '1px solid rgba(45, 212, 191, 0.35)'
-          : '1px solid rgba(96, 165, 250, 0.22)';
-    }
-
-    const statusNode = rootElement.querySelector('#consultant-status');
-    if (statusNode instanceof HTMLElement) {
-      statusNode.dataset.consultantState = displayState;
-      statusNode.textContent = displayState;
-    }
-
     const note = previewVisible
       ? 'Ghost preview is separate from canonical frame geometry until you accept it.'
       : consultantState === 'requesting'
@@ -476,79 +219,39 @@ export function mountApp(rootElement: HTMLElement) {
                 : !isDesignWorkspace
                   ? 'AI layout suggestions appear only when this workspace includes fixed frames.'
                   : consultantNote;
-    setText(rootElement, '#consultant-state-note', note);
 
-    const overflowLabel = overflowDiagnostics.status === 'overflow'
-      ? `overflow · +${overflowDiagnostics.overflowPx ?? 0}px`
-      : overflowDiagnostics.status;
-    const overflowNode = rootElement.querySelector('#consultant-overflow-status');
-    if (overflowNode instanceof HTMLElement) {
-      overflowNode.dataset.overflowStatus = overflowDiagnostics.status;
-      overflowNode.textContent = overflowLabel;
-    }
+    const rationale = preview
+      ? `${preview.rationale} (${Math.round(preview.confidence * 100)}% confidence)`
+      : currentPayload && currentPayload.ai.status !== 'available'
+        ? 'AI help is unavailable right now, but the canonical editor loop still works.'
+        : 'Awaiting a consultant proposal.';
 
-    const frameNode = rootElement.querySelector('#consultant-frame-id');
-    if (frameNode instanceof HTMLElement) {
-      frameNode.dataset.frameId = frameId ?? '';
-      frameNode.textContent = frameId ?? 'None';
-    }
-
-    const measurementsNode = rootElement.querySelector('#consultant-measurements');
-    if (measurementsNode instanceof HTMLElement) {
-      measurementsNode.dataset.overflowPx = overflowDiagnostics.overflowPx === null ? '' : String(overflowDiagnostics.overflowPx);
-      measurementsNode.textContent = overflowDiagnostics.frameId
-        ? overflowDiagnostics.measuredAvailableHeight === null || overflowDiagnostics.measuredContentHeight === null
-          ? `Frame ${overflowDiagnostics.frameId} is settling before measurement.`
-          : `Frame ${overflowDiagnostics.frameId}: content ${overflowDiagnostics.measuredContentHeight}px · available ${overflowDiagnostics.measuredAvailableHeight}px · overflow ${overflowDiagnostics.overflowPx ?? 0}px`
-        : 'No overflow diagnostics recorded.';
-    }
-
-    const previewNode = rootElement.querySelector('#consultant-preview-state');
-    if (previewNode instanceof HTMLElement) {
-      previewNode.dataset.previewVisible = String(previewVisible);
-      previewNode.textContent = previewVisible
-        ? `Ghost preview active for ${preview?.frameId} at x:${preview?.box.x} y:${preview?.box.y} w:${preview?.box.width} h:${preview?.box.height}`
-        : 'No ghost preview active.';
-    }
-
-    setText(
-      rootElement,
-      '#consultant-rationale',
-      preview
-        ? `${preview.rationale} (${Math.round(preview.confidence * 100)}% confidence)`
-        : currentPayload && currentPayload.ai.status !== 'available'
-          ? 'AI help is unavailable right now, but the canonical editor loop still works.'
-          : 'Awaiting a consultant proposal.',
-    );
-
-    if (consultantError instanceof HTMLElement) {
-      consultantError.hidden = !consultantErrorMessage;
-      consultantError.textContent = consultantErrorMessage ?? 'No consultant errors recorded.';
-    }
-
-    setButtonState(requestButton, canRequest);
-    setButtonState(acceptButton, canAcceptOrReject);
-    setButtonState(rejectButton, canAcceptOrReject);
+    syncConsultantPanel(rootElement, {
+      displayState,
+      displayCode,
+      note,
+      overflow: overflowDiagnostics,
+      frameId,
+      previewVisible,
+      preview,
+      rationale,
+      errorMessage: consultantErrorMessage,
+      canRequest,
+      canAcceptOrReject,
+    });
   };
 
   const syncBridgeSurface = () => {
-    const bridgeStatusLabel = fetchError ? 'Fetch failed' : (payload ? payload.status : 'Loading');
-    const payloadStatus = payload?.status ?? (fetchError ? 'fetch-error' : 'loading');
-
-    if (bridgeStatus instanceof HTMLElement) {
-      setBridgeStatusVisuals(bridgeStatus, payloadStatus, Boolean(fetchError) || payload?.status === 'error');
-    }
-
-    setText(rootElement, '#bridge-status-label', bridgeStatusLabel);
-    setText(rootElement, '#bridge-last-signal', formatSignalLabel(lastSignal));
-    setText(rootElement, '#workspace-root', payload?.workspaceRoot ?? 'Loading workspace root…');
-    setText(rootElement, '#physics-mode', payload?.status === 'ready' ? payload.physics : 'Unavailable');
-    setText(rootElement, '#document-path', payload?.documentPath ?? 'Unavailable');
-    setText(rootElement, '#config-path', payload?.configPath ?? 'Unavailable');
-
-    if (payloadPreview instanceof HTMLElement) {
-      payloadPreview.textContent = JSON.stringify(payload ?? { status: 'loading', fetchError }, null, 2);
-    }
+    syncBridgePanels(rootElement, {
+      statusLabel: fetchError ? 'Fetch failed' : (payload ? payload.status : 'Loading'),
+      payloadStatus: payload?.status ?? (fetchError ? 'fetch-error' : 'loading'),
+      lastSignalLabel: formatSignalLabel(lastSignal),
+      workspaceRoot: payload?.workspaceRoot ?? 'Loading workspace root…',
+      physics: payload?.status === 'ready' ? payload.physics : 'Unavailable',
+      documentPath: payload?.documentPath ?? 'Unavailable',
+      configPath: payload?.configPath ?? 'Unavailable',
+      payloadJson: JSON.stringify(payload ?? { status: 'loading', fetchError }, null, 2),
+    });
 
     syncGuideSurface();
 
@@ -563,13 +266,7 @@ export function mountApp(rootElement: HTMLElement) {
       }
 
       canvas.setReadyPayload(payload);
-
-      if (errorPanel instanceof HTMLElement) {
-        errorPanel.hidden = true;
-      }
-      if (errorIssues instanceof HTMLElement) {
-        errorIssues.innerHTML = '';
-      }
+      syncErrorPanel(rootElement, { visible: false, name: '', message: '', issues: [] });
       syncConsultantSurface();
       return;
     }
@@ -581,33 +278,18 @@ export function mountApp(rootElement: HTMLElement) {
     consultantNote = 'Select a design frame to inspect overflow.';
     consultantErrorMessage = null;
 
-    if (errorPanel instanceof HTMLElement) {
-      errorPanel.hidden = false;
-    }
-    setText(rootElement, '#bridge-error-name', payload?.status === 'error' ? payload.name : 'Fetch error');
-    setText(rootElement, '#bridge-error-message', fetchError ?? (payload?.status === 'error' ? payload.message : 'Fetching bridge payload…'));
-
-    if (errorIssues instanceof HTMLElement) {
-      errorIssues.innerHTML = '';
-      if (payload?.status === 'error' && Array.isArray(payload.issues)) {
-        payload.issues.forEach((issue) => {
-          const item = document.createElement('li');
-          item.textContent = `${issue.path} · ${issue.message}`;
-          errorIssues.append(item);
-        });
-      }
-    }
+    syncErrorPanel(rootElement, {
+      visible: true,
+      name: payload?.status === 'error' ? payload.name : 'Fetch error',
+      message: fetchError ?? (payload?.status === 'error' ? payload.message : 'Fetching bridge payload…'),
+      issues: payload?.status === 'error' && Array.isArray(payload.issues) ? payload.issues : [],
+    });
 
     syncConsultantSurface();
   };
 
   const syncSaveSurface = (editorStatus: BridgeEditorStatusSnapshot) => {
-    if (saveStatus instanceof HTMLElement) {
-      setSaveStatusVisuals(saveStatus, editorStatus);
-    }
-
-    setText(rootElement, '#editor-save-state-label', editorStatus.saveState);
-    setText(rootElement, '#editor-save-error', editorStatus.errorMessage ?? 'No save errors recorded.');
+    syncSavePanel(rootElement, editorStatus);
   };
 
   const refreshBridge = async (signal?: AbortSignal) => {
@@ -622,7 +304,7 @@ export function mountApp(rootElement: HTMLElement) {
       editorEngine.setPayload(null);
     }
     syncBridgeSurface();
-    syncTemplatePicker();
+    syncTemplateSurface();
     void readBridgePrintSurfaceSnapshot();
   };
 
@@ -707,6 +389,16 @@ export function mountApp(rootElement: HTMLElement) {
     syncConsultantSurface();
   };
 
+  // Focus returns to the request control after accept/reject: focusing the
+  // canvas frame would re-trigger selection and overwrite the terminal
+  // accepted/rejected code surface.
+  const focusConsultantRequest = () => {
+    const button = rootElement.querySelector('#consultant-request');
+    if (button instanceof HTMLElement) {
+      button.focus();
+    }
+  };
+
   const acceptPreview = async () => {
     const readyPayload = payload?.status === 'ready' ? payload : null;
     if (!readyPayload || !preview) {
@@ -718,8 +410,7 @@ export function mountApp(rootElement: HTMLElement) {
     consultantErrorMessage = null;
     syncConsultantSurface();
 
-    const candidate = composeFrameResizeCandidate(readyPayload.document, preview.frameId, preview.box);
-    const result = await submitBridgeDocumentMutation(candidate, { statusStore: editorStatusStore });
+    const result = await editorEngine.dispatch({ op: 'set-frame-box', frameId: preview.frameId, box: preview.box });
     if (result.ok) {
       preview = null;
       canvas.setGhostPreview(null);
@@ -728,6 +419,7 @@ export function mountApp(rootElement: HTMLElement) {
       consultantNote = 'Proposal accepted and persisted through the canonical editor route.';
       consultantErrorMessage = null;
       syncConsultantSurface();
+      focusConsultantRequest();
       void refreshBridge();
       return;
     }
@@ -747,8 +439,12 @@ export function mountApp(rootElement: HTMLElement) {
     consultantErrorMessage = null;
     consultantNote = 'Ghost preview rejected. Canonical document unchanged.';
     syncConsultantSurface();
+    focusConsultantRequest();
   };
 
+  const requestButton = rootElement.querySelector('#consultant-request');
+  const acceptButton = rootElement.querySelector('#consultant-accept');
+  const rejectButton = rootElement.querySelector('#consultant-reject');
   if (requestButton instanceof HTMLButtonElement) {
     requestButton.addEventListener('click', () => {
       void requestConsultantProposal();
@@ -764,116 +460,48 @@ export function mountApp(rootElement: HTMLElement) {
   }
 
   // --- Template picker ---
-  const templatePicker = rootElement.querySelector('#template-picker');
-  const templatePickerButtons = rootElement.querySelector('#template-picker-buttons');
-  const templateActiveLabel = rootElement.querySelector('#template-active-label');
-
-  const renderTemplatePickerButtons = () => {
-    if (!(templatePickerButtons instanceof HTMLElement)) return;
-    templatePickerButtons.innerHTML = '';
-
-    for (const id of TEMPLATE_IDS) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.id = `template-pick-${id}`;
-      button.dataset.testid = `template-pick-${id}`;
-      button.dataset.templateId = id;
-      button.textContent = id;
-      button.style.cssText = 'padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(192, 132, 252, 0.4); background: rgba(126, 34, 206, 0.16); color: #f5f3ff; font: inherit; cursor: pointer;';
-      button.addEventListener('click', () => {
-        void applyTemplateSelection(id);
-      });
-      templatePickerButtons.appendChild(button);
-    }
-  };
-
-  const syncTemplatePicker = () => {
+  const syncTemplateSurface = () => {
     const activeId: TemplateId = payload?.status === 'ready'
       ? (payload.document.metadata.template?.id ?? 'default')
       : 'default';
-    if (templatePicker instanceof HTMLElement) {
-      templatePicker.dataset.activeTemplateId = activeId;
-    }
-    if (templateActiveLabel instanceof HTMLElement) {
-      templateActiveLabel.textContent = activeId;
-    }
-    if (templatePickerButtons instanceof HTMLElement) {
-      for (const button of Array.from(templatePickerButtons.querySelectorAll('button'))) {
-        const buttonId = (button as HTMLButtonElement).dataset.templateId;
-        const isActive = buttonId === activeId;
-        (button as HTMLButtonElement).style.background = isActive
-          ? 'rgba(192, 132, 252, 0.4)'
-          : 'rgba(126, 34, 206, 0.16)';
-        (button as HTMLButtonElement).style.borderColor = isActive
-          ? 'rgba(216, 180, 254, 0.8)'
-          : 'rgba(192, 132, 252, 0.4)';
-      }
-    }
-  };
-
-  const setTemplatePickerNote = (note: string, errorCode: string | null = null) => {
-    if (templatePicker instanceof HTMLElement) {
-      if (errorCode) {
-        templatePicker.dataset.error = errorCode;
-      } else {
-        delete templatePicker.dataset.error;
-      }
-    }
-    setText(rootElement, '#template-picker-note', note);
+    syncTemplatePicker(rootElement, activeId);
   };
 
   const applyTemplateSelection = async (id: TemplateId): Promise<void> => {
     if (payload?.status !== 'ready') {
-      setTemplatePickerNote('Cannot apply template: workspace is not ready.', 'not_ready');
+      setTemplatePickerNote(rootElement, 'Cannot apply template: workspace is not ready.', 'not_ready');
       return;
     }
-    const candidate: BridgeDocument = {
-      ...payload.document,
-      metadata: {
-        ...payload.document.metadata,
-        template: currentTemplateMetadata(id),
-      },
-    };
-    setTemplatePickerNote(`Applying ${id}…`);
-    let result: Awaited<ReturnType<typeof submitBridgeDocumentMutation>>;
+    setTemplatePickerNote(rootElement, `Applying ${id}…`);
+    let result: BridgeMutationResult;
     try {
-      result = await submitBridgeDocumentMutation(candidate, { statusStore: editorStatusStore });
+      result = await editorEngine.dispatch({ op: 'set-template', templateId: id });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setTemplatePickerNote(`Template apply failed: bridge_unavailable${message ? ` — ${message}` : ''}`, 'bridge_unavailable');
+      setTemplatePickerNote(rootElement, `Template apply failed: bridge_unavailable${message ? ` — ${message}` : ''}`, 'bridge_unavailable');
       return;
     }
 
     if (result.ok) {
-      setTemplatePickerNote(`Applied ${id}.`);
+      setTemplatePickerNote(rootElement, `Applied ${id}.`);
       void refreshBridge();
       return;
     }
 
-    setTemplatePickerNote(`Template apply failed: ${result.code}${result.message ? ` — ${result.message}` : ''}`, result.code);
+    setTemplatePickerNote(rootElement, `Template apply failed: ${result.code}${result.message ? ` — ${result.message}` : ''}`, result.code);
   };
 
-  renderTemplatePickerButtons();
-  syncTemplatePicker();
+  renderTemplateButtons(rootElement, TEMPLATE_IDS, (id) => {
+    void applyTemplateSelection(id);
+  });
+  syncTemplateSurface();
 
   // --- Export surface ---
-  const exportPanel = rootElement.querySelector('#export-panel');
-  const exportPreviewButton = rootElement.querySelector('#export-preview');
-  let exportState: string = 'loading';
-  let exportNote: string = 'Probing the shared export surface for readiness.';
+  let exportState = 'loading';
+  let exportNote = 'Probing the shared export surface for readiness.';
 
   const syncExportSurface = () => {
-    if (exportPanel instanceof HTMLElement) {
-      exportPanel.dataset.exportState = exportState;
-      exportPanel.style.borderColor = exportState === 'ready'
-        ? 'rgba(45, 212, 191, 0.35)'
-        : exportState === 'risk' || exportState === 'blocked'
-          ? 'rgba(248, 113, 113, 0.35)'
-          : 'rgba(168, 85, 247, 0.24)';
-    }
-    setText(rootElement, '#export-state-label', exportState);
-    setText(rootElement, '#export-state-note', exportNote);
-    setButtonState(exportPreviewButton, exportState === 'ready');
+    syncExportPanel(rootElement, { state: exportState, note: exportNote });
   };
 
   const readBridgePrintSurfaceSnapshot = async (): Promise<void> => {
@@ -934,6 +562,7 @@ export function mountApp(rootElement: HTMLElement) {
     syncExportSurface();
   };
 
+  const exportPreviewButton = rootElement.querySelector('#export-preview');
   if (exportPreviewButton instanceof HTMLButtonElement) {
     exportPreviewButton.addEventListener('click', () => {
       if (exportState !== 'ready') return;
@@ -954,6 +583,12 @@ export function mountApp(rootElement: HTMLElement) {
   });
 
   const unsubscribeEngine = editorEngine.subscribe((snapshot) => {
+    if (snapshot.pendingLensExit !== null && !reconciliationDialog.isOpen()) {
+      reconciliationDialog.open();
+    } else if (snapshot.pendingLensExit === null && reconciliationDialog.isOpen()) {
+      reconciliationDialog.close();
+    }
+
     if (!preview && consultantState !== 'requesting' && consultantState !== 'applying') {
       consultantState = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'detecting' : 'idle';
       consultantCode = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'measuring' : consultantCode === 'preview_stale_cleared' ? consultantCode : 'none';
@@ -963,6 +598,7 @@ export function mountApp(rootElement: HTMLElement) {
         consultantNote = 'Select a design frame to inspect overflow.';
       }
     }
+    lensSwitcher.sync(payload?.status === 'ready' ? payload : null);
     syncConsultantSurface();
   });
 

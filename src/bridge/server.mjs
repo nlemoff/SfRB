@@ -26,6 +26,11 @@ const {
   parseLayoutConsultantRequest,
   requestLayoutConsultantProposal,
 } = require('../agent/LayoutConsultant.js');
+const {
+  OperationApplicationError,
+  OperationParseError,
+  runWorkspaceOperation,
+} = require('../document/operations/index.js');
 
 const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
@@ -190,7 +195,9 @@ function getConsultantFailureStatusCode(result) {
     case 'frame_not_found':
       return 422;
     case 'provider_unavailable':
+    case 'provider_rate_limited':
       return 503;
+    case 'provider_auth':
     case 'malformed_provider_output':
     case 'proposal_rejected':
       return 502;
@@ -413,12 +420,35 @@ async function main() {
 
     try {
       const parsedBody = await readJsonBody(request, 'Bridge mutation body');
-      if (!parsedBody || typeof parsedBody !== 'object' || !('document' in parsedBody)) {
+      const hasDocument = Boolean(parsedBody) && typeof parsedBody === 'object' && 'document' in parsedBody;
+      const hasOperation = Boolean(parsedBody) && typeof parsedBody === 'object' && 'operation' in parsedBody;
+      if (!parsedBody || typeof parsedBody !== 'object' || hasDocument === hasOperation) {
         respondJson(
           response,
           400,
-          toRequestFailure(options.cwd, 'Bridge mutation body must be a JSON object with a document field.', 'missing_document'),
+          toRequestFailure(
+            options.cwd,
+            'Bridge mutation body must be a JSON object with exactly one of a document or operation field.',
+            hasDocument && hasOperation ? 'ambiguous_payload' : 'missing_document',
+          ),
         );
+        return;
+      }
+
+      if (hasOperation) {
+        const result = await runWorkspaceOperation(options.cwd, parsedBody.operation);
+        respondJson(response, 200, {
+          ok: true,
+          status: 'saved',
+          saveState: 'idle',
+          workspaceRoot: options.cwd,
+          documentPath: result.documentPath,
+          configPath: result.configPath,
+          physics: result.physics,
+          operationKind: result.operation.op,
+          canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+          savedAt: new Date().toISOString(),
+        });
         return;
       }
 
@@ -438,6 +468,23 @@ async function main() {
     } catch (error) {
       if (error instanceof Error && error.name === 'Error' && error.message.startsWith('Bridge mutation body')) {
         respondJson(response, 400, toRequestFailure(options.cwd, error.message, 'invalid_json'));
+        return;
+      }
+
+      if (error instanceof OperationParseError || error instanceof OperationApplicationError) {
+        respondJson(response, 400, {
+          ok: false,
+          status: 'error',
+          saveState: 'error',
+          code: 'operation_invalid',
+          workspaceRoot: options.cwd,
+          message: error.message,
+          name: error.name,
+          documentPath: getDocumentPath(options.cwd),
+          configPath: getConfigPath(options.cwd),
+          canonicalBootstrapPath: BRIDGE_BOOTSTRAP_PATH,
+          issues: getErrorIssues(error),
+        });
         return;
       }
 

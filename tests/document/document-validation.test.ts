@@ -174,6 +174,38 @@ describe('document validation against workspace physics', () => {
     await expect(readWorkspaceDocument(projectRoot)).rejects.toThrowError(/workspace\.physics to "design"/i);
   });
 
+  it('rejects frame groups in document physics with field context', async () => {
+    const projectRoot = await makeTempProject();
+    await writeConfig(
+      {
+        ai: {
+          provider: 'openai',
+          apiKeyEnvVar: 'OPENAI_API_KEY',
+        },
+        workspace: {
+          physics: 'document',
+        },
+      },
+      projectRoot,
+    );
+    const document = createDocument();
+    Object.assign(document.layout, {
+      frameGroups: [
+        {
+          id: 'summary-composition',
+          pageId: 'page-1',
+          frameIds: ['frame-summary', 'frame-impact'],
+          locked: true,
+        },
+      ],
+    });
+    await writeDocument(document, projectRoot);
+
+    await expect(readWorkspaceDocument(projectRoot)).rejects.toThrowError(/layout\.frameGroups\.0/);
+    await expect(readWorkspaceDocument(projectRoot)).rejects.toThrowError(/forbid frame groups/i);
+    await expect(readWorkspaceDocument(projectRoot)).rejects.toThrowError(/workspace\.physics to "design"/i);
+  });
+
   it('rejects missing layout coverage in design physics', async () => {
     const projectRoot = await makeTempProject();
     await writeConfig(

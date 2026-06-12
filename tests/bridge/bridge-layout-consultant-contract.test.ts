@@ -260,6 +260,168 @@ describe('bridge layout consultant contract', () => {
     }
   });
 
+  it('distinguishes provider auth and rate-limit failures without writing the canonical document', async () => {
+    const projectRoot = await makeTempProject('sfrb-consultant-auth-rate-limit-');
+    await writeWorkspaceFiles(projectRoot, {
+      physics: 'design',
+      title: 'Consultant Auth Failures',
+      blockText: 'Auth and rate-limit coverage.',
+    });
+
+    const beforeRaw = await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8');
+    const authProvider = await createOpenAiStubServer((_request, response) => {
+      response.writeHead(401, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: { message: 'invalid api key supplied' } }));
+    });
+
+    const authBridge = await waitForBridgeReady(projectRoot, {
+      env: {
+        OPENAI_API_KEY: 'sk-test-auth-failure',
+        SFRB_OPENAI_BASE_URL: authProvider.baseUrl,
+      },
+    });
+
+    try {
+      const auth = await postConsultantRequest(authBridge.url, {
+        frameId: 'summaryFrame',
+        issue: {
+          kind: 'overflow',
+          measuredContentHeight: 168,
+          measuredAvailableHeight: 96,
+        },
+      });
+
+      expect(auth.status).toBe(502);
+      expect(auth.payload).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'provider_auth',
+        workspaceRoot: projectRoot,
+        provider: 'openai',
+        apiKeyEnvVar: 'OPENAI_API_KEY',
+      });
+      expect(String(auth.payload.message)).toContain('status 401');
+      expect(JSON.stringify(auth.payload)).not.toContain('invalid api key supplied');
+      expect(JSON.stringify(auth.payload)).not.toContain('sk-test-auth-failure');
+    } finally {
+      await closeBridge(authBridge.child);
+      await authProvider.close();
+    }
+
+    const rateLimitedProvider = await createOpenAiStubServer((_request, response) => {
+      response.writeHead(429, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: { message: 'rate limit exceeded for org' } }));
+    });
+
+    const rateLimitedBridge = await waitForBridgeReady(projectRoot, {
+      env: {
+        OPENAI_API_KEY: 'sk-test-rate-limited',
+        SFRB_OPENAI_BASE_URL: rateLimitedProvider.baseUrl,
+      },
+    });
+
+    try {
+      const rateLimited = await postConsultantRequest(rateLimitedBridge.url, {
+        frameId: 'summaryFrame',
+        issue: {
+          kind: 'overflow',
+          measuredContentHeight: 168,
+          measuredAvailableHeight: 96,
+        },
+      });
+
+      expect(rateLimited.status).toBe(503);
+      expect(rateLimited.payload).toMatchObject({
+        ok: false,
+        status: 'unavailable',
+        code: 'provider_rate_limited',
+        workspaceRoot: projectRoot,
+        provider: 'openai',
+        apiKeyEnvVar: 'OPENAI_API_KEY',
+      });
+      expect(String(rateLimited.payload.message)).toContain('status 429');
+      expect(JSON.stringify(rateLimited.payload)).not.toContain('rate limit exceeded for org');
+      expect(JSON.stringify(rateLimited.payload)).not.toContain('sk-test-rate-limited');
+
+      const afterRaw = await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8');
+      expect(afterRaw).toBe(beforeRaw);
+    } finally {
+      await closeBridge(rateLimitedBridge.child);
+      await rateLimitedProvider.close();
+    }
+  });
+
+  it('rejects proposals that leave the page bounds and keeps the canonical document untouched', async () => {
+    const projectRoot = await makeTempProject('sfrb-consultant-off-page-');
+    await writeWorkspaceFiles(projectRoot, {
+      physics: 'design',
+      title: 'Consultant Off Page',
+      blockText: 'Bounds rejection coverage.',
+    });
+
+    const beforeRaw = await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8');
+    const offPageProvider = await createOpenAiStubServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  frameId: 'summaryFrame',
+                  box: { x: 36, y: 48, width: 5000, height: 9000 },
+                  rationale: 'Make the frame enormous.',
+                  confidence: 0.9,
+                }),
+              },
+            },
+          ],
+        }),
+      );
+    });
+
+    const bridge = await waitForBridgeReady(projectRoot, {
+      env: {
+        OPENAI_API_KEY: 'sk-test-off-page',
+        SFRB_OPENAI_BASE_URL: offPageProvider.baseUrl,
+      },
+    });
+
+    try {
+      const result = await postConsultantRequest(bridge.url, {
+        frameId: 'summaryFrame',
+        issue: {
+          kind: 'overflow',
+          measuredContentHeight: 168,
+          measuredAvailableHeight: 96,
+        },
+      });
+
+      expect(result.status).toBe(502);
+      expect(result.payload).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'proposal_rejected',
+        workspaceRoot: projectRoot,
+        provider: 'openai',
+        apiKeyEnvVar: 'OPENAI_API_KEY',
+      });
+      expect(result.payload.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: 'box.width' }),
+          expect.objectContaining({ path: 'box.height' }),
+        ]),
+      );
+      expect(JSON.stringify(result.payload)).not.toContain('sk-test-off-page');
+
+      const afterRaw = await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8');
+      expect(afterRaw).toBe(beforeRaw);
+    } finally {
+      await closeBridge(bridge.child);
+      await offPageProvider.close();
+    }
+  });
+
   it('reports unsupported providers distinctly before any browser-facing bridge serialization', async () => {
     const projectRoot = await makeTempProject('sfrb-consultant-unsupported-provider-');
     await writeWorkspaceFiles(projectRoot, {

@@ -8,7 +8,7 @@ export const stableIdSchema = z
   .string()
   .regex(/^[A-Za-z][A-Za-z0-9_-]*$/u, 'Stable ids must start with a letter and contain only letters, numbers, underscores, or hyphens');
 
-export const semanticBlockKinds = ['heading', 'paragraph', 'bullet', 'fact'] as const;
+export const semanticBlockKinds = ['heading', 'paragraph', 'bullet', 'fact', 'divider'] as const;
 export const semanticBlockKindSchema = z.enum(semanticBlockKinds);
 export const starterKinds = ['template', 'blank'] as const;
 export const starterKindSchema = z.enum(starterKinds);
@@ -39,11 +39,23 @@ export const starterMetadataSchema = z.strictObject({
   kind: starterKindSchema,
 });
 
-export const semanticBlockSchema = z.strictObject({
-  id: stableIdSchema,
-  kind: semanticBlockKindSchema,
-  text: z.string().min(1, 'Block text is required'),
-});
+export const semanticBlockSchema = z
+  .strictObject({
+    id: stableIdSchema,
+    kind: semanticBlockKindSchema,
+    text: z.string(),
+    splitFrom: stableIdSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    // Dividers are the only text-free block kind; they render as a rule.
+    if (value.kind !== 'divider' && value.text.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['text'],
+        message: 'Block text is required',
+      });
+    }
+  });
 
 export const semanticSectionSchema = z.strictObject({
   id: stableIdSchema,
@@ -51,12 +63,22 @@ export const semanticSectionSchema = z.strictObject({
   blockIds: z.array(stableIdSchema).min(1, 'Section must reference at least one block'),
 });
 
+export const framePlacementSchema = z.enum(['managed', 'free']);
+
 export const layoutFrameSchema = z.strictObject({
   id: stableIdSchema,
   pageId: stableIdSchema,
   blockId: stableIdSchema,
   box: boxSchema,
   zIndex: z.number().int().min(0),
+  placement: framePlacementSchema.default('managed'),
+});
+
+export const frameGroupSchema = z.strictObject({
+  id: stableIdSchema,
+  pageId: stableIdSchema,
+  frameIds: z.array(stableIdSchema).min(2, 'Frame group needs at least two member frames'),
+  locked: z.boolean(),
 });
 
 function addDuplicateIdIssues(
@@ -98,6 +120,7 @@ export const documentSchema = z
     layout: z.strictObject({
       pages: z.array(pageSchema).min(1, 'Document must contain at least one layout page'),
       frames: z.array(layoutFrameSchema),
+      frameGroups: z.array(frameGroupSchema).default([]),
     }),
   })
   .superRefine((value, context) => {
@@ -191,6 +214,57 @@ export const documentSchema = z
         });
       }
     });
+
+    addDuplicateIdIssues(
+      context,
+      value.layout.frameGroups.map((group) => group.id),
+      (index) => ['layout', 'frameGroups', index, 'id'],
+      'frame group',
+    );
+
+    const framesById = new Map(value.layout.frames.map((frame) => [frame.id, frame]));
+    const groupIdByFrameId = new Map<string, string>();
+
+    value.layout.frameGroups.forEach((group, groupIndex) => {
+      if (!pageIds.has(group.pageId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['layout', 'frameGroups', groupIndex, 'pageId'],
+          message: `Frame group references missing page \"${group.pageId}\"`,
+        });
+      }
+
+      group.frameIds.forEach((frameId, frameIdIndex) => {
+        const frame = framesById.get(frameId);
+        if (!frame) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['layout', 'frameGroups', groupIndex, 'frameIds', frameIdIndex],
+            message: `Frame group references missing layout frame \"${frameId}\"`,
+          });
+          return;
+        }
+
+        const existingGroupId = groupIdByFrameId.get(frameId);
+        if (existingGroupId !== undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['layout', 'frameGroups', groupIndex, 'frameIds', frameIdIndex],
+            message: `Layout frame \"${frameId}\" already belongs to frame group \"${existingGroupId}\"`,
+          });
+        } else {
+          groupIdByFrameId.set(frameId, group.id);
+        }
+
+        if (frame.pageId !== group.pageId) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['layout', 'frameGroups', groupIndex, 'frameIds', frameIdIndex],
+            message: `Frame group member \"${frameId}\" is on page \"${frame.pageId}\" but the group targets page \"${group.pageId}\"`,
+          });
+        }
+      });
+    });
   });
 
 export type SfrbDocument = z.output<typeof documentSchema>;
@@ -202,6 +276,9 @@ export type SemanticBlock = z.output<typeof semanticBlockSchema>;
 export type SemanticBlockKind = z.output<typeof semanticBlockKindSchema>;
 export type LayoutPage = z.output<typeof pageSchema>;
 export type LayoutFrame = z.output<typeof layoutFrameSchema>;
+export type LayoutFrameInput = z.input<typeof layoutFrameSchema>;
+export type FramePlacement = z.output<typeof framePlacementSchema>;
+export type FrameGroup = z.output<typeof frameGroupSchema>;
 
 export function parseDocument(input: unknown): SfrbDocument {
   return documentSchema.parse(input);

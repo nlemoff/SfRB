@@ -1,10 +1,22 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { Command } from 'commander';
 
+import { createEditCommand } from './commands/edit';
 import { createExportCommand } from './commands/export';
 import { createInitCommand } from './commands/init';
 import { createOpenCommand } from './commands/open';
 import { createTemplateCommand } from './commands/template';
+
+function readCliVersion(): string {
+  // Resolved relative to the compiled entry (dist/cli.js), so the same path
+  // works in the repo and in an installed package layout.
+  const packageJsonPath = path.join(__dirname, '..', 'package.json');
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { version?: string };
+  return packageJson.version ?? '0.0.0';
+}
 
 export function createCli(): Command {
   const program = new Command();
@@ -12,8 +24,9 @@ export function createCli(): Command {
   program
     .name('sfrb')
     .description('Straightforward Resume Builder CLI')
-    .version('0.1.0');
+    .version(readCliVersion());
 
+  program.addCommand(createEditCommand());
   program.addCommand(createExportCommand());
   program.addCommand(createInitCommand());
   program.addCommand(createOpenCommand());
