@@ -677,6 +677,17 @@ const SHELL_CSS = `
     box-shadow: var(--sfrb-shadow-e1);
   }
 
+  /* Flow mode places its blocks on one sheet of paper; design surfaces bring
+     their own page paper, so the page root stays a plain container there. */
+  #editor-canvas[data-active-surface='flow'] #editor-document-page {
+    background: #ffffff;
+    border-radius: var(--sfrb-radius-sm);
+    box-shadow: var(--sfrb-shadow-e2), 0 0 0 1px var(--sfrb-line);
+    padding: 40px 44px;
+    width: 680px;
+    box-sizing: border-box;
+  }
+
   /* Tile drag handles stay quiet until the frame is hovered or selected. */
   #editor-canvas [data-testid^="frame-handle-"] {
     opacity: 0.4;

@@ -13,16 +13,6 @@ export const pageStyles = [
   "font-family: 'Times New Roman', Times, serif",
 ].join('; ');
 
-// Flow-mode (document physics) paper: the flowing blocks sit on one sheet.
-export const flowPaperStyles = [
-  'background: #ffffff',
-  'border-radius: var(--sfrb-radius-sm)',
-  'box-shadow: var(--sfrb-shadow-e2), 0 0 0 1px var(--sfrb-line)',
-  'padding: 40px 44px',
-  'width: 680px',
-  'box-sizing: border-box',
-].join('; ');
-
 export const documentBlockStyles = [
   'padding: 12px 14px',
   'border-radius: var(--sfrb-radius-md)',

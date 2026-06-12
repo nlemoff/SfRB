@@ -13,12 +13,12 @@ import {
   documentBlockStyles,
   editingDesignFrameStyles,
   editingDocumentBlockStyles,
-  flowPaperStyles,
   pageStyles,
   selectedDesignFrameStyles,
   selectedDocumentBlockStyles,
 } from './styles';
 import { motionOK, motion } from '../../ui/tokens';
+import { createStatusCell } from '../../ui/status-cell';
 
 export type { CanvasOverflowDiagnostics } from './overflow';
 
@@ -34,37 +34,6 @@ export type CanvasController = {
 };
 
 type ActiveSurface = 'flow' | 'tile' | 'freeform' | 'none';
-
-// Compact status chip: the frozen-id value node rides inside a small labeled
-// pill instead of the old full-width HUD row.
-function createStatusChip(label: string, elementId: string, testId: string): HTMLSpanElement {
-  const wrapper = document.createElement('span');
-  wrapper.className = 'sfrb-status-cell';
-
-  const labelNode = document.createElement('span');
-  labelNode.className = 'sfrb-status-cell-label';
-  labelNode.textContent = label;
-
-  const content = document.createElement('div');
-  content.id = elementId;
-  content.dataset.testid = testId;
-
-  wrapper.append(labelNode, content);
-  return wrapper;
-}
-
-function setChipEmptyState(valueNode: Element | null, isEmpty: boolean): void {
-  const chip = valueNode?.closest('.sfrb-status-cell');
-  if (chip instanceof HTMLElement) {
-    chip.dataset.empty = String(isEmpty);
-  }
-}
-
-function setElementText(element: Element | null, value: string): void {
-  if (element) {
-    element.textContent = value;
-  }
-}
 
 function formatFrameBox(box: FrameBox | null): string {
   if (!box) {
@@ -120,16 +89,18 @@ export function mountCanvas(
 
   bar.append(headingGroup, pageMeta, zoomControl);
 
-  // --- Status strip: frozen HUD value nodes as compact chips ---
+  // --- Status strip: frozen HUD value nodes as compact chips. Refs are kept
+  // because the strip syncs on every engine snapshot (a drag-time hot path).
   const statusBar = document.createElement('div');
   statusBar.className = 'sfrb-canvas-statusbar';
-  statusBar.append(
-    createStatusChip('Mode', 'editor-affordance-mode', 'editor-affordance-mode'),
-    createStatusChip('Block', 'editor-selected-block', 'editor-selected-block'),
-    createStatusChip('Frame', 'editor-selected-frame', 'editor-selected-frame'),
-    createStatusChip('Drag', 'editor-drag-affordance-status', 'editor-drag-affordance-status'),
-    createStatusChip('Box', 'editor-selected-frame-box', 'editor-selected-frame-box'),
-  );
+  const hudCells = {
+    mode: createStatusCell('Mode', 'editor-affordance-mode', 'editor-affordance-mode'),
+    block: createStatusCell('Block', 'editor-selected-block', 'editor-selected-block'),
+    frame: createStatusCell('Frame', 'editor-selected-frame', 'editor-selected-frame'),
+    drag: createStatusCell('Drag', 'editor-drag-affordance-status', 'editor-drag-affordance-status'),
+    box: createStatusCell('Box', 'editor-selected-frame-box', 'editor-selected-frame-box'),
+  };
+  statusBar.append(hudCells.mode.cell, hudCells.block.cell, hudCells.frame.cell, hudCells.drag.cell, hudCells.box.cell);
 
   // --- Controls host: tile toolbar / freeform HUD live outside the page so
   // they are never clipped by page bounds nor scaled by zoom ---
@@ -172,9 +143,20 @@ export function mountCanvas(
     scaler.style.removeProperty('width');
     scaler.style.removeProperty('height');
 
+    // Natural size is measured at most once per call, and not at all on the
+    // default 100% path (renderPayload calls this on every rebuild).
+    let naturalWidth = 0;
+    let naturalHeight = 0;
+    const measureNatural = () => {
+      if (naturalWidth === 0) {
+        naturalWidth = scaler.scrollWidth;
+        naturalHeight = scaler.scrollHeight;
+      }
+    };
+
     let scale = 1;
     if (zoomMode === 'fit') {
-      const naturalWidth = scaler.scrollWidth;
+      measureNatural();
       const available = viewport.clientWidth - 48;
       if (naturalWidth > 0 && available > 0) {
         scale = Math.min(1.5, Math.max(0.25, available / naturalWidth));
@@ -189,8 +171,7 @@ export function mountCanvas(
 
     scaler.dataset.canvasScale = String(scale);
     if (scale !== 1) {
-      const naturalWidth = scaler.scrollWidth;
-      const naturalHeight = scaler.scrollHeight;
+      measureNatural();
       scaler.style.transform = `scale(${scale})`;
       scaler.style.width = `${Math.ceil(naturalWidth * scale)}px`;
       scaler.style.height = `${Math.ceil(naturalHeight * scale)}px`;
@@ -307,39 +288,25 @@ export function mountCanvas(
   const updateSnapshotSurfaces = (snapshot: DocumentEditorSnapshot) => {
     shell.dataset.physicsMode = snapshot.interactionMode;
     shell.dataset.activeLens = snapshot.activeLens;
-    setElementText(rootElement.querySelector('#editor-affordance-mode'), snapshot.interactionMode);
+    hudCells.mode.value.textContent = snapshot.interactionMode;
 
-    const selectionNode = rootElement.querySelector('#editor-selected-block') as HTMLDivElement | null;
-    if (selectionNode) {
-      const selectedBlock = snapshot.selectedBlockId ?? 'None';
-      selectionNode.textContent = selectedBlock;
-      selectionNode.dataset.selectedBlockId = snapshot.selectedBlockId ?? '';
-      setChipEmptyState(selectionNode, snapshot.selectedBlockId === null);
-    }
+    hudCells.block.value.textContent = snapshot.selectedBlockId ?? 'None';
+    hudCells.block.value.dataset.selectedBlockId = snapshot.selectedBlockId ?? '';
+    hudCells.block.cell.dataset.empty = String(snapshot.selectedBlockId === null);
 
-    const selectedFrameNode = rootElement.querySelector('#editor-selected-frame') as HTMLDivElement | null;
-    if (selectedFrameNode) {
-      const selectedFrame = snapshot.selectedFrameId ?? 'None';
-      selectedFrameNode.textContent = selectedFrame;
-      selectedFrameNode.dataset.selectedFrameId = snapshot.selectedFrameId ?? '';
-      setChipEmptyState(selectedFrameNode, snapshot.selectedFrameId === null);
-    }
+    hudCells.frame.value.textContent = snapshot.selectedFrameId ?? 'None';
+    hudCells.frame.value.dataset.selectedFrameId = snapshot.selectedFrameId ?? '';
+    hudCells.frame.cell.dataset.empty = String(snapshot.selectedFrameId === null);
 
-    const dragNode = rootElement.querySelector('#editor-drag-affordance-status') as HTMLDivElement | null;
-    if (dragNode) {
-      const affordances = snapshot.interactionMode === 'design' && snapshot.activeLens !== 'text' ? 'present' : 'absent';
-      dragNode.textContent = affordances;
-      dragNode.dataset.dragAffordances = affordances;
-      setChipEmptyState(dragNode, affordances === 'absent');
-    }
+    const affordances = snapshot.interactionMode === 'design' && snapshot.activeLens !== 'text' ? 'present' : 'absent';
+    hudCells.drag.value.textContent = affordances;
+    hudCells.drag.value.dataset.dragAffordances = affordances;
+    hudCells.drag.cell.dataset.empty = String(affordances === 'absent');
 
-    const frameBoxNode = rootElement.querySelector('#editor-selected-frame-box') as HTMLDivElement | null;
-    if (frameBoxNode) {
-      const box = snapshot.selectedFrameId ? engine.getFrameBox(snapshot.selectedFrameId) : null;
-      frameBoxNode.textContent = formatFrameBox(box);
-      frameBoxNode.dataset.frameBox = box ? JSON.stringify(box) : '';
-      setChipEmptyState(frameBoxNode, box === null);
-    }
+    const box = snapshot.selectedFrameId ? engine.getFrameBox(snapshot.selectedFrameId) : null;
+    hudCells.box.value.textContent = formatFrameBox(box);
+    hudCells.box.value.dataset.frameBox = box ? JSON.stringify(box) : '';
+    hudCells.box.cell.dataset.empty = String(box === null);
   };
 
   const renderSelectionState = (snapshot: DocumentEditorSnapshot) => {
@@ -516,10 +483,6 @@ export function mountCanvas(
       shell.dataset.activeSurface = nextSurface;
       tileControls = null;
       freeformControls = null;
-
-      // Flow mode places its blocks on one sheet of paper; design surfaces
-      // bring their own page paper, so the root stays a plain container.
-      pageRoot.style.cssText = nextSurface === 'flow' ? `${pageStyles}; ${flowPaperStyles}` : pageStyles;
 
       if (nextSurface === 'tile') {
         subtitle.textContent = 'Drag handles to move frames; double-click a frame to edit its text.';
@@ -714,7 +677,6 @@ export function mountCanvas(
       title.textContent = 'Canvas unavailable';
       subtitle.textContent = 'The editor is waiting for a canonical bridge payload.';
       pageMeta.textContent = message;
-      pageRoot.style.cssText = pageStyles;
       const emptyState = document.createElement('div');
       emptyState.textContent = message;
       emptyState.style.cssText = [

@@ -61,17 +61,12 @@ export function createPointerController(deps: {
   let dragState: DragState | null = null;
   let nudgeCommitTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const currentScale = (): number => {
-    const scale = deps.getScale?.() ?? 1;
-    return Number.isFinite(scale) && scale > 0 ? scale : 1;
-  };
-
   const onPointerMove = (event: PointerEvent) => {
     if (!dragState || dragState.pointerId !== event.pointerId) {
       return;
     }
 
-    const scale = currentScale();
+    const scale = deps.getScale?.() ?? 1;
     const deltaX = (event.clientX - dragState.startX) / scale;
     const deltaY = (event.clientY - dragState.startY) / scale;
 
@@ -125,7 +120,7 @@ export function createPointerController(deps: {
     if (handle) {
       handle.style.cursor = 'grab';
     }
-    const scale = currentScale();
+    const scale = deps.getScale?.() ?? 1;
     const dx = Math.round((event.clientX - activeDrag.startX) / scale);
     const dy = Math.round((event.clientY - activeDrag.startY) / scale);
     onGroupDragSettled(

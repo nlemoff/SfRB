@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 
 import {
+  blurEditorTextarea,
   cleanupTempProjects,
   closeBridge,
   ensureBuilt,
@@ -81,10 +82,7 @@ describe('export assembly', () => {
       const textarea = await page.$('textarea');
       if (textarea) {
         await textarea.fill('Edited assembly content for export proof.');
-        // Trigger blur to persist. Target the canvas bar chrome: the canvas
-        // center can land on the active textarea itself, which would keep
-        // focus and skip the blur commit.
-        await page.click('#editor-page-metrics');
+        await blurEditorTextarea(page as unknown as BridgeBrowserPage);
       }
 
       // Wait for save to settle

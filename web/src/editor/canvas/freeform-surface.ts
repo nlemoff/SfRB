@@ -4,6 +4,7 @@ import type { DocumentEditorEngine, DocumentEditorSnapshot } from '../engine';
 import type { PointerController } from './pointer';
 import { designPaperChromeStyles, pageWrapperStyles } from './styles';
 import { lineClampText } from './text-editing';
+import { createStatusCell } from '../../ui/status-cell';
 
 export type FreeformSurfaceController = {
   syncHud: (snapshot: DocumentEditorSnapshot) => void;
@@ -91,19 +92,10 @@ export function renderFreeformSurface(deps: {
   removeButton.className = 'sfrb-button';
   removeButton.disabled = true;
 
-  // The label stays outside the value span: tests read the span's bare value.
   const readout = (id: string, label: string): HTMLElement => {
-    const wrapper = document.createElement('span');
-    wrapper.className = 'sfrb-status-cell';
-    const labelNode = document.createElement('span');
-    labelNode.className = 'sfrb-status-cell-label';
-    labelNode.textContent = label;
-    const value = document.createElement('span');
-    value.id = id;
-    value.dataset.testid = id;
+    const { cell, value } = createStatusCell(label, id, id, 'span');
     value.textContent = 'None';
-    wrapper.append(labelNode, value);
-    return wrapper;
+    return cell;
   };
 
   const selectedIdReadout = readout('freeform-selected-element-id', 'Element');
