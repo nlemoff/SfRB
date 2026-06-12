@@ -287,14 +287,22 @@ export function renderTileSurface(deps: {
       const handle = document.createElement('button');
       handle.type = 'button';
       handle.dataset.testid = `frame-handle-${frame.id}`;
+      handle.textContent = '\u2059';
       handle.style.cssText = [
-        'justify-self: end',
-        'width: 28px',
-        'height: 28px',
-        'border-radius: 999px',
-        'border: none',
-        'background: radial-gradient(circle at 35% 35%, #60a5fa, #1d4ed8)',
-        'box-shadow: 0 8px 16px rgba(37, 99, 235, 0.35)',
+        'position: absolute',
+        'top: 5px',
+        'right: 5px',
+        'width: 16px',
+        'height: 16px',
+        'padding: 0',
+        'border-radius: 6px',
+        'border: 1px solid rgba(148, 163, 184, 0.5)',
+        'background: rgba(255, 255, 255, 0.9)',
+        'color: #64748b',
+        'display: grid',
+        'place-items: center',
+        'line-height: 1',
+        'font-size: 9px',
         'cursor: grab',
       ].join('; ');
       handle.setAttribute('aria-label', `Drag frame ${frame.id}`);
@@ -321,12 +329,6 @@ export function renderTileSurface(deps: {
         pointer.beginFrameDrag(event, { id: frame.id, blockId: frame.blockId }, originBox, handle);
       });
 
-      const meta = document.createElement('div');
-      meta.textContent = group
-        ? `${block?.kind ?? 'missing'} · ${frame.id} · ${group.id}${group.locked ? ' · locked' : ''}`
-        : `${block?.kind ?? 'missing'} · ${frame.id} · ${frame.blockId}`;
-      meta.style.cssText = 'color: #334155; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.68rem;';
-
       const blockBody = document.createElement('div');
       blockBody.dataset.role = 'block-body';
       blockBody.id = `editor-block-text-${frame.blockId}`;
@@ -335,9 +337,7 @@ export function renderTileSurface(deps: {
         'white-space: pre-wrap',
         'line-height: 1.55',
         'color: #0f172a',
-        'align-self: stretch',
         'overflow: hidden',
-        'min-height: 0',
         'height: 100%',
       ].join('; ');
       if (block?.kind === 'divider') {
@@ -363,7 +363,7 @@ export function renderTileSurface(deps: {
         engine.startEditing(frame.blockId);
       });
 
-      article.append(handle, meta, blockBody);
+      article.append(handle, blockBody);
       canvas.append(article);
       frameElements.set(frame.id, article);
     });

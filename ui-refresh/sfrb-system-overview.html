@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SfRB — System Overview: Past, Present &amp; Future</title>
+<style>
+  :root {
+    --ink: #1d2733;
+    --ink-soft: #4a5a6a;
+    --paper: #fbfaf7;
+    --panel: #ffffff;
+    --line: #dfe5ea;
+    --accent: #1f6feb;
+    --accent-soft: #e7f0fe;
+    --good: #1a7f37;
+    --good-soft: #e6f4ea;
+    --warn: #9a6700;
+    --warn-soft: #fff8e1;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --defer: #6e40c9;
+    --defer-soft: #f3eefc;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    line-height: 1.6;
+  }
+  header.hero {
+    background: linear-gradient(135deg, #16202b 0%, #1f3a5f 100%);
+    color: #f3f6f9;
+    padding: 56px 24px 48px;
+    text-align: center;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 2.4rem; letter-spacing: -0.5px; }
+  header.hero .sub { font-size: 1.15rem; color: #b9c8d8; max-width: 760px; margin: 0 auto; }
+  header.hero .meta { margin-top: 18px; font-size: 0.85rem; color: #8fa3b8; }
+  header.hero .meta code { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-family: var(--mono); }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px 28px; margin-bottom: 40px;
+  }
+  nav.toc h2 { margin: 0 0 10px; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); }
+  nav.toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 40px; }
+  nav.toc li { margin: 3px 0; break-inside: avoid; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  section { margin-bottom: 56px; }
+  h2 {
+    font-size: 1.6rem; margin: 0 0 4px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -0.3px;
+  }
+  h2 .kicker { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 2px; }
+  h3 { font-size: 1.15rem; margin: 28px 0 8px; }
+  h4 { font-size: 1rem; margin: 20px 0 6px; }
+  p, li { color: var(--ink); }
+  .lead { font-size: 1.08rem; color: var(--ink-soft); }
+  code { font-family: var(--mono); font-size: 0.86em; background: #eef1f4; padding: 1px 5px; border-radius: 4px; }
+  pre {
+    background: #16202b; color: #d8e2ec; padding: 16px 20px; border-radius: 8px;
+    overflow-x: auto; font-family: var(--mono); font-size: 0.84rem; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.92rem; background: var(--panel); }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f0f3f6; font-weight: 600; }
+  td code { white-space: nowrap; }
+  .pill {
+    display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 10px;
+    border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle;
+  }
+  .pill.shipped { background: var(--good-soft); color: var(--good); }
+  .pill.rebuilt { background: var(--accent-soft); color: var(--accent); }
+  .pill.lost { background: var(--bad-soft); color: var(--bad); }
+  .pill.deferred { background: var(--defer-soft); color: var(--defer); }
+  .pill.next { background: var(--warn-soft); color: var(--warn); }
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 12px 18px; border-radius: 0 8px 8px 0; margin: 16px 0;
+  }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout.good { border-color: var(--good); background: var(--good-soft); }
+  .callout.bad { border-color: var(--bad); background: var(--bad-soft); }
+  .callout p { margin: 4px 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card h4 { margin: 0 0 6px; }
+  .card p { margin: 0; font-size: 0.92rem; color: var(--ink-soft); }
+  figure { margin: 24px 0; }
+  figure svg { width: 100%; height: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  figcaption { font-size: 0.85rem; color: var(--ink-soft); text-align: center; margin-top: 8px; }
+
+  /* timeline */
+  .timeline { list-style: none; margin: 20px 0; padding: 0; position: relative; }
+  .timeline::before { content: ""; position: absolute; left: 11px; top: 6px; bottom: 6px; width: 2px; background: var(--line); }
+  .timeline li { position: relative; padding: 0 0 26px 40px; }
+  .timeline li::before {
+    content: ""; position: absolute; left: 4px; top: 6px; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent); border: 3px solid var(--paper);
+  }
+  .timeline li.lost::before { background: var(--bad); }
+  .timeline li.future::before { background: var(--warn); }
+  .timeline .when { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); }
+  .timeline h4 { margin: 2px 0 4px; }
+  .timeline p { margin: 0; font-size: 0.94rem; color: var(--ink-soft); }
+
+  /* ===== editor mockups ===== */
+  .mockup {
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background: #f7f8fa; font-size: 11px; margin: 18px 0;
+    box-shadow: 0 2px 10px rgba(20,30,40,0.06);
+  }
+  .mockup .mk-titlebar {
+    background: #ffffff; border-bottom: 1px solid var(--line); padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px; font-size: 12px;
+  }
+  .mockup .mk-titlebar b { color: var(--accent); }
+  .mk-lenses { margin-left: auto; display: flex; gap: 4px; }
+  .mk-lens { padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink-soft); }
+  .mk-lens.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .mk-lens.unavailable { opacity: 0.45; }
+  .mk-body { display: flex; min-height: 300px; }
+  .mk-canvas { flex: 1; padding: 18px; display: flex; justify-content: center; }
+  .mk-page {
+    width: 320px; min-height: 280px; background: #fff; border: 1px solid #ccd4db;
+    box-shadow: 0 3px 10px rgba(20,30,40,0.10); position: relative;
+    font-family: "Times New Roman", Times, serif; padding: 0;
+  }
+  .mk-frame {
+    position: absolute; border: 1px dashed #b6c2cd; padding: 3px 6px; overflow: hidden;
+    background: #fff; line-height: 1.25;
+  }
+  .mk-frame.selected { border: 2px solid var(--accent); }
+  .mk-frame.multi { border: 2px dashed var(--accent); }
+  .mk-frame.grouped { background: #fbfdff; }
+  .mk-frame.free { border: 2px solid var(--defer); background: var(--defer-soft); }
+  .mk-frame h5 { margin: 0; font-size: 15px; font-weight: 700; }
+  .mk-frame .small { font-size: 8.5px; color: #444; }
+  .mk-badge {
+    position: absolute; font-size: 8px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+    background: var(--accent); color: #fff; font-family: var(--mono);
+  }
+  .mk-badge.locked { background: var(--ink); }
+  .mk-handle {
+    position: absolute; width: 14px; height: 14px; border-radius: 4px;
+    background: var(--ink); color: #fff; font-size: 9px; line-height: 14px; text-align: center; cursor: grab;
+  }
+  .mk-resize {
+    position: absolute; width: 9px; height: 9px; right: -5px; bottom: -5px;
+    background: var(--accent); border: 1.5px solid #fff; border-radius: 2px;
+  }
+  .mk-divider { position: absolute; border-top: 1.5px solid #333; }
+  .mk-side {
+    width: 200px; background: #ffffff; border-left: 1px solid var(--line);
+    padding: 12px; font-size: 10.5px; color: var(--ink-soft);
+  }
+  .mk-side h6 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); }
+  .mk-toolbar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+  .mk-btn {
+    padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+    font-size: 10px; color: var(--ink);
+  }
+  .mk-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mk-btn.danger { background: var(--bad-soft); border-color: #f1b8bc; color: var(--bad); }
+  .mk-note {
+    margin-top: 8px; padding: 6px 9px; border-radius: 6px; font-size: 9.5px;
+    background: var(--warn-soft); color: var(--warn); border: 1px solid #ecd9a0;
+  }
+  .mk-status { margin-top: 8px; padding: 6px 9px; border-radius: 6px; font-size: 9.5px; background: var(--good-soft); color: var(--good); }
+  .mk-hud-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px dotted var(--line); }
+  .mk-hud-row code { font-size: 9px; background: #eef1f4; }
+  .mk-dialog-overlay {
+    position: absolute; inset: 0; background: rgba(22,32,43,0.45);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mk-dialog {
+    background: #fff; border-radius: 10px; width: 270px; padding: 16px 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25); font-family: -apple-system, "Segoe UI", sans-serif;
+  }
+  .mk-dialog h5 { margin: 0 0 6px; font-size: 12px; }
+  .mk-dialog p { margin: 0 0 10px; font-size: 10px; color: var(--ink-soft); }
+  .mk-dialog .mk-btn { display: block; width: 100%; margin-bottom: 5px; text-align: left; padding: 6px 10px; }
+  .mock-caption { font-size: 0.85rem; color: var(--ink-soft); text-align: center; margin: -8px 0 18px; }
+
+  footer { text-align: center; color: var(--ink-soft); font-size: 0.85rem; padding: 24px; border-top: 1px solid var(--line); }
+  @media print {
+    header.hero { background: #16202b !important; -webkit-print-color-adjust: exact; }
+    nav.toc ol { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>SfRB — Straightforward Resume Builder</h1>
+  <p class="sub">A system overview: where the project came from, what it is today, and where it goes next.
+  Resumes as editable as a document, as controllable as a design file, as auditable as source code.</p>
+  <p class="meta">Version <code>0.1.0</code> · Apache-2.0 · Node ≥ 20 · TypeScript + Zod + Vite + Playwright · Written 2026-06-11, as of PR&nbsp;#19 (<code>feat/v1-finish-the-app</code>)</p>
+</header>
+
+<main>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#purpose">Purpose &amp; philosophy</a></li>
+    <li><a href="#past">The past — how SfRB got here</a></li>
+    <li><a href="#architecture">Architecture (present)</a></li>
+    <li><a href="#document-model">The canonical document model</a></li>
+    <li><a href="#operations">The 13-operation mutation vocabulary</a></li>
+    <li><a href="#bridge">The bridge HTTP contract</a></li>
+    <li><a href="#lenses">Physics &amp; the three lenses</a></li>
+    <li><a href="#mockups">Editor mockups</a></li>
+    <li><a href="#reconciliation">Freeform reconciliation</a></li>
+    <li><a href="#ai">The AI layout consultant</a></li>
+    <li><a href="#a11y">Accessibility &amp; presentation quality</a></li>
+    <li><a href="#security">Security model</a></li>
+    <li><a href="#testing">Testing &amp; verification infrastructure</a></li>
+    <li><a href="#future">The future — direction &amp; deferred work</a></li>
+    <li><a href="#limitations">Known limitations &amp; honest edges</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<section id="purpose">
+  <h2><span class="kicker">Why it exists</span>Purpose &amp; philosophy</h2>
+  <p class="lead">SfRB is a <strong>local-first, CLI-first resume editor</strong>. One command initializes a workspace, one command opens a browser editor served by a local bridge, one command exports a PDF — and every one of those paths reads and writes the same single JSON file.</p>
+
+  <p>Most resume tools force one of three bad tradeoffs:</p>
+  <ul>
+    <li><strong>Document editors</strong> are easy to write in but weak on layout control.</li>
+    <li><strong>Design tools</strong> give precise layout but become brittle the moment content changes.</li>
+    <li><strong>AI resume tools</strong> suggest edits without a trustworthy local source of truth.</li>
+  </ul>
+  <p>SfRB's answer is a different contract, and everything in the system derives from it:</p>
+
+  <div class="cards">
+    <div class="card"><h4>1. One canonical document</h4><p><code>resume.sfrb.json</code> is the only authoritative state. Browser, CLI, export, and templates all derive from it. Every mutation passes schema + physics validation before any byte reaches disk.</p></div>
+    <div class="card"><h4>2. Document <em>and</em> design editing</h4><p>A workspace declares its <em>physics</em> — <code>document</code> (flowing text) or <code>design</code> (fixed frames) — and the editor offers guided lenses appropriate to that physics over the same model.</p></div>
+    <div class="card"><h4>3. Chrome-free export</h4><p>The PDF is rendered from a clean <code>/print</code> presentation surface, never from the editor DOM. What you export carries zero editor affordances.</p></div>
+    <div class="card"><h4>4. AI proposes, never bypasses</h4><p>The layout consultant can suggest overflow fixes, but proposals pass the same local validation and require explicit acceptance. Provider keys never leave the local bridge.</p></div>
+    <div class="card"><h4>5. Explicit failure beats silent degradation</h4><p>Content that doesn't fit, mutations that are rejected, AI that is unavailable — the product says so visibly. Nothing fails quietly.</p></div>
+    <div class="card"><h4>6. The one-page contract</h4><p>v1.0 deliberately models <strong>one page</strong>. Overflow is measured and gates the export rather than paginating. The consultant exists to help you <em>fit</em>, not to add pages.</p></div>
+  </div>
+
+  <h3>Who it's for</h3>
+  <p>Two audiences, one tool: a <strong>non-technical user</strong> who runs <code>sfrb init</code> / <code>sfrb open</code> and edits in the browser without ever seeing JSON, and a <strong>technical user</strong> who scripts the same edits through <code>sfrb edit</code>, keeps their resume in git, and trusts that the file on disk is the whole truth. CLI parity is a hard rule: every meaningful editor action must be representable as a structured operation invokable from the CLI.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="past">
+  <h2><span class="kicker">The past</span>How SfRB got here</h2>
+  <p class="lead">The project grew through five requirement-driven milestones (R001–R018, archived under <code>docs/history/gsd/</code>), survived the loss of an entire editor implementation, and was completed in June&nbsp;2026 by a greenfield rebuild of that lost work.</p>
+
+  <ul class="timeline">
+    <li>
+      <span class="when">Milestone 1 · Foundation &amp; physics <span class="pill shipped">shipped</span></span>
+      <h4>The canonical workspace contract</h4>
+      <p>Workspace init (R002), the Zod document schema with generated <code>schema.json</code>, document-vs-design physics validation (R005), the local Vite bridge (R003), mode-aware browser editing with persistence (R004), and the first AI consultant loop (R006). Established the rule everything else obeys: one document, one validated write path.</p>
+    </li>
+    <li>
+      <span class="when">Milestone 2 · Resume engine &amp; guided editing <span class="pill lost">original lost</span> <span class="pill rebuilt">rebuilt 2026</span></span>
+      <h4>The rich editor that vanished</h4>
+      <p>The deep editor — three-lens guided editing (R008), structured CLI-parity operations (R009), mode reconciliation (R012), freeform element editing (R014), tile grouping/locking (R015), sleek presentation (R011) — was designed and built in a separate worktree whose code <strong>never reached this repository's lineage</strong>. Only the design documents survived. For months, <code>main</code> shipped a UI that honestly said "Freeform lens — not shipped yet."</p>
+    </li>
+    <li>
+      <span class="when">Milestone 3 · Export &amp; presentation depth <span class="pill shipped">shipped</span></span>
+      <h4>PDF export that matches the built resume</h4>
+      <p>The shared <code>/print</code> surface powering both browser preview and CLI export (R013), deterministic ready/risk/blocked export markers, and Playwright-driven PDF generation. The artifact path is chrome-free; the preview path may expose diagnostics.</p>
+    </li>
+    <li>
+      <span class="when">Milestone 4 · Template &amp; theme system <span class="pill shipped">shipped</span></span>
+      <h4>Typography as a typed contract</h4>
+      <p>Three first-party templates (<code>default</code>, <code>classic</code>, <code>modern</code>) selectable from CLI or browser (R018). The binding rule: <strong>templates are typography, not geometry</strong> — a <code>Theme</code> exposes fonts, colors, and per-block spacing, never page size, margins, or frame boxes. Registry and theme map are aligned at compile time.</p>
+    </li>
+    <li>
+      <span class="when">Milestone 5 · Distribution <span class="pill next">re-scoped</span></span>
+      <h4>The git-clone decision</h4>
+      <p>Originally an npm-publishing milestone, never started. A deliberate 2026 scope decision re-cast SfRB as a <strong>polished git-clone tool</strong>: no package publishing, no release automation, no CHANGELOG — docs and verification target the clone-build-run path instead. npm publishing stays a non-goal until a maintainer opts in.</p>
+    </li>
+    <li>
+      <span class="when">June 2026 · PR #19 <span class="pill rebuilt">the one-shot rebuild</span></span>
+      <h4>Finishing the app</h4>
+      <p>A single 10-commit branch (<code>feat/v1-finish-the-app</code>) rebuilt the lost Milestone-2 editor greenfield on today's foundation and finished the product: the 13-operation vocabulary shared by bridge and the new <code>sfrb edit</code>, the tile lens (split/group/lock/canonical group moves), the freeform lens (direct move/resize/dividers), explicit freeform-exit reconciliation, a keyboard-operable accessible shell, a WCAG-AA template contrast gate, and honest docs. The test suite grew from 26 files / 96 tests to <strong>38 files / 172 tests</strong>, plus six end-to-end smoke verifiers. CI green.</p>
+    </li>
+    <li class="future">
+      <span class="when">Next · Distribution, automation &amp; ecosystem <span class="pill next">current focus</span></span>
+      <h4>Make it easy to install, verify, extend, maintain</h4>
+      <p>See <a href="#future">The future</a> below.</p>
+    </li>
+  </ul>
+
+  <div class="callout">
+    <p><strong>A note on planning history:</strong> the project used a heavyweight <code>.gsd</code> requirements workflow (REQUIREMENTS / DECISIONS / STATE / milestone files). That archive is preserved read-only under <code>docs/history/gsd/</code>; active planning now lives in <code>ROADMAP.md</code>, GitHub issues, and PR descriptions. New <code>.gsd</code> planning files must not be created.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="architecture">
+  <h2><span class="kicker">The present</span>Architecture</h2>
+  <p class="lead">The whole product is one canonical document boundary mediated by a local HTTP bridge. Two front doors (CLI and browser), one mutation model, one file.</p>
+
+  <figure>
+    <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, sans-serif">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5a6a"/>
+        </marker>
+        <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f6feb"/>
+        </marker>
+      </defs>
+
+      <!-- CLI box -->
+      <rect x="30" y="40" width="240" height="150" rx="10" fill="#f0f3f6" stroke="#4a5a6a" stroke-width="1.5"/>
+      <text x="150" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#1d2733">sfrb CLI</text>
+      <text x="150" y="86" text-anchor="middle" font-size="11" fill="#4a5a6a">dist/cli.js · Commander · CJS</text>
+      <text x="46" y="112" font-size="12" fill="#1d2733">init · open · export</text>
+      <text x="46" y="132" font-size="12" fill="#1d2733">template list/show/apply</text>
+      <text x="46" y="152" font-size="12" fill="#1f6feb" font-weight="600">edit --op '{…}' (offline parity)</text>
+      <text x="46" y="172" font-size="12" fill="#4a5a6a">edit --list-ops</text>
+
+      <!-- Browser box -->
+      <rect x="690" y="40" width="240" height="150" rx="10" fill="#f0f3f6" stroke="#4a5a6a" stroke-width="1.5"/>
+      <text x="810" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#1d2733">Browser editor</text>
+      <text x="810" y="86" text-anchor="middle" font-size="11" fill="#4a5a6a">web/src · shell + canvas + engine</text>
+      <text x="706" y="112" font-size="12" fill="#1d2733">3 lenses: text · tile · freeform</text>
+      <text x="706" y="132" font-size="12" fill="#1d2733">engine.ts: selection, drafts,</text>
+      <text x="706" y="148" font-size="12" fill="#1d2733">op-emitting commit queue</text>
+      <text x="706" y="172" font-size="12" fill="#4a5a6a">print preview + export readiness</text>
+
+      <!-- Bridge box -->
+      <rect x="310" y="230" width="340" height="140" rx="10" fill="#e7f0fe" stroke="#1f6feb" stroke-width="2"/>
+      <text x="480" y="258" text-anchor="middle" font-size="16" font-weight="700" fill="#1d2733">Local bridge</text>
+      <text x="480" y="276" text-anchor="middle" font-size="11" fill="#4a5a6a">src/bridge/server.mjs · Vite dev server · owns all disk I/O</text>
+      <text x="330" y="300" font-size="12" fill="#1d2733">GET /__sfrb/bootstrap — full-state reconciliation</text>
+      <text x="330" y="320" font-size="12" fill="#1d2733">POST /__sfrb/editor — {document} | {operation}</text>
+      <text x="330" y="340" font-size="12" fill="#1d2733">POST /__sfrb/consultant — sanitized AI proposals</text>
+      <text x="330" y="360" font-size="12" fill="#1d2733">GET /print?mode=artifact — chrome-free render</text>
+
+      <!-- Operations module -->
+      <rect x="310" y="420" width="340" height="60" rx="10" fill="#fff8e1" stroke="#9a6700" stroke-width="1.5"/>
+      <text x="480" y="445" text-anchor="middle" font-size="14" font-weight="700" fill="#1d2733">src/document/operations/</text>
+      <text x="480" y="464" text-anchor="middle" font-size="11" fill="#4a5a6a">13-op vocabulary · parse → apply → validate → write (shared verbatim)</text>
+
+      <!-- Document box -->
+      <rect x="30" y="420" width="230" height="100" rx="10" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"/>
+      <text x="145" y="448" text-anchor="middle" font-size="14" font-weight="700" fill="#1d2733">Canonical workspace</text>
+      <text x="145" y="470" text-anchor="middle" font-size="12" fill="#1a7f37" font-weight="600">resume.sfrb.json</text>
+      <text x="145" y="488" text-anchor="middle" font-size="11" fill="#4a5a6a">sfrb.config.json (physics, provider)</text>
+      <text x="145" y="506" text-anchor="middle" font-size="10" fill="#4a5a6a">schema + physics validated writes only</text>
+
+      <!-- Provider box -->
+      <rect x="710" y="420" width="220" height="100" rx="10" fill="#f3eefc" stroke="#6e40c9" stroke-width="1.5" stroke-dasharray="6 3"/>
+      <text x="820" y="448" text-anchor="middle" font-size="14" font-weight="700" fill="#1d2733">AI provider (optional)</text>
+      <text x="820" y="468" text-anchor="middle" font-size="11" fill="#4a5a6a">DeepSeek / OpenAI / Anthropic</text>
+      <text x="820" y="486" text-anchor="middle" font-size="11" fill="#6e40c9">keys live in env vars only</text>
+      <text x="820" y="504" text-anchor="middle" font-size="10" fill="#4a5a6a">raw responses never reach browser</text>
+
+      <!-- arrows -->
+      <path d="M 270 130 C 360 130 420 180 450 228" fill="none" stroke="#4a5a6a" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="318" y="160" font-size="10.5" fill="#4a5a6a">open: spawn bridge</text>
+
+      <path d="M 150 190 L 150 416" fill="none" stroke="#1f6feb" stroke-width="2" marker-end="url(#arrowBlue)"/>
+      <text x="158" y="290" font-size="10.5" fill="#1f6feb">edit / template / init</text>
+      <text x="158" y="304" font-size="10.5" fill="#1f6feb">→ runWorkspaceOperation</text>
+
+      <path d="M 690 130 C 600 130 540 180 510 228" fill="none" stroke="#1f6feb" stroke-width="2" marker-end="url(#arrowBlue)"/>
+      <text x="556" y="156" font-size="10.5" fill="#1f6feb">all mutations as ops</text>
+
+      <path d="M 660 290 C 740 290 790 220 800 194" fill="none" stroke="#4a5a6a" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="724" y="262" font-size="10.5" fill="#4a5a6a">bootstrap / invalidation</text>
+
+      <path d="M 480 370 L 480 416" fill="none" stroke="#9a6700" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="490" y="398" font-size="10.5" fill="#9a6700">{operation} route</text>
+
+      <path d="M 306 460 L 264 460" fill="none" stroke="#1a7f37" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="285" y="450" text-anchor="middle" font-size="10.5" fill="#1a7f37">write</text>
+
+      <path d="M 654 340 C 730 360 770 390 800 416" fill="none" stroke="#6e40c9" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+      <text x="712" y="384" font-size="10.5" fill="#6e40c9">consultant call</text>
+    </svg>
+    <figcaption>Fig. 1 — System architecture. Both front doors converge on the shared operations module; only the validated path writes the canonical file.</figcaption>
+  </figure>
+
+  <h3>Module map</h3>
+  <table>
+    <tr><th>Area</th><th>Path</th><th>Responsibility</th></tr>
+    <tr><td>CLI</td><td><code>src/cli.ts</code>, <code>src/commands/*</code></td><td>Commander entry; <code>init</code>, <code>open</code>, <code>edit</code>, <code>export</code>, <code>template</code>. Compiles to CommonJS in <code>dist/</code>.</td></tr>
+    <tr><td>Bridge</td><td><code>src/bridge/server.mjs</code></td><td>ESM Vite dev server; loads compiled CJS via <code>createRequire</code>; owns all disk I/O; serves editor, print, and the three API routes.</td></tr>
+    <tr><td>Operations</td><td><code>src/document/operations/</code></td><td>Zod op schemas, pure <code>applyEditorOperation</code>, and <code>runWorkspaceOperation</code> (read → parse → apply → validate → write) — shared verbatim by bridge and CLI.</td></tr>
+    <tr><td>Document model</td><td><code>src/document/</code></td><td>Canonical Zod schema, store, physics validation, starter workspaces, template registry.</td></tr>
+    <tr><td>Web shell</td><td><code>web/src/shell/</code></td><td>Markup, injected stylesheet, lens switcher, panels, reconciliation dialog, collapsed diagnostics inspector.</td></tr>
+    <tr><td>Canvas</td><td><code>web/src/editor/canvas/</code></td><td>Flow / tile / freeform surfaces plus pointer (drag/resize/nudge), overflow measurement, and text-editing controllers.</td></tr>
+    <tr><td>Engine</td><td><code>web/src/editor/engine.ts</code></td><td>The single browser state core: selection (incl. multi-select), active lens, drafts/overrides, debounced op-emitting commit queue, <code>dispatch(op)</code>.</td></tr>
+    <tr><td>Presentation</td><td><code>web/src/presentation/</code></td><td>Printable resume renderer, template themes, WCAG contrast math. Powers both preview and artifact.</td></tr>
+    <tr><td>Consultant</td><td><code>src/agent/LayoutConsultant.ts</code></td><td>AI provider boundary: prompt assembly, response validation, proposal bounds-checking, failure classification.</td></tr>
+    <tr><td>Verification</td><td><code>tests/</code>, <code>scripts/verify-*.mjs</code></td><td>38 vitest files (unit, contract, real-Chromium browser tests) + 6 built-CLI smoke verifiers.</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="document-model">
+  <h2><span class="kicker">The present</span>The canonical document model</h2>
+  <p class="lead"><code>resume.sfrb.json</code> separates <em>semantics</em> (sections and blocks of text) from <em>geometry</em> (pages and frames), connected by IDs. Schema version is <code>1</code>; every 2026 addition was additive and defaulted, so older documents load unchanged.</p>
+
+<pre><code>{
+  "version": 1,
+  "metadata": { "title", "locale", "starter", "template": { "id", "version" } },
+
+  "sections": [                       // semantic order
+    { "id", "title", "blockIds": ["…"] }
+  ],
+  "blocks": [
+    { "id",
+      "kind": "heading | paragraph | bullet | fact | divider",
+      "text",                         // required unless kind === 'divider'
+      "splitFrom"?: "originalBlockId" // provenance from split-block
+    }
+  ],
+
+  "layout": {
+    "pages":  [ { "id", … } ],        // one page (v1.0 contract)
+    "frames": [
+      { "id", "blockId", "pageId",
+        "box": { "x", "y", "width", "height" },   // points
+        "zIndex",
+        "placement": "managed | free" }           // freeform reconciliation state
+    ],
+    "frameGroups": [
+      { "id", "pageId", "frameIds": [ ≥2 ], "locked": boolean }
+    ]
+  }
+}</code></pre>
+
+  <h3>Schema invariants (enforced by Zod <code>superRefine</code>)</h3>
+  <ul>
+    <li>All IDs unique within their collection; frames reference existing blocks/pages.</li>
+    <li>Non-divider blocks require non-empty text ("Block text is required"); dividers carry <code>text: ""</code>.</li>
+    <li>Frame-group invariants: unique group IDs, every member frame exists, a frame belongs to at most one group, member pages match the group's page.</li>
+    <li><strong>Physics overlay:</strong> <code>document</code> workspaces forbid frames and frame groups entirely; <code>design</code> workspaces require every block to be frame-backed.</li>
+  </ul>
+  <p>The machine-readable contract is generated to <code>schema.json</code> (<code>npm run schema:generate</code>) and CI asserts it never drifts from the Zod source (<code>npm run schema:check</code>).</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="operations">
+  <h2><span class="kicker">The present</span>The 13-operation mutation vocabulary</h2>
+  <p class="lead">Every editor action is a structured operation — a Zod <code>discriminatedUnion</code> on <code>op</code> — applied by a pure function and validated before any write. The browser's <code>{operation}</code> route and <code>sfrb edit</code> run the <em>same</em> code, so the two front doors cannot fork the mutation model.</p>
+
+  <table>
+    <tr><th>Operation</th><th>What it does</th><th>Notable rejection semantics</th></tr>
+    <tr><td><code>set-title</code></td><td>Sets <code>metadata.title</code>.</td><td>—</td></tr>
+    <tr><td><code>set-section-title</code></td><td>Renames a section.</td><td>Section must exist.</td></tr>
+    <tr><td><code>set-template</code></td><td>Applies a registered template's metadata.</td><td>Template ID must be in the registry.</td></tr>
+    <tr><td><code>set-block-text</code></td><td>Replaces a block's text.</td><td>Block must exist; text non-empty.</td></tr>
+    <tr><td><code>insert-block</code></td><td>Adds a block (optionally with a frame, e.g. freeform dividers).</td><td>ID collisions rejected; design physics requires the frame.</td></tr>
+    <tr><td><code>remove-block</code></td><td>Removes a block with a full cascade.</td><td>Cascade: section membership → drop empty section → drop frame → group membership → dissolve groups under 2 members. Removing the last block is rejected.</td></tr>
+    <tr><td><code>split-block</code></td><td>Atomically replaces one block with N derived segments carrying <code>splitFrom</code> provenance.</td><td>Frame-backed originals require matching frame boxes for each segment; frameless originals forbid them.</td></tr>
+    <tr><td><code>set-frame-box</code></td><td>Moves and/or resizes one frame (drags, nudges, consultant accepts).</td><td>Rejected for locked-group members ("move the group or unlock it") and for <code>free</code>-placed frames unless flagged <code>asFreeform</code> (the freeform lens's acknowledgment).</td></tr>
+    <tr><td><code>move-group</code></td><td>Translates every member of a locked group by (dx, dy) as one canonical write.</td><td>Group must exist <em>and</em> be locked.</td></tr>
+    <tr><td><code>group-frames</code></td><td>Creates a frame group from ≥2 frames.</td><td>Members must exist, share one page, be ungrouped, and not be freeform-placed.</td></tr>
+    <tr><td><code>ungroup-frames</code></td><td>Dissolves a group; frames stay put.</td><td>Group must exist.</td></tr>
+    <tr><td><code>set-group-locked</code></td><td>Locks/unlocks a group.</td><td>Group must exist.</td></tr>
+    <tr><td><code>reconcile-freeform</code></td><td>Resolves freeform placement: <code>rejoin_layout</code> → <code>managed</code>, <code>keep_locked</code> → <code>free</code>.</td><td><strong>Placement-only:</strong> geometry is never rewritten — no snap-back, ever.</td></tr>
+  </table>
+
+  <h3>CLI parity in practice</h3>
+<pre><code># discover the vocabulary
+node dist/cli.js edit --list-ops
+
+# inline op, machine-readable envelope
+node dist/cli.js edit --cwd ~/my-resume --json \
+  --op '{"op":"set-block-text","blockId":"summaryBlock","text":"New summary."}'
+
+# from a file, or from stdin
+node dist/cli.js edit --cwd ~/my-resume --op-file ./operation.json
+echo '{"op":"set-title","title":"My Resume"}' | node dist/cli.js edit --cwd ~/my-resume</code></pre>
+  <p>The <code>--json</code> envelope reports <code>{ok, code, op, writeOutcome: "written" | "no_write", issues, documentPath, configPath}</code>; invalid operations exit non-zero <em>without writing</em>. If the browser editor is open, it picks CLI edits up live through bootstrap reconciliation.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="bridge">
+  <h2><span class="kicker">The present</span>The bridge HTTP contract</h2>
+  <p class="lead">Four load-bearing routes. Bridge update events are <em>invalidation signals</em>, not authoritative payloads — the browser always reconciles full state from bootstrap.</p>
+  <table>
+    <tr><th>Route</th><th>Purpose</th><th>Failure codes</th></tr>
+    <tr><td><code>GET /__sfrb/bootstrap</code></td><td>Full-state reconciliation source: workspace paths, physics, starter, AI status, and the entire canonical document.</td><td>—</td></tr>
+    <tr><td><code>POST /__sfrb/editor</code></td><td>All browser mutations, as <strong>exactly one</strong> of <code>{document}</code> (full document, legacy) or <code>{operation}</code> (structured op). Validation runs before any write.</td><td><code>400 request_invalid</code> (both/neither key), <code>400 operation_invalid</code> (path-aware issues, no write), <code>422 document_invalid</code>, <code>409 physics_invalid</code>, <code>500 persistence_failed</code></td></tr>
+    <tr><td><code>POST /__sfrb/consultant</code></td><td>AI overflow proposals. Browser sees only validated proposal payloads or sanitized failures.</td><td><code>502 provider_auth</code> / <code>proposal_rejected</code>, <code>503 provider_rate_limited</code> / <code>provider_unavailable</code>, <code>configuration_missing</code></td></tr>
+    <tr><td><code>GET /print</code></td><td>Shared presentation surface. <code>?mode=artifact</code> is chrome-free (the export path); preview mode may carry diagnostics, plus <code>data-template-id</code>/<code>-version</code> markers.</td><td>—</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="lenses">
+  <h2><span class="kicker">The present</span>Physics &amp; the three lenses</h2>
+  <p class="lead">A workspace declares its physics at <code>init</code>; the editor then offers <em>lenses</em> — guided views over the one canonical document. Lenses are browser-local state; the document never records which lens you're in.</p>
+
+  <table>
+    <tr><th>Lens</th><th><code>document</code> physics</th><th><code>design</code> physics</th><th>What it's for</th></tr>
+    <tr><td><strong>Text</strong></td><td>✅ (default)</td><td>✅</td><td>Flow-ordered inline text editing. Click a block, type, save is debounced and emitted as <code>set-block-text</code>.</td></tr>
+    <tr><td><strong>Tile</strong></td><td>— <em>(needs frames)</em></td><td>✅ (default)</td><td>Structured layout: drag managed frames, split multi-line tiles into provenance-carrying segments, group/ungroup, lock compositions that then move only as one canonical <code>move-group</code>.</td></tr>
+    <tr><td><strong>Freeform</strong></td><td>— <em>(needs frames)</em></td><td>✅</td><td>Direct manipulation: grab any element anywhere, resize from the SE corner handle, add/remove divider elements. Exits through explicit reconciliation.</td></tr>
+  </table>
+
+  <p>Unavailable lenses say why ("Requires a design workspace — physics is set at init") instead of disappearing. The switcher is a keyboard-operable radiogroup with roving tabindex.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="mockups">
+  <h2><span class="kicker">The present</span>Editor mockups</h2>
+  <p class="lead">Stylized recreations of the three core editor states. (Proportions simplified; the real canvas pins its serif to Times New Roman because overflow-measurement expectations are tuned to those text metrics.)</p>
+
+  <h3>Tile lens — grouping &amp; locking</h3>
+  <div class="mockup">
+    <div class="mk-titlebar"><b>SfRB</b> · Straightforward Resume Builder
+      <span class="mk-lenses">
+        <span class="mk-lens">Text</span><span class="mk-lens active">Tile</span><span class="mk-lens">Freeform</span>
+      </span>
+    </div>
+    <div class="mk-body">
+      <div class="mk-canvas">
+        <div class="mk-page">
+          <span class="mk-badge locked" style="left:14px; top:6px;">heroComposition · LOCKED</span>
+          <span class="mk-handle" style="left:212px; top:4px;" title="group drag handle">⠿</span>
+          <div class="mk-frame grouped" style="left:18px; top:22px; width:200px; height:30px;"><h5>Alex Carter</h5></div>
+          <div class="mk-frame grouped" style="left:18px; top:58px; width:284px; height:34px;"><span class="small">Design-made resume engineer pairing canonical documents with humane, local-first tools.</span></div>
+          <div class="mk-frame selected" style="left:18px; top:106px; width:284px; height:42px;"><span class="small"><b>Experience —</b> Led the resume-engine team; shipped a validated one-page export pipeline used by every workspace.</span></div>
+          <div class="mk-frame multi" style="left:18px; top:158px; width:134px; height:36px;"><span class="small"><b>Skills:</b> TypeScript, Zod, Vite, Playwright</span></div>
+          <div class="mk-frame" style="left:166px; top:158px; width:136px; height:36px;"><span class="small"><b>Education:</b> B.S. Human-Computer Interaction</span></div>
+          <div class="mk-frame" style="left:18px; top:208px; width:284px; height:30px;"><span class="small"><b>Contact:</b> alex@example.com · Portland, OR</span></span></div>
+        </div>
+      </div>
+      <div class="mk-side">
+        <h6>Tile toolbar</h6>
+        <div class="mk-toolbar">
+          <span class="mk-btn primary">Split</span><span class="mk-btn">Group</span>
+          <span class="mk-btn">Lock</span><span class="mk-btn">Ungroup</span>
+        </div>
+        <h6>Selection</h6>
+        <p style="margin:0 0 8px;">1 primary + 1 shift-selected frame. <b>Group</b> will create a new frame group.</p>
+        <div class="mk-note">Blocked: "experienceFrame is a locked group member — move the group or unlock it."</div>
+        <div class="mk-status" aria-label="save state">Saved · all changes on disk</div>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">Fig. 2 — Tile lens. The locked hero group (name + summary, shipped in the template starter) moves only via its drag handle as one canonical <code>move-group</code>; dragging a member is a visible no-write. Dashed selection = shift-click multi-select.</p>
+
+  <h3>Freeform lens — direct manipulation</h3>
+  <div class="mockup">
+    <div class="mk-titlebar"><b>SfRB</b> · Straightforward Resume Builder
+      <span class="mk-lenses">
+        <span class="mk-lens">Text</span><span class="mk-lens">Tile</span><span class="mk-lens active">Freeform</span>
+      </span>
+    </div>
+    <div class="mk-body">
+      <div class="mk-canvas">
+        <div class="mk-page">
+          <div class="mk-frame" style="left:18px; top:14px; width:200px; height:30px;"><h5>Alex Carter</h5></div>
+          <div class="mk-frame selected" style="left:40px; top:60px; width:240px; height:34px;">
+            <span class="small">Design-made resume engineer pairing canonical documents with humane, local-first tools.</span>
+            <span class="mk-resize"></span>
+          </div>
+          <div class="mk-divider" style="left:18px; top:112px; width:284px;"></div>
+          <div class="mk-frame" style="left:18px; top:126px; width:284px; height:42px;"><span class="small"><b>Experience —</b> Led the resume-engine team; shipped a validated one-page export pipeline.</span></div>
+          <div class="mk-frame" style="left:18px; top:182px; width:134px; height:36px;"><span class="small"><b>Skills:</b> TypeScript, Zod, Vite, Playwright</span></div>
+        </div>
+      </div>
+      <div class="mk-side">
+        <h6>Freeform HUD</h6>
+        <div class="mk-hud-row"><span>element</span><code>heroSummaryFrame</code></div>
+        <div class="mk-hud-row"><span>kind</span><code>paragraph</code></div>
+        <div class="mk-hud-row"><span>geometry</span><code>40,60 · 240×34</code></div>
+        <div class="mk-hud-row"><span>move state</span><code>preview</code></div>
+        <div class="mk-toolbar" style="margin-top:10px;">
+          <span class="mk-btn">Add divider</span><span class="mk-btn danger">Remove element</span>
+        </div>
+        <p style="margin:8px 0 0;">Grab anywhere on an element to move it; the corner handle resizes. Geometry commits are debounced <code>set-frame-box (asFreeform)</code> writes.</p>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">Fig. 3 — Freeform lens. Every non-locked element is directly draggable; the divider is a real <code>divider</code> block inserted via <code>insert-block</code> and rendered as a chrome-free rule on export.</p>
+
+  <h3>Leaving freeform — the reconciliation dialog</h3>
+  <div class="mockup">
+    <div class="mk-body" style="min-height:260px;">
+      <div class="mk-canvas" style="position:relative;">
+        <div class="mk-page" style="filter:blur(1px); opacity:0.7;">
+          <div class="mk-frame" style="left:18px; top:14px; width:200px; height:30px;"><h5>Alex Carter</h5></div>
+          <div class="mk-frame free" style="left:52px; top:64px; width:240px; height:34px;"><span class="small">Design-made resume engineer pairing canonical documents with humane tools.</span></div>
+          <div class="mk-frame" style="left:18px; top:126px; width:284px; height:42px;"><span class="small"><b>Experience —</b> Led the resume-engine team.</span></div>
+        </div>
+        <div class="mk-dialog-overlay">
+          <div class="mk-dialog" role="dialog" aria-modal="true">
+            <h5>You moved 1 element in freeform</h5>
+            <p>How should it rejoin the document?</p>
+            <span class="mk-btn primary">Rejoin layout — back under tile management, keeps its new position</span>
+            <span class="mk-btn">Keep freeform placement — pinned; tile-lens moves will be blocked</span>
+            <span class="mk-btn">Cancel — stay in freeform</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">Fig. 4 — Reconciliation dialog (focus-trapped, Escape = Cancel). Whatever you choose, geometry is never rewritten — only the frame's <code>placement</code> changes.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="reconciliation">
+  <h2><span class="kicker">The present</span>Freeform reconciliation — mode changes without surprise</h2>
+  <p class="lead">The hardest design problem in a hybrid document/design editor is what happens when freeform placement meets managed layout. SfRB's answer: an explicit, placement-only state machine.</p>
+
+  <figure>
+    <svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, sans-serif">
+      <defs>
+        <marker id="ra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5a6a"/>
+        </marker>
+      </defs>
+      <!-- freeform editing state -->
+      <rect x="30" y="140" width="220" height="90" rx="12" fill="#e7f0fe" stroke="#1f6feb" stroke-width="2"/>
+      <text x="140" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#1d2733">Freeform editing</text>
+      <text x="140" y="192" text-anchor="middle" font-size="11" fill="#4a5a6a">moves/resizes persist immediately</text>
+      <text x="140" y="208" text-anchor="middle" font-size="11" fill="#4a5a6a">engine tracks touched frames</text>
+
+      <!-- exit decision -->
+      <path d="M 390 140 L 470 185 L 390 230 L 310 185 Z" fill="#fff8e1" stroke="#9a6700" stroke-width="2"/>
+      <text x="390" y="180" text-anchor="middle" font-size="12" font-weight="700" fill="#1d2733">touched</text>
+      <text x="390" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#1d2733">frames?</text>
+
+      <!-- silent switch -->
+      <rect x="560" y="30" width="200" height="60" rx="12" fill="#f0f3f6" stroke="#4a5a6a" stroke-width="1.5"/>
+      <text x="660" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#1d2733">Silent lens switch</text>
+      <text x="660" y="74" text-anchor="middle" font-size="11" fill="#4a5a6a">nothing was moved · no dialog</text>
+
+      <!-- dialog -->
+      <rect x="540" y="150" width="240" height="70" rx="12" fill="#ffffff" stroke="#1d2733" stroke-width="2"/>
+      <text x="660" y="178" text-anchor="middle" font-size="13" font-weight="700" fill="#1d2733">Reconciliation dialog</text>
+      <text x="660" y="196" text-anchor="middle" font-size="11" fill="#4a5a6a">role="dialog" · focus-trapped · Esc = cancel</text>
+
+      <!-- outcomes -->
+      <rect x="540" y="260" width="115" height="110" rx="12" fill="#e6f4ea" stroke="#1a7f37" stroke-width="2"/>
+      <text x="597" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#1a7f37">Rejoin layout</text>
+      <text x="597" y="305" text-anchor="middle" font-size="10" fill="#1d2733">placement →</text>
+      <text x="597" y="319" text-anchor="middle" font-size="10" font-weight="700" fill="#1d2733">managed</text>
+      <text x="597" y="339" text-anchor="middle" font-size="9.5" fill="#4a5a6a">keeps freeform</text>
+      <text x="597" y="352" text-anchor="middle" font-size="9.5" fill="#4a5a6a">position — no snap-back</text>
+
+      <rect x="672" y="260" width="115" height="110" rx="12" fill="#f3eefc" stroke="#6e40c9" stroke-width="2"/>
+      <text x="729" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#6e40c9">Keep freeform</text>
+      <text x="729" y="305" text-anchor="middle" font-size="10" fill="#1d2733">placement →</text>
+      <text x="729" y="319" text-anchor="middle" font-size="10" font-weight="700" fill="#1d2733">free</text>
+      <text x="729" y="339" text-anchor="middle" font-size="9.5" fill="#4a5a6a">tile drags become</text>
+      <text x="729" y="352" text-anchor="middle" font-size="9.5" fill="#4a5a6a">visible no-writes</text>
+
+      <rect x="804" y="260" width="115" height="110" rx="12" fill="#f0f3f6" stroke="#4a5a6a" stroke-width="1.5"/>
+      <text x="861" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#1d2733">Cancel</text>
+      <text x="861" y="308" text-anchor="middle" font-size="10" fill="#4a5a6a">stay in freeform</text>
+      <text x="861" y="324" text-anchor="middle" font-size="10" fill="#4a5a6a">no write at all</text>
+
+      <!-- arrows -->
+      <path d="M 254 185 L 306 185" fill="none" stroke="#4a5a6a" stroke-width="2" marker-end="url(#ra)"/>
+      <text x="280" y="175" text-anchor="middle" font-size="10.5" fill="#4a5a6a">exit</text>
+
+      <path d="M 412 148 C 460 90 500 60 556 60" fill="none" stroke="#4a5a6a" stroke-width="2" marker-end="url(#ra)"/>
+      <text x="478" y="84" font-size="10.5" fill="#4a5a6a">none touched</text>
+
+      <path d="M 474 185 L 536 185" fill="none" stroke="#4a5a6a" stroke-width="2" marker-end="url(#ra)"/>
+      <text x="505" y="175" text-anchor="middle" font-size="10.5" fill="#4a5a6a">≥1</text>
+
+      <path d="M 612 224 C 600 238 598 246 597 256" fill="none" stroke="#1a7f37" stroke-width="2" marker-end="url(#ra)"/>
+      <path d="M 690 224 C 715 238 725 246 729 256" fill="none" stroke="#6e40c9" stroke-width="2" marker-end="url(#ra)"/>
+      <path d="M 760 220 C 820 234 850 244 859 256" fill="none" stroke="#4a5a6a" stroke-width="2" marker-end="url(#ra)"/>
+
+      <text x="597" y="248" text-anchor="middle" font-size="9.5" fill="#1a7f37">reconcile-freeform</text>
+      <text x="729" y="248" text-anchor="middle" font-size="9.5" fill="#6e40c9">reconcile-freeform</text>
+
+      <!-- cancel loop back -->
+      <path d="M 861 374 C 861 392 140 392 140 234" fill="none" stroke="#4a5a6a" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ra)"/>
+    </svg>
+    <figcaption>Fig. 5 — The freeform-exit state machine. Both resolutions are one <code>reconcile-freeform</code> operation; geometry is never rewritten by either path.</figcaption>
+  </figure>
+
+  <ul>
+    <li><strong>Geometry continuity is sacred.</strong> Freeform commits persist immediately (debounced <code>set-frame-box</code> with <code>asFreeform</code>); reconciliation later changes only <code>placement</code>. Users never watch their layout snap back.</li>
+    <li><strong>Kept-free frames stay honest.</strong> A <code>free</code> frame in the tile lens shows blocked diagnostics on any drag, nudge, or grouping attempt — the op layer rejects it and the UI says why ("edit it in the freeform lens or reconcile with rejoin"). Text editing of its block stays allowed.</li>
+    <li><strong>Overflow context carries across the switch</strong> — the transition strip echoes any live overflow diagnosis so a lens change never hides a problem.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="ai">
+  <h2><span class="kicker">The present</span>The AI layout consultant</h2>
+  <p class="lead">The consultant is deliberately the <em>only</em> AI surface in v1.0: it proposes overflow fixes — never content. BYOK (bring your own key), optional, and fully subordinate to local validation.</p>
+  <ul>
+    <li><strong>Flow:</strong> editor detects overflow → user requests a proposal → bridge calls the configured provider (DeepSeek default at <code>deepseek-v4-flash</code>; OpenAI and Anthropic supported) → response is parsed, schema-validated, and <strong>bounds-checked against page geometry</strong> (off-page boxes are rejected as <code>proposal_rejected</code>) → browser shows a ghost preview → explicit accept dispatches an ordinary <code>set-frame-box</code> through the same write path as a manual drag.</li>
+    <li><strong>Failure classification</strong> (added 2026): HTTP 401/403 → <code>provider_auth</code> (bridge 502), 429 → <code>provider_rate_limited</code> (503), other failures → <code>provider_unavailable</code>. Messages are status-shaped only — raw provider response bodies never reach the browser or logs.</li>
+    <li><strong>Skipped is a first-class state:</strong> <code>init --skip-ai</code> workspaces show an honest "AI setup is skipped" panel; text/tile/freeform editing is fully functional without any key.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="a11y">
+  <h2><span class="kicker">The present</span>Accessibility &amp; presentation quality</h2>
+  <div class="cards">
+    <div class="card"><h4>Keyboard-operable canvas</h4><p>Frames are tabbable with descriptive labels; <kbd>Enter</kbd> opens text editing, <kbd>Escape</kbd> exits/clears, arrows nudge 1pt and <kbd>Shift</kbd>+arrows 10pt through the same commit path as drags. Blocked targets show a diagnostic instead of silently not moving.</p></div>
+    <div class="card"><h4>Semantic shell</h4><p>Landmarks (<code>main</code>, <code>header</code>, labeled asides), lens switcher as a radiogroup with roving tabindex, save state on <code>aria-live="polite"</code>, blocked-action notes as <code>role="status"</code>, dialog focus-trapped with focus restoration.</p></div>
+    <div class="card"><h4>Automated contrast gate</h4><p>Every registered template theme must pass WCAG AA (4.5:1) text-vs-page contrast, computed by <code>web/src/presentation/contrast.ts</code> and enforced by a test — a fourth template that fails contrast cannot ship.</p></div>
+    <div class="card"><h4>Calm presentation</h4><p>The canvas is primary; diagnostics (bridge status, AI panel, payload preview, workspace paths) live in a collapsed inspector. A light, low-chrome shell with one injected stylesheet replaced the old inline-style strings.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="security">
+  <h2><span class="kicker">The present</span>Security model</h2>
+  <table>
+    <tr><th>Rule</th><th>Mechanism</th></tr>
+    <tr><td>No secrets on disk or in the browser</td><td><code>sfrb.config.json</code> stores only provider metadata and the <em>name</em> of an env var (e.g. <code>DEEPSEEK_API_KEY</code>); the bridge reads the key from the environment at call time. Workspace <code>.gitignore</code> protects the config file anyway.</td></tr>
+    <tr><td>Browser never sees provider internals</td><td>Consultant responses are validated bridge-side; the browser receives only schema-valid proposal payloads or sanitized, code-classified failures. No raw bodies, no auth headers.</td></tr>
+    <tr><td>One validated write path</td><td>All disk I/O is owned by the bridge / operation runner. Parse → apply → schema validate → physics validate → write; any failure means <em>no write</em>. There is no second path to corrupt the document.</td></tr>
+    <tr><td>Input validation at every boundary</td><td>Zod schemas validate CLI arguments, file content, bridge request bodies, and provider responses; untrusted input is <code>unknown</code> until narrowed.</td></tr>
+    <tr><td>Local-first by construction</td><td>The bridge binds locally; the resume never leaves the machine except as the PDF you export or the provider prompt you explicitly configure.</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="testing">
+  <h2><span class="kicker">The present</span>Testing &amp; verification infrastructure</h2>
+  <p class="lead">38 vitest files / 172 tests plus six end-to-end smoke verifiers, all green in CI (<code>build-test</code> is a required check on <code>main</code>).</p>
+  <ul>
+    <li><strong>Layered suites:</strong> document/schema unit tests, operation contract tests, bridge HTTP contract tests, CLI tests against the built <code>dist/cli.js</code>, presentation tests (including the byte-stability suite for the <code>default</code> template and the contrast gate), and real-Chromium browser tests (<code>tests/web/</code>) driving the actual bridge.</li>
+    <li><strong>Build discipline:</strong> a vitest global setup builds <code>dist/</code> exactly once before workers start; tests never rebuild mid-suite (this eliminated a whole class of rebuild-race flakes), and parallelism is capped at four workers.</li>
+    <li><strong>Smoke verifiers</strong> (<code>npm run verify:smoke</code>): editor, consultant, CLI edit, tile engine, freeform, and reconciliation — each drives the built CLI and a real browser through a user journey. A package-install smoke (<code>npm run verify:package</code>) packs the tarball and exercises the installed CLI.</li>
+    <li><strong>The frozen selector contract:</strong> every <code>id</code>/<code>data-testid</code> referenced by tests and verifiers is frozen — elements may move freely, but renaming or dropping a selector is a breaking change. This is what made the 2026 shell rewrite provable: the pre-existing editor and consultant smokes had to pass <em>unmodified</em>.</li>
+    <li><strong>Schema drift gate:</strong> <code>schema.json</code> is generated from the Zod source and CI fails if it drifts.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="future">
+  <h2><span class="kicker">The future</span>Direction &amp; deferred work</h2>
+  <p class="lead">With the full document → edit → export → template loop finished, the next milestone is <strong>Distribution, Automation &amp; Ecosystem</strong>: make SfRB easier to install, verify, extend, and maintain as an open-source project — while staying a git-clone tool.</p>
+
+  <h3>Current focus <span class="pill next">next</span></h3>
+  <ul>
+    <li>Install smoke coverage (<code>npm run verify:package</code>) running in CI, not just locally.</li>
+    <li><code>--help</code> UX polish and richer command examples.</li>
+    <li>Contributor scripts and local verification shortcuts.</li>
+    <li>More first-party templates with visual checks layered on the contrast gate.</li>
+    <li>Docs that describe the product accurately without leaning on the historical planning archive.</li>
+  </ul>
+
+  <h3>Deliberately deferred <span class="pill deferred">recorded decisions</span></h3>
+  <table>
+    <tr><th>Item</th><th>Why deferred</th><th>What revisiting would mean</th></tr>
+    <tr><td><strong>R016 — AI-assisted content authoring</strong></td><td>The editor engine had to come first; an AI writing into an unfinished mutation model would have entrenched a parallel write path.</td><td>Authoring proposals expressed <em>as structured operations</em> (e.g. proposed <code>set-block-text</code>/<code>insert-block</code> batches) flowing through the same preview/accept loop as the consultant.</td></tr>
+    <tr><td><strong>R017 — Provider/model configuration UX</strong></td><td>Config is functional (init-time flags + env vars); a settings UI is polish, not capability.</td><td>An editor settings panel writing <code>sfrb.config.json</code> through a validated path — still never holding the key itself.</td></tr>
+    <tr><td><strong>Multi-page documents</strong></td><td>The one-page contract <em>is</em> the v1.0 product: a trustworthy, fit-or-say-so single page. Pagination would dilute every overflow/export guarantee.</td><td>A schema-versioned change touching pages, frames, overflow measurement, export gating, and the consultant's mandate. Only with intent.</td></tr>
+    <tr><td><strong>npm publishing</strong></td><td>Maintainer decision: stay a git-clone tool; publishing implies support surface and release cadence not yet wanted.</td><td>Package metadata, release workflow, provenance — the package-install smoke already proves the tarball works, so the runway exists.</td></tr>
+  </table>
+
+  <h3>Plausible later horizons <em>(not committed — natural extension points)</em></h3>
+  <div class="cards">
+    <div class="card"><h4>Import pipelines</h4><p>JSON Resume / Markdown / LinkedIn-export importers are pure document-producers: they'd target <code>insert-block</code>/starter generation and inherit all validation for free.</p></div>
+    <div class="card"><h4>Undo/redo as op inversion</h4><p>The structured vocabulary makes history tractable: most ops have computable inverses, and the engine already serializes commits through one queue.</p></div>
+    <div class="card"><h4>Template ecosystem</h4><p>The typed Theme contract + contrast gate + registry alignment check make third-party templates reviewable. A "template lane" is already documented for contributors.</p></div>
+    <div class="card"><h4>Workspace diff/merge tooling</h4><p>Resumes in git beg for a semantic diff: ops are the natural diff unit (<code>sfrb edit</code> already speaks them from stdin).</p></div>
+  </div>
+
+  <h3>Contribution lanes (from ROADMAP.md)</h3>
+  <table>
+    <tr><th>Lane</th><th>For contributors who like…</th><th>Typical files</th></tr>
+    <tr><td><strong>A — Rendering contract</strong></td><td>Layout/rendering work; page geometry as document fields, printable DOM kept separate from editing DOM.</td><td><code>web/src/presentation/*</code>, <code>web/src/editor/canvas/*</code></td></tr>
+    <tr><td><strong>B — Bridge &amp; route contracts</strong></td><td>Runtime wiring, route-level failure handling, sanitized AI failures.</td><td><code>src/bridge/server.mjs</code>, <code>src/document/*</code>, <code>tests/bridge/*</code></td></tr>
+    <tr><td><strong>C — Export transport</strong></td><td>CLI/runtime automation, Playwright PDF generation, export failure messages.</td><td><code>src/commands/export.ts</code>, <code>tests/cli/*</code></td></tr>
+    <tr><td><strong>D — Templates</strong></td><td>Typography and visual craft; new first-party templates under the contrast gate.</td><td><code>web/src/presentation/templates/*</code></td></tr>
+    <tr><td><strong>E — Proof, docs &amp; handoff</strong></td><td>Smoke verifiers, roadmap honesty, CI ergonomics.</td><td><code>scripts/verify-*.mjs</code>, <code>README.md</code>, <code>ROADMAP.md</code></td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="limitations">
+  <h2><span class="kicker">Honesty section</span>Known limitations &amp; honest edges</h2>
+  <ul>
+    <li><strong>One page, period.</strong> Long resumes must be trimmed to fit (the consultant helps); there is no second page and no pagination setting. This is a contract, not a bug.</li>
+    <li><strong>Consultant vs. locked/free frames:</strong> accepting an AI proposal that targets a locked-group member or a freeform-kept frame fails <em>visibly</em> as <code>operation_invalid</code> in the consultant panel — the documented honest edge of "AI passes the same rules as you."</li>
+    <li><strong>Canvas serif is pinned</strong> to Times New Roman because overflow-measurement expectations across tests and smokes are tuned to those metrics. Changing the canvas font means retuning the measurement suite.</li>
+    <li><strong>Design physics is set at init.</strong> There is no in-place document↔design physics migration; tile and freeform lenses simply explain their unavailability in document workspaces.</li>
+    <li><strong>The legacy <code>{document}</code> route remains</strong> alongside <code>{operation}</code> for back-compat. New features must use operations; whole-document writes are not the future of the mutation model.</li>
+    <li><strong>Smokes run locally, not in CI.</strong> CI runs build + schema check + the full vitest suite; the six browser smokes are a pre-merge local gate (moving them into CI is current-focus work).</li>
+    <li><strong>Distribution friction is real:</strong> clone → <code>npm install</code> → <code>npm run build</code> → <code>node dist/cli.js</code> is the supported path. That friction is a chosen tradeoff, revisitable per the deferred-decisions table.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="glossary">
+  <h2><span class="kicker">Reference</span>Glossary</h2>
+  <table>
+    <tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td><strong>Canonical document</strong></td><td><code>resume.sfrb.json</code> — the single authoritative state every surface derives from.</td></tr>
+    <tr><td><strong>Physics</strong></td><td>A workspace's editing model, fixed at init: <code>document</code> (flowing text, no frames) or <code>design</code> (every block frame-backed).</td></tr>
+    <tr><td><strong>Lens</strong></td><td>A guided editing view over the one document: text, tile, or freeform. Browser-local; never stored in the document.</td></tr>
+    <tr><td><strong>Operation</strong></td><td>One of the 13 structured mutations; the only forward-looking write vocabulary, shared by browser and CLI.</td></tr>
+    <tr><td><strong>Frame</strong></td><td>A positioned box (<code>x, y, width, height</code> in points) binding a block to a page in design physics.</td></tr>
+    <tr><td><strong>Frame group</strong></td><td>≥2 frames on one page treated as a unit; when <em>locked</em>, members move only via canonical <code>move-group</code>.</td></tr>
+    <tr><td><strong>Placement</strong></td><td>A frame's reconciliation state: <code>managed</code> (tile-lens governed) or <code>free</code> (freeform-kept; tile edits visibly blocked).</td></tr>
+    <tr><td><strong>Reconciliation</strong></td><td>The explicit freeform-exit choice: <code>rejoin_layout</code> or <code>keep_locked</code> — placement-only, geometry untouched.</td></tr>
+    <tr><td><strong>Bridge</strong></td><td>The local Vite server spawned by <code>sfrb open</code>; owns all disk I/O and the four HTTP routes.</td></tr>
+    <tr><td><strong>One-page contract</strong></td><td>v1.0 models exactly one page; overflow is surfaced and gates export instead of paginating.</td></tr>
+    <tr><td><strong>Frozen selectors</strong></td><td>DOM ids/test-ids referenced by tests and smokes; a stability contract enabling fearless refactors.</td></tr>
+    <tr><td><strong>Consultant</strong></td><td>The optional BYOK AI that proposes overflow fixes through preview-then-accept; the only AI surface in v1.0.</td></tr>
+  </table>
+</section>
+
+</main>
+
+<footer>
+  SfRB system overview · generated 2026-06-11 against <code>feat/v1-finish-the-app</code> (PR #19) · Apache-2.0<br>
+  Sources: <code>README.md</code>, <code>ROADMAP.md</code>, <code>CLAUDE.md</code>, <code>CONTRIBUTING.md</code>, <code>docs/history/gsd/REQUIREMENTS.md</code>, and the PR #19 implementation record.
+</footer>
+
+</body>
+</html>
