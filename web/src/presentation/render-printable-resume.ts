@@ -113,6 +113,17 @@ function createBlockTextElement(block: BlockDef, theme: Theme): HTMLElement {
     return el;
   }
 
+  if (kind === 'bullet') {
+    el.style.position = 'relative';
+    const marker = document.createElement('span');
+    marker.setAttribute('aria-hidden', 'true');
+    marker.textContent = '\u2022';
+    Object.assign(marker.style, { position: 'absolute', left: '0', top: '0' });
+    el.appendChild(marker);
+    el.appendChild(document.createTextNode(block.text));
+    return el;
+  }
+
   el.textContent = block.text;
   return el;
 }

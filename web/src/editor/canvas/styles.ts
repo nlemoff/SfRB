@@ -51,15 +51,12 @@ export const designPageStyles = [
 
 export const designFrameBaseStyles = [
   'position: absolute',
-  'display: grid',
-  'grid-template-rows: auto auto minmax(0, 1fr)',
-  'gap: 10px',
-  'padding: 14px 16px 16px',
-  'border-radius: 18px',
-  'border: 1px solid rgba(148, 163, 184, 0.35)',
-  'background: rgba(255, 255, 255, 0.86)',
-  'box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12)',
-  'backdrop-filter: blur(10px)',
+  'box-sizing: border-box',
+  'padding: 6px 4px',
+  'border-radius: 10px',
+  'border: 1px solid rgba(148, 163, 184, 0.45)',
+  'background: rgba(255, 255, 255, 0.92)',
+  'box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06)',
   'overflow: hidden',
   'transition: box-shadow 120ms ease, border-color 120ms ease',
 ].join('; ');
