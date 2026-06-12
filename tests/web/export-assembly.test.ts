@@ -81,8 +81,10 @@ describe('export assembly', () => {
       const textarea = await page.$('textarea');
       if (textarea) {
         await textarea.fill('Edited assembly content for export proof.');
-        // Trigger blur to persist
-        await page.click('#editor-canvas');
+        // Trigger blur to persist. Target the canvas bar chrome: the canvas
+        // center can land on the active textarea itself, which would keep
+        // focus and skip the blur commit.
+        await page.click('#editor-page-metrics');
       }
 
       // Wait for save to settle

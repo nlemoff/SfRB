@@ -2,7 +2,7 @@ import type { ReadyBridgePayload } from '../../bridge-client';
 import { createGhostPreviewLayer, type GhostPreviewLayer } from '../../ui/GhostPreview';
 import type { DocumentEditorEngine, DocumentEditorSnapshot } from '../engine';
 import type { PointerController } from './pointer';
-import { designPageStyles } from './styles';
+import { designPaperChromeStyles, pageWrapperStyles } from './styles';
 import { lineClampText } from './text-editing';
 
 export type FreeformSurfaceController = {
@@ -12,23 +12,12 @@ export type FreeformSurfaceController = {
 const freeformElementStyles = [
   'position: absolute',
   'padding: 8px 10px',
-  'border-radius: 12px',
-  'border: 1px solid rgba(148, 163, 184, 0.4)',
+  'border-radius: 4px',
+  'border: 1px solid rgba(130, 148, 165, 0.4)',
   'background: rgba(255, 255, 255, 0.9)',
   'overflow: hidden',
   'cursor: grab',
   'box-sizing: border-box',
-].join('; ');
-
-const hudButtonStyles = [
-  'padding: 7px 12px',
-  'border-radius: 999px',
-  'border: 1px solid #cbd5e1',
-  'background: #ffffff',
-  'color: #0f172a',
-  'font: inherit',
-  'font-size: 0.84rem',
-  'cursor: pointer',
 ].join('; ');
 
 function uniqueId(base: string, taken: Set<string>): string {
@@ -60,13 +49,16 @@ export function setFreeformMoveState(rootElement: HTMLElement, state: 'idle' | '
 export function renderFreeformSurface(deps: {
   engine: DocumentEditorEngine;
   surfaceRoot: HTMLElement;
+  // HUD and notes mount here — outside the page, so they are never clipped
+  // by page bounds nor scaled by canvas zoom.
+  controlsHost: HTMLElement;
   frameElements: Map<string, HTMLElement>;
   pageCanvasElements: Map<string, HTMLElement>;
   ghostLayers: Map<string, GhostPreviewLayer>;
   pointer: PointerController;
   payload: ReadyBridgePayload;
 }): FreeformSurfaceController {
-  const { engine, surfaceRoot, frameElements, pageCanvasElements, ghostLayers, pointer, payload } = deps;
+  const { engine, surfaceRoot, controlsHost, frameElements, pageCanvasElements, ghostLayers, pointer, payload } = deps;
 
   const groups = payload.document.layout.frameGroups;
   const groupByFrameId = new Map<string, (typeof groups)[number]>();
@@ -89,24 +81,28 @@ export function renderFreeformSurface(deps: {
   addDividerButton.id = 'freeform-add-divider';
   addDividerButton.dataset.testid = 'freeform-add-divider';
   addDividerButton.textContent = 'Add divider';
-  addDividerButton.style.cssText = hudButtonStyles;
+  addDividerButton.className = 'sfrb-button';
 
   const removeButton = document.createElement('button');
   removeButton.type = 'button';
   removeButton.id = 'freeform-remove-element';
   removeButton.dataset.testid = 'freeform-remove-element';
   removeButton.textContent = 'Remove element';
-  removeButton.style.cssText = hudButtonStyles;
+  removeButton.className = 'sfrb-button';
   removeButton.disabled = true;
 
+  // The label stays outside the value span: tests read the span's bare value.
   const readout = (id: string, label: string): HTMLElement => {
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'font-size: 0.78rem; color: #475569;';
+    const wrapper = document.createElement('span');
+    wrapper.className = 'sfrb-status-cell';
+    const labelNode = document.createElement('span');
+    labelNode.className = 'sfrb-status-cell-label';
+    labelNode.textContent = label;
     const value = document.createElement('span');
     value.id = id;
     value.dataset.testid = id;
     value.textContent = 'None';
-    wrapper.append(`${label}: `, value);
+    wrapper.append(labelNode, value);
     return wrapper;
   };
 
@@ -119,17 +115,17 @@ export function renderFreeformSurface(deps: {
   moveState.dataset.testid = 'freeform-move-state';
   moveState.dataset.moveState = 'idle';
   moveState.textContent = 'idle';
-  moveState.style.cssText = 'font-size: 0.78rem; color: #2563eb; text-transform: uppercase; letter-spacing: 0.1em;';
+  moveState.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--sfrb-accent); text-transform: uppercase; letter-spacing: 0.07em;';
 
   const note = document.createElement('div');
   note.id = 'freeform-action-note';
   note.dataset.testid = 'freeform-action-note';
   note.setAttribute('role', 'status');
-  note.style.cssText = 'color: #475569; font-size: 0.84rem; line-height: 1.4; flex-basis: 100%;';
+  note.style.cssText = 'flex-basis: 100%; color: var(--sfrb-ink-soft); font-size: 12px; line-height: 1.4;';
   note.textContent = 'Grab any element to move it; use the corner handle to resize.';
 
   hud.append(addDividerButton, removeButton, selectedIdReadout, selectedKindReadout, geometryReadout, moveState, note);
-  surfaceRoot.append(hud);
+  controlsHost.append(hud);
 
   const setNote = (message: string) => {
     note.textContent = message;
@@ -208,7 +204,7 @@ export function renderFreeformSurface(deps: {
     const pageShell = document.createElement('section');
     pageShell.dataset.pageId = page.id;
     pageShell.dataset.testid = `editor-page-${page.id}`;
-    pageShell.style.cssText = designPageStyles;
+    pageShell.style.cssText = pageWrapperStyles;
 
     const canvas = document.createElement('div');
     canvas.dataset.testid = `editor-freeform-page-${page.id}`;
@@ -216,10 +212,8 @@ export function renderFreeformSurface(deps: {
       'position: relative',
       `width: ${page.size.width}px`,
       `height: ${page.size.height}px`,
-      'border-radius: 20px',
-      'background: rgba(255, 255, 255, 0.96)',
       'overflow: hidden',
-      'box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.28)',
+      designPaperChromeStyles,
     ].join('; ');
 
     const pageFrames = (framesByPage.get(page.id) ?? []).slice().sort((left, right) => left.zIndex - right.zIndex);
@@ -268,15 +262,20 @@ export function renderFreeformSurface(deps: {
       resizeHandle.type = 'button';
       resizeHandle.dataset.testid = `freeform-resize-${frame.id}`;
       resizeHandle.setAttribute('aria-label', `Resize element ${frame.id}`);
+      // Kept fully inside the page (the canvas clips overflow) and shown only
+      // on selection; a small quarter-round grip instead of a solid block so
+      // it stays off the text.
       resizeHandle.style.cssText = [
         'position: absolute',
         'right: 0',
         'bottom: 0',
         'width: 14px',
         'height: 14px',
+        'padding: 0',
         'border: none',
-        'border-top-left-radius: 8px',
-        'background: #2563eb',
+        'border-top-left-radius: 10px',
+        'background: var(--sfrb-accent)',
+        'opacity: 0.85',
         'cursor: nwse-resize',
         'display: none',
       ].join('; ');

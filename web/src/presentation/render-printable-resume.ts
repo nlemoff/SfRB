@@ -2,6 +2,10 @@ import type { ReadyBridgePayload, BridgeDocument } from '../bridge-client';
 import type { PrintSurfaceMode } from './print-surface';
 import { applyBlockStyle, type SemanticBlockKind, type Theme } from './theme';
 import { resolveTemplateTheme } from './templates';
+// The print surface is its own document and never loads the shell stylesheet;
+// preview chrome reads design tokens as JS constants. Artifact mode must stay
+// chrome-free and untouched by any of these.
+import { fonts, palette, shadow } from '../ui/tokens';
 
 export type PrintableResumeState = {
   readonly pageCount: number;
@@ -57,7 +61,7 @@ function createPageElement(page: PageDef, mode: PrintSurfaceMode, theme: Theme):
   });
 
   if (mode === 'preview') {
-    el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+    el.style.boxShadow = `${shadow.e2}, 0 0 0 1px ${palette.line}`;
   }
 
   return el;
@@ -196,38 +200,60 @@ function createDiagnosticsPanel(state: PrintableResumeState): HTMLElement {
   panel.setAttribute('data-testid', 'print-diagnostics');
 
   Object.assign(panel.style, {
-    padding: '12px 16px',
-    margin: '0 auto 16px',
+    padding: '10px 16px',
+    margin: '16px auto 0',
     maxWidth: '612px',
-    fontFamily: 'system-ui, sans-serif',
+    fontFamily: fonts.sans,
     fontSize: '13px',
     lineHeight: '1.5',
-    borderRadius: '6px',
-    color: '#e2e8f0',
+    borderRadius: '10px',
+    backgroundColor: palette.panel,
+    boxShadow: shadow.e1,
+    boxSizing: 'border-box',
   });
 
+  const tone =
+    state.exportState === 'ready'
+      ? { accent: palette.good, soft: palette.goodSoft }
+      : state.exportState === 'risk'
+        ? { accent: palette.warn, soft: palette.warnSoft }
+        : { accent: palette.bad, soft: palette.badSoft };
+  panel.style.border = `1px solid ${palette.line}`;
+  panel.style.borderLeft = `3px solid ${tone.accent}`;
+  panel.style.color = palette.ink;
+
   const mainLine = document.createElement('div');
+  Object.assign(mainLine.style, { display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' });
+
+  const dot = document.createElement('span');
+  dot.setAttribute('aria-hidden', 'true');
+  Object.assign(dot.style, {
+    width: '8px',
+    height: '8px',
+    borderRadius: '999px',
+    backgroundColor: tone.accent,
+    boxShadow: `0 0 0 3px ${tone.soft}`,
+    flexShrink: '0',
+  });
+  mainLine.appendChild(dot);
+
+  const mainText = document.createElement('span');
   if (state.exportState === 'ready') {
-    panel.style.backgroundColor = '#0f2b1d';
-    panel.style.border = '1px solid #166534';
-    mainLine.textContent = `Export ready \u00b7 ${state.pageCount} page${state.pageCount !== 1 ? 's' : ''}`;
+    mainText.textContent = `Export ready \u00b7 ${state.pageCount} page${state.pageCount !== 1 ? 's' : ''}`;
   } else if (state.exportState === 'risk') {
-    panel.style.backgroundColor = '#2b1f0f';
-    panel.style.border = '1px solid #92400e';
-    mainLine.textContent = `Export risk \u00b7 ${state.riskCount} overflow${state.riskCount !== 1 ? 's' : ''} \u00b7 max ${state.maxOverflowPx}px`;
+    mainText.textContent = `Export risk \u00b7 ${state.riskCount} overflow${state.riskCount !== 1 ? 's' : ''} \u00b7 max ${state.maxOverflowPx}px`;
   } else {
-    panel.style.backgroundColor = '#2b0f0f';
-    panel.style.border = '1px solid #991b1b';
-    mainLine.textContent = `Export blocked \u00b7 ${state.blockedReason ?? 'unknown'}`;
+    mainText.textContent = `Export blocked \u00b7 ${state.blockedReason ?? 'unknown'}`;
   }
+  mainLine.appendChild(mainText);
   panel.appendChild(mainLine);
 
   const templateLine = document.createElement('div');
   templateLine.setAttribute('data-testid', 'print-diagnostics-template');
   Object.assign(templateLine.style, {
-    marginTop: '6px',
+    marginTop: '4px',
     fontSize: '11px',
-    opacity: '0.75',
+    color: palette.inkSoft,
     letterSpacing: '0.04em',
   });
   templateLine.textContent = `Template \u00b7 ${state.templateId}`;
@@ -266,7 +292,7 @@ export function renderPrintableResume(
   Object.assign(rootElement.style, {
     fontFamily: theme.typography.rootFontFamily,
     color: theme.typography.rootColor,
-    backgroundColor: mode === 'preview' ? '#111827' : theme.color.pageBackground,
+    backgroundColor: mode === 'preview' ? palette.desk : theme.color.pageBackground,
   });
 
   if (!isSupportedPhysics(payload.physics)) {
@@ -301,8 +327,8 @@ export function renderPrintableResume(
   });
 
   if (mode === 'preview') {
-    pageStack.style.gap = '24px';
-    pageStack.style.padding = '24px 0';
+    pageStack.style.gap = '32px';
+    pageStack.style.padding = '28px 16px 48px';
   }
 
   const pageElements: HTMLElement[] = [];

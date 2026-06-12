@@ -53,18 +53,27 @@ export function createPointerController(deps: {
   onDragStart: (frameId: string, blockId: string) => void;
   onDragSettled: () => void;
   onGroupDragSettled: (groupId: string, memberIds: string[], dx: number, dy: number) => void;
+  // Canvas zoom factor. Screen-pixel pointer deltas divide by this to recover
+  // page-pixel deltas; at the default 100% zoom the division is a no-op.
+  getScale?: () => number;
 }): PointerController {
   const { engine, rootElement, onDragStart, onDragSettled, onGroupDragSettled } = deps;
   let dragState: DragState | null = null;
   let nudgeCommitTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const currentScale = (): number => {
+    const scale = deps.getScale?.() ?? 1;
+    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+  };
 
   const onPointerMove = (event: PointerEvent) => {
     if (!dragState || dragState.pointerId !== event.pointerId) {
       return;
     }
 
-    const deltaX = event.clientX - dragState.startX;
-    const deltaY = event.clientY - dragState.startY;
+    const scale = currentScale();
+    const deltaX = (event.clientX - dragState.startX) / scale;
+    const deltaY = (event.clientY - dragState.startY) / scale;
 
     if (dragState.kind === 'single') {
       engine.updateFrameBox(dragState.frameId, {
@@ -116,8 +125,9 @@ export function createPointerController(deps: {
     if (handle) {
       handle.style.cursor = 'grab';
     }
-    const dx = Math.round(event.clientX - activeDrag.startX);
-    const dy = Math.round(event.clientY - activeDrag.startY);
+    const scale = currentScale();
+    const dx = Math.round((event.clientX - activeDrag.startX) / scale);
+    const dy = Math.round((event.clientY - activeDrag.startY) / scale);
     onGroupDragSettled(
       activeDrag.groupId,
       activeDrag.members.map((member) => member.id),

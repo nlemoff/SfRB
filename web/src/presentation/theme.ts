@@ -7,6 +7,7 @@ export type BlockStyle = {
   readonly fontSize: string;
   readonly fontWeight?: string;
   readonly lineHeight: string;
+  readonly letterSpacing?: string;
   readonly paddingLeft?: string;
   readonly marginBottom: string;
 };
@@ -30,6 +31,9 @@ export function applyBlockStyle(element: HTMLElement, style: BlockStyle): void {
   element.style.marginBottom = style.marginBottom;
   if (style.fontWeight !== undefined) {
     element.style.fontWeight = style.fontWeight;
+  }
+  if (style.letterSpacing !== undefined) {
+    element.style.letterSpacing = style.letterSpacing;
   }
   if (style.paddingLeft !== undefined) {
     element.style.paddingLeft = style.paddingLeft;

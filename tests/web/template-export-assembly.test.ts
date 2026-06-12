@@ -86,7 +86,9 @@ describe('M004 template export assembly', () => {
       const textarea = await editorPage.$('textarea');
       if (textarea) {
         await textarea.fill('Edited body text under the classic template.');
-        await editorPage.click('#editor-canvas');
+        // Blur via the canvas bar chrome: the canvas center can land on the
+        // active textarea itself, which would keep focus and skip the commit.
+        await editorPage.click('#editor-page-metrics');
       }
 
       await editorPage.waitForFunction(() => {

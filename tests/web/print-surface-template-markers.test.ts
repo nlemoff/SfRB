@@ -125,21 +125,21 @@ describe('print surface template markers', () => {
           fontWeight: computed.fontWeight,
         };
       });
-      expect(headingStyles.fontSize).toBe('18px');
+      expect(headingStyles.fontSize).toBe('19px');
       expect(['bold', '700']).toContain(headingStyles.fontWeight);
 
       const paragraphStyles = await page.$eval('[data-block-kind="paragraph"]', (el: Element) => {
         const computed = window.getComputedStyle(el as HTMLElement);
         return { fontSize: computed.fontSize };
       });
-      expect(paragraphStyles.fontSize).toBe('12px');
+      expect(paragraphStyles.fontSize).toBe('12.5px');
 
       const bulletStyles = await page.$eval('[data-block-kind="bullet"]', (el: Element) => {
         const computed = window.getComputedStyle(el as HTMLElement);
         return { fontSize: computed.fontSize, paddingLeft: computed.paddingLeft };
       });
-      expect(bulletStyles.fontSize).toBe('12px');
-      expect(bulletStyles.paddingLeft).toBe('12px');
+      expect(bulletStyles.fontSize).toBe('12.5px');
+      expect(bulletStyles.paddingLeft).toBe('14px');
     } finally {
       await page.close();
       await closeBridge(child);

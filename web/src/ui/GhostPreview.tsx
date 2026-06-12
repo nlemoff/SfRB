@@ -1,4 +1,5 @@
 import type { FrameBox } from '../editor/engine';
+import { motion, motionOK } from './tokens';
 
 export type GhostPreviewModel = {
   frameId: string;
@@ -70,6 +71,15 @@ export function createGhostPreviewLayer(): GhostPreviewLayer {
 
     previewElement.append(badge);
     element.append(previewElement);
+
+    // Dataset geometry is already set synchronously above; the fade is
+    // purely visual and never blocks tests polling attributes.
+    if (motionOK()) {
+      previewElement.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 150,
+        easing: motion.ease,
+      });
+    }
   };
 
   return { element, render };

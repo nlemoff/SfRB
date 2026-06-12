@@ -65,6 +65,17 @@ export function bindLensSwitcher(rootElement: HTMLElement, engine: DocumentEdito
     });
   }
 
+  // Availability strings are part of the test contract and must stay in the
+  // DOM verbatim; "Available now…" states are visually hidden so the pill
+  // reads as just the lens name, while unavailable states surface the reason.
+  const setAvailabilityText = (node: Element | null, text: string) => {
+    if (!(node instanceof HTMLElement)) {
+      return;
+    }
+    node.textContent = text;
+    node.classList.toggle('sfrb-visually-hidden', text.startsWith('Available now'));
+  };
+
   const sync = (payload: ReadyBridgePayload | null) => {
     currentPayload = payload;
     const activeLens = engine.getSnapshot().activeLens;
@@ -73,16 +84,12 @@ export function bindLensSwitcher(rootElement: HTMLElement, engine: DocumentEdito
       group.dataset.activeLens = activeLens;
     }
 
-    const tileAvailability = describeDesignOnlyAvailability(payload);
-    const tileNode = rootElement.querySelector('#tile-lens-availability');
-    if (tileNode) {
-      tileNode.textContent = tileAvailability;
-    }
-
-    const freeformNode = rootElement.querySelector('[data-testid="lens-freeform-availability"]');
-    if (freeformNode) {
-      freeformNode.textContent = FREEFORM_SHIPPED ? describeDesignOnlyAvailability(payload) : 'Arriving later in this milestone';
-    }
+    setAvailabilityText(rootElement.querySelector('[data-testid="lens-text-availability"]'), 'Available now');
+    setAvailabilityText(rootElement.querySelector('#tile-lens-availability'), describeDesignOnlyAvailability(payload));
+    setAvailabilityText(
+      rootElement.querySelector('[data-testid="lens-freeform-availability"]'),
+      FREEFORM_SHIPPED ? describeDesignOnlyAvailability(payload) : 'Arriving later in this milestone',
+    );
 
     for (const lens of LENS_ORDER) {
       const option = optionFor(lens);
