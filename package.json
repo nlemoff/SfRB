@@ -29,6 +29,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
     "commander": "^14.0.1",
     "enquirer": "^2.4.1",
     "playwright": "^1.58.2",

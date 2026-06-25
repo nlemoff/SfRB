@@ -570,6 +570,20 @@ export function mountApp(rootElement: HTMLElement) {
     });
   }
 
+  // Dismissal collapses the guidance visually for this session only; the
+  // section and its starter facts stay in the DOM (selector contract) and
+  // render visible again on every fresh load.
+  const firstRunDismissButton = rootElement.querySelector('#first-run-dismiss');
+  if (firstRunDismissButton instanceof HTMLButtonElement) {
+    firstRunDismissButton.addEventListener('click', () => {
+      const guidance = rootElement.querySelector('#first-run-guidance');
+      if (guidance instanceof HTMLElement) {
+        guidance.dataset.dismissed = 'true';
+      }
+      firstRunDismissButton.hidden = true;
+    });
+  }
+
   syncBridgeSurface();
   syncSaveSurface(editorStatusStore.getSnapshot());
   syncConsultantSurface();

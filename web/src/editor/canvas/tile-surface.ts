@@ -3,7 +3,7 @@ import { createGhostPreviewLayer, type GhostPreviewLayer } from '../../ui/GhostP
 import type { DocumentEditorEngine, DocumentEditorSnapshot } from '../engine';
 import type { PointerController } from './pointer';
 import type { EditableInteractionBinder } from './flow-surface';
-import { designFrameBaseStyles, designPageStyles } from './styles';
+import { designFrameBaseStyles, designPaperChromeStyles, pageWrapperStyles } from './styles';
 import { lineClampText } from './text-editing';
 
 export type TileSurfaceController = {
@@ -44,23 +44,15 @@ function splittableLines(text: string | null): string[] {
     .filter((line) => line.length > 0);
 }
 
-const toolbarButtonStyles = [
-  'padding: 7px 12px',
-  'border-radius: 999px',
-  'border: 1px solid #cbd5e1',
-  'background: #ffffff',
-  'color: #0f172a',
-  'font: inherit',
-  'font-size: 0.84rem',
-  'cursor: pointer',
-].join('; ');
-
 // The tile surface renders canonical page geometry with draggable fixed
 // frames plus the split/group/lock toolbar: the default lens for design
 // workspaces.
 export function renderTileSurface(deps: {
   engine: DocumentEditorEngine;
   surfaceRoot: HTMLElement;
+  // Toolbar and notes mount here — outside the page, so they are never
+  // clipped by page bounds nor scaled by canvas zoom.
+  controlsHost: HTMLElement;
   frameElements: Map<string, HTMLElement>;
   pageCanvasElements: Map<string, HTMLElement>;
   ghostLayers: Map<string, GhostPreviewLayer>;
@@ -68,7 +60,7 @@ export function renderTileSurface(deps: {
   bindEditableInteractions: EditableInteractionBinder;
   payload: ReadyBridgePayload;
 }): TileSurfaceController {
-  const { engine, surfaceRoot, frameElements, pageCanvasElements, ghostLayers, pointer, bindEditableInteractions, payload } = deps;
+  const { engine, surfaceRoot, controlsHost, frameElements, pageCanvasElements, ghostLayers, pointer, bindEditableInteractions, payload } = deps;
 
   const groups = payload.document.layout.frameGroups;
   const groupByFrameId = new Map<string, (typeof groups)[number]>();
@@ -92,7 +84,7 @@ export function renderTileSurface(deps: {
     button.id = id;
     button.dataset.testid = id;
     button.textContent = label;
-    button.style.cssText = toolbarButtonStyles;
+    button.className = 'sfrb-button';
     button.disabled = true;
     toolbar.append(button);
     return button;
@@ -107,11 +99,11 @@ export function renderTileSurface(deps: {
   note.id = 'tile-action-note';
   note.dataset.testid = 'tile-action-note';
   note.setAttribute('role', 'status');
-  note.style.cssText = 'color: #475569; font-size: 0.84rem; line-height: 1.4;';
+  note.style.cssText = 'flex-basis: 100%; color: var(--sfrb-ink-soft); font-size: 12px; line-height: 1.4;';
   note.textContent = 'Select a tile to split it, or shift-click tiles to group them.';
   toolbar.append(note);
 
-  surfaceRoot.append(toolbar);
+  controlsHost.append(toolbar);
 
   const setNote = (message: string) => {
     note.textContent = message;
@@ -231,11 +223,11 @@ export function renderTileSurface(deps: {
     const pageShell = document.createElement('section');
     pageShell.dataset.pageId = page.id;
     pageShell.dataset.testid = `editor-page-${page.id}`;
-    pageShell.style.cssText = designPageStyles;
+    pageShell.style.cssText = pageWrapperStyles;
 
     const pageHeading = document.createElement('div');
-    pageHeading.style.cssText = 'display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 14px; color: #475569;';
-    pageHeading.innerHTML = `<strong style="letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.72rem;">Page ${page.id}</strong><span>${page.size.width}×${page.size.height}</span>`;
+    pageHeading.style.cssText = 'display: flex; justify-content: space-between; gap: 16px; align-items: baseline; color: var(--sfrb-ink-faint); font-family: var(--sfrb-font-sans); font-size: 11px;';
+    pageHeading.innerHTML = `<span style="letter-spacing: 0.07em; text-transform: uppercase; font-weight: 600;">${page.id}</span><span>${page.size.width}×${page.size.height}</span>`;
 
     const canvas = document.createElement('div');
     canvas.dataset.testid = `editor-design-page-${page.id}`;
@@ -243,12 +235,10 @@ export function renderTileSurface(deps: {
       'position: relative',
       `width: ${page.size.width}px`,
       `height: ${page.size.height}px`,
-      'border-radius: 20px',
-      'background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.98))',
       'overflow: hidden',
-      'background-image: linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px)',
+      designPaperChromeStyles,
+      'background-image: linear-gradient(rgba(130, 148, 165, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(130, 148, 165, 0.09) 1px, transparent 1px)',
       'background-size: 24px 24px',
-      'box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.28)',
     ].join('; ');
 
     const marginGuide = document.createElement('div');
@@ -258,8 +248,7 @@ export function renderTileSurface(deps: {
       `top: ${page.margin.top}px`,
       `right: ${page.margin.right}px`,
       `bottom: ${page.margin.bottom}px`,
-      'border: 1px dashed rgba(59, 130, 246, 0.35)',
-      'border-radius: 14px',
+      'border: 1px dashed rgba(31, 111, 235, 0.25)',
       'pointer-events: none',
     ].join('; ');
     canvas.append(marginGuide);
@@ -288,17 +277,19 @@ export function renderTileSurface(deps: {
       handle.type = 'button';
       handle.dataset.testid = `frame-handle-${frame.id}`;
       handle.textContent = '\u2059';
+      // Quiet by default so it never visually fights the first text line;
+      // a stylesheet rule raises opacity on frame hover/selection.
       handle.style.cssText = [
         'position: absolute',
-        'top: 5px',
-        'right: 5px',
-        'width: 16px',
-        'height: 16px',
+        'top: 3px',
+        'right: 3px',
+        'width: 18px',
+        'height: 18px',
         'padding: 0',
-        'border-radius: 6px',
-        'border: 1px solid rgba(148, 163, 184, 0.5)',
-        'background: rgba(255, 255, 255, 0.9)',
-        'color: #64748b',
+        'border-radius: 5px',
+        'border: 1px solid var(--sfrb-line)',
+        'background: rgba(255, 255, 255, 0.95)',
+        'color: var(--sfrb-ink-faint)',
         'display: grid',
         'place-items: center',
         'line-height: 1',
@@ -393,13 +384,16 @@ export function renderTileSurface(deps: {
         'display: inline-flex',
         'align-items: center',
         'gap: 6px',
-        'padding: 3px 8px',
+        'padding: 3px 9px',
         'border-radius: 999px',
-        'background: #1d4ed8',
-        'color: #eff6ff',
-        'font-size: 0.66rem',
-        'letter-spacing: 0.08em',
+        'background: var(--sfrb-accent)',
+        'color: #ffffff',
+        'font-family: var(--sfrb-font-sans)',
+        'font-size: 10px',
+        'font-weight: 600',
+        'letter-spacing: 0.06em',
         'text-transform: uppercase',
+        'box-shadow: var(--sfrb-shadow-e1)',
       ].join('; ');
 
       const label = document.createElement('span');
@@ -420,8 +414,8 @@ export function renderTileSurface(deps: {
           'height: 18px',
           'display: inline-grid',
           'place-items: center',
-          'background: #eff6ff',
-          'color: #1d4ed8',
+          'background: #ffffff',
+          'color: var(--sfrb-accent)',
           'cursor: grab',
           'font-size: 0.7rem',
         ].join('; ');

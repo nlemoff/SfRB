@@ -24,7 +24,7 @@ export function renderFlowSurface(deps: {
 
     const sectionHeading = document.createElement('h3');
     sectionHeading.textContent = section.title;
-    sectionHeading.style.cssText = 'margin: 0; font-size: 1.18rem; color: #0f172a;';
+    sectionHeading.style.cssText = 'margin: 0; font-size: 1.1rem; color: var(--sfrb-ink);';
     sectionElement.append(sectionHeading);
 
     const blockList = document.createElement('div');
@@ -41,7 +41,7 @@ export function renderFlowSurface(deps: {
 
       const kindLabel = document.createElement('div');
       kindLabel.textContent = `${block?.kind ?? 'missing'} · ${blockId}`;
-      kindLabel.style.cssText = 'color: #475569; text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.72rem;';
+      kindLabel.style.cssText = 'color: var(--sfrb-ink-faint); text-transform: uppercase; letter-spacing: 0.07em; font-size: 10px; font-weight: 600; font-family: var(--sfrb-font-sans);';
 
       const blockBody = document.createElement('div');
       blockBody.dataset.role = 'block-body';

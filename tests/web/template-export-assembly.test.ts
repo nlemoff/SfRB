@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 
 import {
+  blurEditorTextarea,
   cleanupTempProjects,
   closeBridge,
   ensureBuilt,
@@ -86,7 +87,7 @@ describe('M004 template export assembly', () => {
       const textarea = await editorPage.$('textarea');
       if (textarea) {
         await textarea.fill('Edited body text under the classic template.');
-        await editorPage.click('#editor-canvas');
+        await blurEditorTextarea(editorPage as unknown as BridgeBrowserPage);
       }
 
       await editorPage.waitForFunction(() => {
