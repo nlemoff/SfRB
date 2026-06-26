@@ -9,9 +9,9 @@ Thumbs.db
 *.code-workspace
 
 # Local agent/tooling state
-.factory/
+.factory/*
+!.factory/skills/
 .bg-shell/
-.gsd/
 
 # Environment
 .env
@@ -26,6 +26,11 @@ build/
 coverage/
 .cache/
 tmp/
+
+# Quality-gate outputs
+reports/
+docs/api/
+.jscpd/
 
 # Python/Rust/vendor scratch
 __pycache__/

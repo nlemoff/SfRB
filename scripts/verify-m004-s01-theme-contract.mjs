@@ -31,47 +31,79 @@ const assert = (condition, label) => {
 
 async function createTempWorkspace() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-m004-s01-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: { title: 'Verify M004 S01', locale: 'en' },
-    semantic: {
-      sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
-      blocks: [{ id: 'b1', kind: 'paragraph', text: 'Theme contract default fallback.' }],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: { title: 'Verify M004 S01', locale: 'en' },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
+          blocks: [{ id: 'b1', kind: 'paragraph', text: 'Theme contract default fallback.' }],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 
 async function createTempWorkspaceWithExplicitTemplate() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-m004-s01-explicit-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: {
-      title: 'Verify M004 S01 (explicit)',
-      locale: 'en',
-      template: { id: 'default', version: '1' },
-    },
-    semantic: {
-      sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
-      blocks: [{ id: 'b1', kind: 'paragraph', text: 'Explicit default template metadata.' }],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: {
+          title: 'Verify M004 S01 (explicit)',
+          locale: 'en',
+          template: { id: 'default', version: '1' },
+        },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
+          blocks: [{ id: 'b1', kind: 'paragraph', text: 'Explicit default template metadata.' }],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 
@@ -104,14 +136,14 @@ async function startBridge(projectRoot) {
 }
 
 async function readPrintMarkers(page, baseUrl, mode) {
-  const printUrl = mode === 'artifact'
-    ? new URL('/print?mode=artifact', baseUrl).href
-    : new URL('/print', baseUrl).href;
+  const printUrl =
+    mode === 'artifact' ? new URL('/print?mode=artifact', baseUrl).href : new URL('/print', baseUrl).href;
   await page.goto(printUrl, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => {
     const root = document.getElementById('root');
-    return root?.getAttribute('data-export-state') !== 'blocked'
-      || root?.getAttribute('data-blocked-reason') !== 'loading';
+    return (
+      root?.getAttribute('data-export-state') !== 'blocked' || root?.getAttribute('data-blocked-reason') !== 'loading'
+    );
   });
   return page.evaluate(() => {
     const root = document.getElementById('root');
@@ -195,7 +227,10 @@ async function main() {
 
     const page = await browser.newPage();
     const explicitMarkers = await readPrintMarkers(page, bridge.url, 'preview');
-    assert(explicitMarkers.templateId === 'default', '/print publishes data-template-id="default" for explicit workspace');
+    assert(
+      explicitMarkers.templateId === 'default',
+      '/print publishes data-template-id="default" for explicit workspace',
+    );
     assert(explicitMarkers.exportState === 'ready', '/print preserves M003 export state for explicit workspace');
     await page.close();
   } finally {
@@ -209,7 +244,11 @@ async function main() {
     await rm(explicitRoot, { recursive: true, force: true });
   }
 
-  console.log(exitCode === 0 ? '\nM004/S01 theme contract verification passed.\n' : '\nM004/S01 theme contract verification FAILED.\n');
+  console.log(
+    exitCode === 0
+      ? '\nM004/S01 theme contract verification passed.\n'
+      : '\nM004/S01 theme contract verification FAILED.\n',
+  );
   process.exit(exitCode);
 }
 

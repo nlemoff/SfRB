@@ -1,5 +1,12 @@
 import type { PhysicsMode } from '../config/schema';
-import { parseDocument, type LayoutFrameInput, type SemanticBlock, type SemanticSection, type SfrbDocument, type StarterKind } from './schema';
+import {
+  parseDocument,
+  type LayoutFrameInput,
+  type SemanticBlock,
+  type SemanticSection,
+  type SfrbDocument,
+  type StarterKind,
+} from './schema';
 
 const DEFAULT_PAGE = {
   id: 'pageOne',
@@ -159,25 +166,27 @@ export function createStarterDocument(kind: StarterKind, physics: PhysicsMode): 
     },
     layout: {
       pages: [DEFAULT_PAGE],
-      frames: physics === 'design'
-        ? createFramesForBlocks(
-            content.blocks.map((block) => block.id),
-            { blank: kind === 'blank' },
-          )
-        : [],
+      frames:
+        physics === 'design'
+          ? createFramesForBlocks(
+              content.blocks.map((block) => block.id),
+              { blank: kind === 'blank' },
+            )
+          : [],
       // The template starter opens as an assembled composition: the hero name
       // and summary ship locked together so the tile lens demonstrates the
       // group/lock model immediately.
-      frameGroups: physics === 'design' && kind === 'template'
-        ? [
-            {
-              id: 'heroComposition',
-              pageId: DEFAULT_PAGE.id,
-              frameIds: ['heroNameFrame', 'heroSummaryFrame'],
-              locked: true,
-            },
-          ]
-        : [],
+      frameGroups:
+        physics === 'design' && kind === 'template'
+          ? [
+              {
+                id: 'heroComposition',
+                pageId: DEFAULT_PAGE.id,
+                frameIds: ['heroNameFrame', 'heroSummaryFrame'],
+                locked: true,
+              },
+            ]
+          : [],
     },
   });
 }

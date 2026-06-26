@@ -174,7 +174,6 @@ Key files and boundaries:
 - `scripts/verify-*.mjs` — smoke and milestone verification scripts
 - `schema.json` — generated document schema artifact
 - `ROADMAP.md` — current roadmap and contribution lanes
-- `docs/history/gsd/` — archived historical planning notes from the old `.gsd` workflow
 
 Canonical workspace files:
 
@@ -194,14 +193,11 @@ AI scope: the layout consultant (overflow fix proposals) is the only AI surface.
 
 ## Planning and roadmap
 
-SfRB has moved off the old `.gsd` planning workflow. Current planning should live in plain Markdown and GitHub issues/PRs:
+Planning lives in plain Markdown and GitHub issues/PRs:
 
 - [`ROADMAP.md`](./ROADMAP.md) — contributor-facing roadmap, shipped milestones, next work, and contribution lanes
 - GitHub issues — scoped feature/fix/docs tasks
 - PR descriptions — implementation notes, verification evidence, and design rationale
-- [`docs/history/gsd/`](./docs/history/gsd/) — read-only historical planning archive
-
-Do not add new planning under `.gsd/`.
 
 ## Contribution expectations
 

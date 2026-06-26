@@ -42,12 +42,17 @@ Run the gate locally:
 
 ```bash
 npm run build
+npm run typecheck        # tsc --noEmit
+npm run lint             # eslint
+npm run format:check     # prettier --check
+npm run knip             # unused files / dependencies
+npm run duplication      # jscpd duplicate-code scan
 npm run schema:check     # regenerate with npm run schema:generate if you changed the document schema
-npm test                 # full vitest suite, including real-browser tests
+npm test                 # full vitest suite, including real-browser tests (npm run coverage adds thresholds)
 npm run verify:smoke     # built-CLI smoke checks: editor, consultant, edit, tile, freeform, reconciliation
 ```
 
-For packaging-affecting changes, also run `npm run verify:package`.
+For packaging-affecting changes, also run `npm run verify:package`. Pre-commit hooks (husky + lint-staged) run ESLint and Prettier on staged files automatically. For agent-facing setup and deeper architecture notes, see [AGENTS.md](./AGENTS.md) and [docs/](./docs/).
 
 PRs target `main` directly. Keep each PR scoped to one clear problem, include the lightest sufficient tests, and update `README.md` / `ROADMAP.md` when project state materially changes. Use draft PRs for work in progress.
 

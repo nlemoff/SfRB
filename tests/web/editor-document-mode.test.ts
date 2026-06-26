@@ -13,7 +13,9 @@ import {
 } from '../utils/bridge-browser';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright') as { chromium: { launch: (options: { headless: boolean }) => Promise<any> } };
+const { chromium } = require('playwright') as {
+  chromium: { launch: (options: { headless: boolean }) => Promise<any> };
+};
 
 type Browser = Awaited<ReturnType<typeof chromium.launch>>;
 type Page = Awaited<ReturnType<Browser['newPage']>>;
@@ -33,9 +35,7 @@ describe('editor document mode', () => {
     await cleanupTempProjects();
   });
 
-  it(
-    'persists inline text editing in document mode without exposing drag affordances or losing the active textarea during save/refetch',
-    async () => {
+  it('persists inline text editing in document mode without exposing drag affordances or losing the active textarea during save/refetch', async () => {
     const projectRoot = await makeTempProject('sfrb-editor-document-mode-');
     await writeWorkspaceFiles(projectRoot, {
       physics: 'document',

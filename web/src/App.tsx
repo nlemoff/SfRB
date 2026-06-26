@@ -117,7 +117,13 @@ export function mountApp(rootElement: HTMLElement) {
         consultantState = 'idle';
         consultantCode = 'preview_stale_cleared';
         consultantNote = 'Ghost preview cleared because the canonical document changed.';
-      } else if (!preview && consultantState !== 'requesting' && consultantState !== 'applying' && consultantState !== 'error' && consultantState !== 'unavailable') {
+      } else if (
+        !preview &&
+        consultantState !== 'requesting' &&
+        consultantState !== 'applying' &&
+        consultantState !== 'error' &&
+        consultantState !== 'unavailable'
+      ) {
         consultantState = diagnostics.status === 'settling' ? 'detecting' : 'idle';
       }
       syncConsultantSurface();
@@ -132,13 +138,15 @@ export function mountApp(rootElement: HTMLElement) {
     if (!(strip instanceof HTMLElement)) {
       return;
     }
-    const carried = overflowDiagnostics.status === 'overflow' && overflowDiagnostics.frameId
-      ? ` Carried overflow: frame ${overflowDiagnostics.frameId}, +${overflowDiagnostics.overflowPx ?? 0}px.`
-      : '';
+    const carried =
+      overflowDiagnostics.status === 'overflow' && overflowDiagnostics.frameId
+        ? ` Carried overflow: frame ${overflowDiagnostics.frameId}, +${overflowDiagnostics.overflowPx ?? 0}px.`
+        : '';
     strip.dataset.outcome = outcome;
-    strip.textContent = outcome === 'rejoin_layout'
-      ? `Freeform placements rejoined the layout; tiles are movable again.${carried}`
-      : `Freeform placements kept; those elements stay put until you rejoin them.${carried}`;
+    strip.textContent =
+      outcome === 'rejoin_layout'
+        ? `Freeform placements rejoined the layout; tiles are movable again.${carried}`
+        : `Freeform placements kept; those elements stay put until you rejoin them.${carried}`;
     strip.hidden = false;
   };
 
@@ -191,18 +199,25 @@ export function mountApp(rootElement: HTMLElement) {
     const previewVisible = preview !== null;
     const isDesignWorkspace = currentPayload?.physics === 'design';
     const aiCanRequest = currentPayload?.ai.status !== 'skipped';
-    const canRequest = aiCanRequest && isDesignWorkspace && overflowDiagnostics.status === 'overflow' && consultantState !== 'requesting' && consultantState !== 'applying';
+    const canRequest =
+      aiCanRequest &&
+      isDesignWorkspace &&
+      overflowDiagnostics.status === 'overflow' &&
+      consultantState !== 'requesting' &&
+      consultantState !== 'applying';
     const canAcceptOrReject = previewVisible && consultantState !== 'applying';
-    const displayState: ConsultantUiState = (!previewVisible
-      && consultantState !== 'requesting'
-      && consultantState !== 'applying'
-      && currentPayload
-      && currentPayload.ai.status !== 'available')
-      ? 'unavailable'
-      : consultantState;
-    const displayCode = displayState === 'unavailable' && currentPayload && currentPayload.ai.status !== 'available'
-      ? currentPayload.ai.status
-      : consultantCode;
+    const displayState: ConsultantUiState =
+      !previewVisible &&
+      consultantState !== 'requesting' &&
+      consultantState !== 'applying' &&
+      currentPayload &&
+      currentPayload.ai.status !== 'available'
+        ? 'unavailable'
+        : consultantState;
+    const displayCode =
+      displayState === 'unavailable' && currentPayload && currentPayload.ai.status !== 'available'
+        ? currentPayload.ai.status
+        : consultantCode;
 
     const note = previewVisible
       ? 'Ghost preview is separate from canonical frame geometry until you accept it.'
@@ -243,7 +258,7 @@ export function mountApp(rootElement: HTMLElement) {
 
   const syncBridgeSurface = () => {
     syncBridgePanels(rootElement, {
-      statusLabel: fetchError ? 'Fetch failed' : (payload ? payload.status : 'Loading'),
+      statusLabel: fetchError ? 'Fetch failed' : payload ? payload.status : 'Loading',
       payloadStatus: payload?.status ?? (fetchError ? 'fetch-error' : 'loading'),
       lastSignalLabel: formatSignalLabel(lastSignal),
       workspaceRoot: payload?.workspaceRoot ?? 'Loading workspace root…',
@@ -310,7 +325,12 @@ export function mountApp(rootElement: HTMLElement) {
 
   const requestConsultantProposal = async () => {
     const readyPayload = payload?.status === 'ready' ? payload : null;
-    if (!readyPayload || readyPayload.physics !== 'design' || overflowDiagnostics.status !== 'overflow' || !overflowDiagnostics.frameId) {
+    if (
+      !readyPayload ||
+      readyPayload.physics !== 'design' ||
+      overflowDiagnostics.status !== 'overflow' ||
+      !overflowDiagnostics.frameId
+    ) {
       consultantState = 'idle';
       consultantCode = 'request_skipped';
       consultantNote = 'A consultant proposal is only available for overflowing placed frames.';
@@ -461,9 +481,8 @@ export function mountApp(rootElement: HTMLElement) {
 
   // --- Template picker ---
   const syncTemplateSurface = () => {
-    const activeId: TemplateId = payload?.status === 'ready'
-      ? (payload.document.metadata.template?.id ?? 'default')
-      : 'default';
+    const activeId: TemplateId =
+      payload?.status === 'ready' ? (payload.document.metadata.template?.id ?? 'default') : 'default';
     syncTemplatePicker(rootElement, activeId);
   };
 
@@ -478,7 +497,11 @@ export function mountApp(rootElement: HTMLElement) {
       result = await editorEngine.dispatch({ op: 'set-template', templateId: id });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setTemplatePickerNote(rootElement, `Template apply failed: bridge_unavailable${message ? ` — ${message}` : ''}`, 'bridge_unavailable');
+      setTemplatePickerNote(
+        rootElement,
+        `Template apply failed: bridge_unavailable${message ? ` — ${message}` : ''}`,
+        'bridge_unavailable',
+      );
       return;
     }
 
@@ -488,7 +511,11 @@ export function mountApp(rootElement: HTMLElement) {
       return;
     }
 
-    setTemplatePickerNote(rootElement, `Template apply failed: ${result.code}${result.message ? ` — ${result.message}` : ''}`, result.code);
+    setTemplatePickerNote(
+      rootElement,
+      `Template apply failed: ${result.code}${result.message ? ` — ${result.message}` : ''}`,
+      result.code,
+    );
   };
 
   renderTemplateButtons(rootElement, TEMPLATE_IDS, (id) => {
@@ -605,7 +632,12 @@ export function mountApp(rootElement: HTMLElement) {
 
     if (!preview && consultantState !== 'requesting' && consultantState !== 'applying') {
       consultantState = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'detecting' : 'idle';
-      consultantCode = snapshot.interactionMode === 'design' && snapshot.selectedFrameId ? 'measuring' : consultantCode === 'preview_stale_cleared' ? consultantCode : 'none';
+      consultantCode =
+        snapshot.interactionMode === 'design' && snapshot.selectedFrameId
+          ? 'measuring'
+          : consultantCode === 'preview_stale_cleared'
+            ? consultantCode
+            : 'none';
       if (snapshot.interactionMode !== 'design') {
         consultantNote = 'Overflow detection runs only where frames are present.';
       } else if (!snapshot.selectedFrameId) {

@@ -83,7 +83,9 @@ type ProviderResponse =
     };
 
 type ProviderClient = {
-  requestProposal: (input: LayoutConsultantInvocation & { targetFrame: LayoutFrame; targetPage: LayoutPage }) => Promise<ProviderResponse>;
+  requestProposal: (
+    input: LayoutConsultantInvocation & { targetFrame: LayoutFrame; targetPage: LayoutPage },
+  ) => Promise<ProviderResponse>;
 };
 
 const providerClients: Record<string, ProviderClient> = {
@@ -226,7 +228,9 @@ export function parseLayoutConsultantRequest(input: unknown): LayoutConsultantRe
   return layoutConsultantRequestSchema.parse(input);
 }
 
-export async function requestLayoutConsultantProposal(input: LayoutConsultantInvocation): Promise<LayoutConsultantResult> {
+export async function requestLayoutConsultantProposal(
+  input: LayoutConsultantInvocation,
+): Promise<LayoutConsultantResult> {
   const targetFrame = input.document.layout.frames.find((frame) => frame.id === input.request.frameId);
   if (!targetFrame) {
     return {
@@ -247,7 +251,9 @@ export async function requestLayoutConsultantProposal(input: LayoutConsultantInv
       code: 'proposal_rejected',
       provider: input.provider,
       message: `Frame "${targetFrame.id}" references missing page "${targetFrame.pageId}".`,
-      issues: [{ path: 'layout.frames', message: `Frame "${targetFrame.id}" references missing page "${targetFrame.pageId}"` }],
+      issues: [
+        { path: 'layout.frames', message: `Frame "${targetFrame.id}" references missing page "${targetFrame.pageId}"` },
+      ],
     };
   }
 
@@ -299,7 +305,9 @@ export async function requestLayoutConsultantProposal(input: LayoutConsultantInv
   });
 }
 
-function buildProviderPromptPayload(input: LayoutConsultantInvocation & { targetFrame: LayoutFrame; targetPage: LayoutPage }) {
+function buildProviderPromptPayload(
+  input: LayoutConsultantInvocation & { targetFrame: LayoutFrame; targetPage: LayoutPage },
+) {
   const targetBlock = input.document.semantic.blocks.find((block) => block.id === input.targetFrame.blockId);
 
   return {
@@ -383,7 +391,9 @@ function extractAnthropicContent(input: unknown): unknown | null {
   return text.length > 0 ? text : null;
 }
 
-function parseProviderJson(input: unknown):
+function parseProviderJson(
+  input: unknown,
+):
   | { ok: true; value: z.output<typeof rawLayoutResizeProposalSchema> }
   | { ok: false; message: string; issues?: LayoutConsultantIssue[] } {
   let parsedInput = input;

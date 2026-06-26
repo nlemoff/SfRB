@@ -117,7 +117,11 @@ describe('sfrb open command', () => {
 
     const readyOutput = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error(`Timed out waiting for sfrb open readiness.\nstdout:\n${stdoutChunks.join('')}\nstderr:\n${stderrChunks.join('')}`));
+        reject(
+          new Error(
+            `Timed out waiting for sfrb open readiness.\nstdout:\n${stdoutChunks.join('')}\nstderr:\n${stderrChunks.join('')}`,
+          ),
+        );
       }, 15000);
 
       child.stdout.on('data', () => {
@@ -134,7 +138,11 @@ describe('sfrb open command', () => {
 
       child.once('exit', (code) => {
         clearTimeout(timeout);
-        reject(new Error(`sfrb open exited before readiness with code ${code}.\nstdout:\n${stdoutChunks.join('')}\nstderr:\n${stderrChunks.join('')}`));
+        reject(
+          new Error(
+            `sfrb open exited before readiness with code ${code}.\nstdout:\n${stdoutChunks.join('')}\nstderr:\n${stderrChunks.join('')}`,
+          ),
+        );
       });
     });
 
@@ -173,7 +181,13 @@ describe('sfrb open command', () => {
             blocks: [{ id: 'summaryBlock', kind: 'paragraph', text: 'Missing config.' }],
           },
           layout: {
-            pages: [{ id: 'pageOne', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
+            pages: [
+              {
+                id: 'pageOne',
+                size: { width: 612, height: 792 },
+                margin: { top: 36, right: 36, bottom: 36, left: 36 },
+              },
+            ],
             frames: [],
           },
         },
@@ -183,10 +197,14 @@ describe('sfrb open command', () => {
       'utf8',
     );
 
-    const { stdout, stderr } = await execFileAsync(process.execPath, ['dist/cli.js', 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
-      cwd: process.cwd(),
-      env: process.env,
-    }).catch((error: { stdout: string; stderr: string; code: number }) => error);
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      ['dist/cli.js', 'open', '--cwd', projectRoot, '--port', '0', '--no-open'],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+      },
+    ).catch((error: { stdout: string; stderr: string; code: number }) => error);
 
     const output = `${stdout}\n${stderr}`;
     expect(output).toContain(path.join(projectRoot, 'sfrb.config.json'));

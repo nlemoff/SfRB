@@ -43,9 +43,8 @@ export function syncConsultantPanel(rootElement: HTMLElement, model: ConsultantP
 
   setText(rootElement, '#consultant-state-note', model.note);
 
-  const overflowLabel = model.overflow.status === 'overflow'
-    ? `overflow · +${model.overflow.overflowPx ?? 0}px`
-    : model.overflow.status;
+  const overflowLabel =
+    model.overflow.status === 'overflow' ? `overflow · +${model.overflow.overflowPx ?? 0}px` : model.overflow.status;
   const overflowNode = rootElement.querySelector('#consultant-overflow-status');
   if (overflowNode instanceof HTMLElement) {
     overflowNode.dataset.overflowStatus = model.overflow.status;

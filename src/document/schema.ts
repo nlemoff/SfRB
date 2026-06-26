@@ -6,7 +6,10 @@ export const DOCUMENT_SCHEMA_VERSION = 1 as const;
 
 export const stableIdSchema = z
   .string()
-  .regex(/^[A-Za-z][A-Za-z0-9_-]*$/u, 'Stable ids must start with a letter and contain only letters, numbers, underscores, or hyphens');
+  .regex(
+    /^[A-Za-z][A-Za-z0-9_-]*$/u,
+    'Stable ids must start with a letter and contain only letters, numbers, underscores, or hyphens',
+  );
 
 export const semanticBlockKinds = ['heading', 'paragraph', 'bullet', 'fact', 'divider'] as const;
 export const semanticBlockKindSchema = z.enum(semanticBlockKinds);
@@ -95,7 +98,7 @@ function addDuplicateIdIssues(
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: pathPrefix(index),
-        message: `Duplicate ${label} id \"${value}\" also used at index ${existingIndex}`,
+        message: `Duplicate ${label} id "${value}" also used at index ${existingIndex}`,
       });
       return;
     }
@@ -161,7 +164,7 @@ export const documentSchema = z
           context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['semantic', 'sections', sectionIndex, 'blockIds', blockIndex],
-            message: `Section block id \"${blockId}\" must not be repeated within the same section`,
+            message: `Section block id "${blockId}" must not be repeated within the same section`,
           });
         }
         seenSectionBlockIds.add(blockId);
@@ -170,7 +173,7 @@ export const documentSchema = z
           context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['semantic', 'sections', sectionIndex, 'blockIds', blockIndex],
-            message: `Section references missing semantic block \"${blockId}\"`,
+            message: `Section references missing semantic block "${blockId}"`,
           });
         }
       });
@@ -182,7 +185,7 @@ export const documentSchema = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['semantic', 'blocks', blockIndex, 'id'],
-          message: `Semantic block \"${block.id}\" is not referenced by any section`,
+          message: `Semantic block "${block.id}" is not referenced by any section`,
         });
       }
     });
@@ -192,7 +195,7 @@ export const documentSchema = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['layout', 'frames', frameIndex, 'pageId'],
-          message: `Layout frame references missing page \"${frame.pageId}\"`,
+          message: `Layout frame references missing page "${frame.pageId}"`,
         });
       }
 
@@ -200,7 +203,7 @@ export const documentSchema = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['layout', 'frames', frameIndex, 'blockId'],
-          message: `Layout frame references missing semantic block \"${frame.blockId}\"`,
+          message: `Layout frame references missing semantic block "${frame.blockId}"`,
         });
       }
 
@@ -210,7 +213,7 @@ export const documentSchema = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['layout', 'frames', frameIndex, 'blockId'],
-          message: `Semantic block \"${frame.blockId}\" already has a layout frame`,
+          message: `Semantic block "${frame.blockId}" already has a layout frame`,
         });
       }
     });
@@ -230,7 +233,7 @@ export const documentSchema = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['layout', 'frameGroups', groupIndex, 'pageId'],
-          message: `Frame group references missing page \"${group.pageId}\"`,
+          message: `Frame group references missing page "${group.pageId}"`,
         });
       }
 
@@ -240,7 +243,7 @@ export const documentSchema = z
           context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['layout', 'frameGroups', groupIndex, 'frameIds', frameIdIndex],
-            message: `Frame group references missing layout frame \"${frameId}\"`,
+            message: `Frame group references missing layout frame "${frameId}"`,
           });
           return;
         }
@@ -250,7 +253,7 @@ export const documentSchema = z
           context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['layout', 'frameGroups', groupIndex, 'frameIds', frameIdIndex],
-            message: `Layout frame \"${frameId}\" already belongs to frame group \"${existingGroupId}\"`,
+            message: `Layout frame "${frameId}" already belongs to frame group "${existingGroupId}"`,
           });
         } else {
           groupIdByFrameId.set(frameId, group.id);
@@ -260,7 +263,7 @@ export const documentSchema = z
           context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['layout', 'frameGroups', groupIndex, 'frameIds', frameIdIndex],
-            message: `Frame group member \"${frameId}\" is on page \"${frame.pageId}\" but the group targets page \"${group.pageId}\"`,
+            message: `Frame group member "${frameId}" is on page "${frame.pageId}" but the group targets page "${group.pageId}"`,
           });
         }
       });

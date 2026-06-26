@@ -24,7 +24,9 @@ export function createReconciliationDialog(
   let previouslyFocused: HTMLElement | null = null;
 
   const focusables = (): HTMLElement[] =>
-    [rejoinButton, keepButton, cancelButton].filter((element): element is HTMLElement => element instanceof HTMLElement);
+    [rejoinButton, keepButton, cancelButton].filter(
+      (element): element is HTMLElement => element instanceof HTMLElement,
+    );
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -68,7 +70,8 @@ export function createReconciliationDialog(
       dialog.hidden = false;
       dialog.addEventListener('keydown', onKeyDown);
       if (note instanceof HTMLElement) {
-        note.textContent = 'Your freeform placements are saved. Decide how they should behave outside the freeform lens.';
+        note.textContent =
+          'Your freeform placements are saved. Decide how they should behave outside the freeform lens.';
       }
       (rejoinButton instanceof HTMLElement ? rejoinButton : null)?.focus();
     },

@@ -25,32 +25,60 @@ async function ensureBuilt() {
   });
 }
 
-async function writeWorkspaceFiles(projectRoot, { physics = 'design', title = 'S05 Smoke Resume', blockText, provider = 'openai', apiKeyEnvVar = 'OPENAI_API_KEY' } = {}) {
-  const resolvedBlockText = blockText ?? Array.from({ length: 10 }, (_, index) => `S05 smoke overflow line ${index + 1}.`).join('\n');
+async function writeWorkspaceFiles(
+  projectRoot,
+  {
+    physics = 'design',
+    title = 'S05 Smoke Resume',
+    blockText,
+    provider = 'openai',
+    apiKeyEnvVar = 'OPENAI_API_KEY',
+  } = {},
+) {
+  const resolvedBlockText =
+    blockText ?? Array.from({ length: 10 }, (_, index) => `S05 smoke overflow line ${index + 1}.`).join('\n');
   await writeFile(
     path.join(projectRoot, 'sfrb.config.json'),
-    `${JSON.stringify({
-      version: 1,
-      ai: { provider, apiKeyEnvVar },
-      workspace: { physics },
-    }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        version: 1,
+        ai: { provider, apiKeyEnvVar },
+        workspace: { physics },
+      },
+      null,
+      2,
+    )}\n`,
     'utf8',
   );
 
   await writeFile(
     path.join(projectRoot, 'resume.sfrb.json'),
-    `${JSON.stringify({
-      version: 1,
-      metadata: { title, locale: 'en-US' },
-      semantic: {
-        sections: [{ id: 'summary', title: 'Summary', blockIds: ['summaryBlock'] }],
-        blocks: [{ id: 'summaryBlock', kind: 'paragraph', text: resolvedBlockText }],
+    `${JSON.stringify(
+      {
+        version: 1,
+        metadata: { title, locale: 'en-US' },
+        semantic: {
+          sections: [{ id: 'summary', title: 'Summary', blockIds: ['summaryBlock'] }],
+          blocks: [{ id: 'summaryBlock', kind: 'paragraph', text: resolvedBlockText }],
+        },
+        layout: {
+          pages: [
+            { id: 'pageOne', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [
+            {
+              id: 'summaryFrame',
+              pageId: 'pageOne',
+              blockId: 'summaryBlock',
+              box: { x: 36, y: 48, width: 540, height: 96 },
+              zIndex: 0,
+            },
+          ],
+        },
       },
-      layout: {
-        pages: [{ id: 'pageOne', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-        frames: [{ id: 'summaryFrame', pageId: 'pageOne', blockId: 'summaryBlock', box: { x: 36, y: 48, width: 540, height: 96 }, zIndex: 0 }],
-      },
-    }, null, 2)}\n`,
+      null,
+      2,
+    )}\n`,
     'utf8',
   );
 }
@@ -76,7 +104,15 @@ async function waitForBridgeReady(projectRoot, env = process.env) {
   child.stderr.on('data', (chunk) => stderr.push(chunk.toString()));
 
   const readyOutput = await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`)), 15000);
+    const timeout = setTimeout(
+      () =>
+        reject(
+          new Error(
+            `Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`,
+          ),
+        ),
+      15000,
+    );
     child.stdout.on('data', () => {
       const combined = stdout.join('');
       if (combined.includes('SfRB bridge ready at http://') && combined.includes(`Workspace root: ${projectRoot}`)) {
@@ -86,7 +122,11 @@ async function waitForBridgeReady(projectRoot, env = process.env) {
     });
     child.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(
+          `Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`,
+        ),
+      );
     });
   });
 
@@ -128,20 +168,23 @@ async function createOpenAiStubServer(handler) {
 
   return {
     baseUrl: `http://127.0.0.1:${address.port}`,
-    close: () => new Promise((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    }),
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      }),
   };
 }
 
 async function waitForEditorIdle(page) {
-  await page.waitForFunction(() => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle');
+  await page.waitForFunction(
+    () => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle',
+  );
 }
 
 async function openDesignWorkspace(page, url) {
@@ -150,15 +193,27 @@ async function openDesignWorkspace(page, url) {
 }
 
 async function waitForOverflowStatus(page, expected) {
-  await page.waitForFunction((expectedStatus) => document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === expectedStatus, expected);
+  await page.waitForFunction(
+    (expectedStatus) =>
+      document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === expectedStatus,
+    expected,
+  );
 }
 
 async function waitForConsultantState(page, expected) {
-  await page.waitForFunction((expectedState) => document.querySelector('#consultant-status')?.getAttribute('data-consultant-state') === expectedState, expected);
+  await page.waitForFunction(
+    (expectedState) =>
+      document.querySelector('#consultant-status')?.getAttribute('data-consultant-state') === expectedState,
+    expected,
+  );
 }
 
 async function waitForPreviewVisible(page, visible) {
-  await page.waitForFunction((expectedVisibility) => document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === expectedVisibility, String(visible));
+  await page.waitForFunction(
+    (expectedVisibility) =>
+      document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === expectedVisibility,
+    String(visible),
+  );
 }
 
 async function waitForBridgeUpdateSignal(page) {
@@ -172,7 +227,9 @@ async function readConsultantDiagnostics(page) {
   const ghost = page.locator('[data-testid="consultant-ghost-preview-summaryFrame"]');
   const ghostCount = await ghost.count();
   const overflowPx = await page.getAttribute('#consultant-measurements', 'data-overflow-px');
-  const errorText = await page.locator('#consultant-error').evaluate((element) => element.hidden ? null : element.textContent);
+  const errorText = await page
+    .locator('#consultant-error')
+    .evaluate((element) => (element.hidden ? null : element.textContent));
 
   return {
     consultantState: await page.getAttribute('#consultant-status', 'data-consultant-state'),
@@ -199,25 +256,33 @@ async function verifyHappyPath(browser) {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'sfrb-s05-happy-smoke-'));
   const provider = await createOpenAiStubServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({
-      choices: [{
-        message: {
-          content: JSON.stringify({
-            frameId: 'summaryFrame',
-            box: { x: 36, y: 48, width: 540, height: 420 },
-            rationale: 'Increase frame height so the overflowing summary can fit without clipping.',
-            confidence: 0.94,
-          }),
-        },
-      }],
-    }));
+    response.end(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                frameId: 'summaryFrame',
+                box: { x: 36, y: 48, width: 540, height: 420 },
+                rationale: 'Increase frame height so the overflowing summary can fit without clipping.',
+                confidence: 0.94,
+              }),
+            },
+          },
+        ],
+      }),
+    );
   });
 
   let child;
   try {
     await writeWorkspaceFiles(projectRoot, { title: 'S05 Happy Smoke' });
     const beforeRaw = await readWorkspaceDocumentRaw(projectRoot);
-    ({ child, url: globalThis.__s05HappyUrl, stderr: globalThis.__s05HappyStderr } = await waitForBridgeReady(projectRoot, {
+    ({
+      child,
+      url: globalThis.__s05HappyUrl,
+      stderr: globalThis.__s05HappyStderr,
+    } = await waitForBridgeReady(projectRoot, {
       ...process.env,
       OPENAI_API_KEY: 'sk-test-layout-consultant-smoke',
       SFRB_OPENAI_BASE_URL: provider.baseUrl,
@@ -229,8 +294,14 @@ async function verifyHappyPath(browser) {
     await waitForOverflowStatus(page, 'overflow');
 
     const before = await readConsultantDiagnostics(page);
-    expectCondition(before.consultantState === 'idle', `Expected idle before request, received ${before.consultantState}`);
-    expectCondition(before.overflowPx !== null && before.overflowPx > 0, `Expected positive overflowPx before request, received ${before.overflowPx}`);
+    expectCondition(
+      before.consultantState === 'idle',
+      `Expected idle before request, received ${before.consultantState}`,
+    );
+    expectCondition(
+      before.overflowPx !== null && before.overflowPx > 0,
+      `Expected positive overflowPx before request, received ${before.overflowPx}`,
+    );
     expectCondition(before.previewVisible === false, 'Expected no preview before request.');
 
     await page.click('#consultant-request');
@@ -239,13 +310,19 @@ async function verifyHappyPath(browser) {
     expectCondition(preview.previewVisible === true, 'Expected preview after consultant request.');
     expectCondition(preview.ghostCount === 1, `Expected one ghost preview, received ${preview.ghostCount}`);
     expectCondition(preview.ghostHeight === '420', `Expected ghost height 420, received ${preview.ghostHeight}`);
-    expectCondition(String(preview.rationale).includes('Increase frame height'), 'Expected rationale text for preview.');
+    expectCondition(
+      String(preview.rationale).includes('Increase frame height'),
+      'Expected rationale text for preview.',
+    );
 
     await page.click('#consultant-reject');
     await waitForPreviewVisible(page, false);
     const rejected = await readConsultantDiagnostics(page);
     const afterRejectRaw = await readWorkspaceDocumentRaw(projectRoot);
-    expectCondition(rejected.consultantCode === 'rejected', `Expected rejected code after reject, received ${rejected.consultantCode}`);
+    expectCondition(
+      rejected.consultantCode === 'rejected',
+      `Expected rejected code after reject, received ${rejected.consultantCode}`,
+    );
     expectCondition(afterRejectRaw === beforeRaw, 'Canonical document changed after reject.');
     expectCondition(String(rejected.payloadPreview).includes('"height": 96'), 'Payload preview drifted after reject.');
 
@@ -259,12 +336,26 @@ async function verifyHappyPath(browser) {
 
     const accepted = await readConsultantDiagnostics(page);
     const documentOnDisk = await readWorkspaceDocument(projectRoot);
-    expectCondition(documentOnDisk.layout.frames[0]?.box?.height === 420, `Expected persisted frame height 420, received ${JSON.stringify(documentOnDisk.layout.frames[0]?.box)}`);
+    expectCondition(
+      documentOnDisk.layout.frames[0]?.box?.height === 420,
+      `Expected persisted frame height 420, received ${JSON.stringify(documentOnDisk.layout.frames[0]?.box)}`,
+    );
     expectCondition(accepted.previewVisible === false, 'Preview should be cleared after accept persists.');
-    expectCondition(accepted.overflowStatus === 'clear', `Expected overflow to clear, received ${accepted.overflowStatus}`);
-    expectCondition(String(accepted.payloadPreview).includes('"height": 420'), 'Payload preview did not reflect accepted canonical write.');
-    expectCondition(globalThis.__s05HappyStderr.join('') === '', `Bridge stderr was not empty:\n${globalThis.__s05HappyStderr.join('')}`);
-    console.log('S05 happy path OK: reject preserved resume.sfrb.json, accept persisted consultant resize, overflow cleared.');
+    expectCondition(
+      accepted.overflowStatus === 'clear',
+      `Expected overflow to clear, received ${accepted.overflowStatus}`,
+    );
+    expectCondition(
+      String(accepted.payloadPreview).includes('"height": 420'),
+      'Payload preview did not reflect accepted canonical write.',
+    );
+    expectCondition(
+      globalThis.__s05HappyStderr.join('') === '',
+      `Bridge stderr was not empty:\n${globalThis.__s05HappyStderr.join('')}`,
+    );
+    console.log(
+      'S05 happy path OK: reject preserved resume.sfrb.json, accept persisted consultant resize, overflow cleared.',
+    );
     await page.close();
   } finally {
     if (child) {
@@ -301,13 +392,30 @@ async function verifyMissingSecretPath(browser) {
     const afterDocument = await readWorkspaceDocument(projectRoot);
     const afterRaw = await readWorkspaceDocumentRaw(projectRoot);
     expectCondition(failure.previewVisible === false, 'Failure path should not show a ghost preview.');
-    expectCondition(failure.consultantCode === 'degraded', `Expected degraded code, received ${failure.consultantCode}`);
-    expectCondition(String(failure.errorText).includes('configuration_missing'), 'Failure surface did not categorize the bridge failure.');
-    expectCondition(String(failure.errorText).includes('OPENAI_API_KEY'), 'Failure surface did not identify the missing env var.');
-    expectCondition(JSON.stringify(afterDocument) === JSON.stringify(beforeDocument), 'Canonical document structure changed during missing-secret failure.');
+    expectCondition(
+      failure.consultantCode === 'degraded',
+      `Expected degraded code, received ${failure.consultantCode}`,
+    );
+    expectCondition(
+      String(failure.errorText).includes('configuration_missing'),
+      'Failure surface did not categorize the bridge failure.',
+    );
+    expectCondition(
+      String(failure.errorText).includes('OPENAI_API_KEY'),
+      'Failure surface did not identify the missing env var.',
+    );
+    expectCondition(
+      JSON.stringify(afterDocument) === JSON.stringify(beforeDocument),
+      'Canonical document structure changed during missing-secret failure.',
+    );
     expectCondition(afterRaw === beforeRaw, 'Canonical raw file changed during missing-secret failure.');
-    expectCondition(String(failure.payloadPreview).includes('"height": 96'), 'Payload preview drifted during missing-secret failure.');
-    console.log('S05 failure path OK: missing secret surfaced in UI diagnostics and canonical document remained unchanged.');
+    expectCondition(
+      String(failure.payloadPreview).includes('"height": 96'),
+      'Payload preview drifted during missing-secret failure.',
+    );
+    console.log(
+      'S05 failure path OK: missing secret surfaced in UI diagnostics and canonical document remained unchanged.',
+    );
     await page.close();
   } finally {
     if (child) {

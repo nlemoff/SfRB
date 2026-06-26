@@ -24,9 +24,7 @@ export class ConfigValidationError extends Error {
       message: issue.message,
     }));
 
-    super(
-      [`${source} failed validation:`, ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'),
-    );
+    super([`${source} failed validation:`, ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'));
 
     this.name = 'ConfigValidationError';
     this.issues = issues;
@@ -99,7 +97,8 @@ export async function ensureConfigIsGitignored(
     return { path: gitignorePath, updated: false };
   }
 
-  const nextContent = existing.length === 0 ? `${SFRB_CONFIG_FILE}\n` : `${existing.replace(/\s*$/u, '')}\n${SFRB_CONFIG_FILE}\n`;
+  const nextContent =
+    existing.length === 0 ? `${SFRB_CONFIG_FILE}\n` : `${existing.replace(/\s*$/u, '')}\n${SFRB_CONFIG_FILE}\n`;
 
   await mkdir(projectRoot, { recursive: true });
   await writeFile(gitignorePath, nextContent, 'utf8');

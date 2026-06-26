@@ -67,7 +67,9 @@ describe('editor tile mode', () => {
         { id: 'heroComposition', pageId: 'pageOne', frameIds: ['heroNameFrame', 'heroSummaryFrame'], locked: true },
       ]);
       expect(await page.locator('[data-testid="tile-group-badge-heroComposition"]').count()).toBe(1);
-      expect(await page.getAttribute('[data-testid="editor-frame-heroNameFrame"]', 'data-group-id')).toBe('heroComposition');
+      expect(await page.getAttribute('[data-testid="editor-frame-heroNameFrame"]', 'data-group-id')).toBe(
+        'heroComposition',
+      );
       expect(await page.getAttribute('[data-testid="editor-frame-heroNameFrame"]', 'data-group-locked')).toBe('true');
 
       // Dragging a locked member is a visible no-write.

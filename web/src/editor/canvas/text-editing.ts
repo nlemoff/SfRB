@@ -137,7 +137,9 @@ export function createTextEditingController(deps: {
 
     const previousBlockId = activeTextarea.dataset.blockId ?? '';
     activeBlockBody.replaceChildren(
-      document.createTextNode(lineClampText(engine.getDisplayText(previousBlockId) ?? engine.getBlockText(previousBlockId) ?? '')),
+      document.createTextNode(
+        lineClampText(engine.getDisplayText(previousBlockId) ?? engine.getBlockText(previousBlockId) ?? ''),
+      ),
     );
     activeTextarea = null;
     activeBlockBody = null;

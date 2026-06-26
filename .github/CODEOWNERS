@@ -1,0 +1,11 @@
+# Code ownership for review routing.
+# Each line is a file pattern followed by one or more owners.
+
+# Default owner for everything in the repo.
+*       @nlemoff
+
+# Load-bearing boundaries that warrant extra care on review.
+/src/bridge/        @nlemoff
+/src/document/      @nlemoff
+/src/agent/         @nlemoff
+/.github/           @nlemoff

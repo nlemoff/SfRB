@@ -61,16 +61,12 @@ function validateHarnessInput(raw: unknown): InitWizardAnswers {
 
   const starter = input.starter;
   if (!isStarterKind(starter)) {
-    throw new InitWizardError(
-      `${INIT_WIZARD_TEST_INPUT_ENV}.starter must be one of: ${starterKinds.join(', ')}`,
-    );
+    throw new InitWizardError(`${INIT_WIZARD_TEST_INPUT_ENV}.starter must be one of: ${starterKinds.join(', ')}`);
   }
 
   const physics = input.physics;
   if (!isPhysicsMode(physics)) {
-    throw new InitWizardError(
-      `${INIT_WIZARD_TEST_INPUT_ENV}.physics must be one of: ${PHYSICS_MODES.join(', ')}`,
-    );
+    throw new InitWizardError(`${INIT_WIZARD_TEST_INPUT_ENV}.physics must be one of: ${PHYSICS_MODES.join(', ')}`);
   }
 
   const skipAi = input.skipAi === true;
@@ -85,9 +81,7 @@ function validateHarnessInput(raw: unknown): InitWizardAnswers {
 
   const provider = input.provider;
   if (!isProvider(provider)) {
-    throw new InitWizardError(
-      `${INIT_WIZARD_TEST_INPUT_ENV}.provider must be one of: ${PROVIDERS.join(', ')}`,
-    );
+    throw new InitWizardError(`${INIT_WIZARD_TEST_INPUT_ENV}.provider must be one of: ${PROVIDERS.join(', ')}`);
   }
 
   const apiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : '';
@@ -170,10 +164,7 @@ export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<In
         choices: PHYSICS_MODES.map((physics) => ({
           name: physics,
           message: physics === 'document' ? 'Document' : 'Design',
-          hint:
-            physics === 'document'
-              ? 'structured editing and linear flows'
-              : 'spatial editing and visual iteration',
+          hint: physics === 'document' ? 'structured editing and linear flows' : 'spatial editing and visual iteration',
         })),
       },
       {
@@ -191,7 +182,12 @@ export async function runInitWizard(runtime: InitWizardRuntime = {}): Promise<In
         },
         choices: PROVIDERS.map((provider) => ({
           name: provider,
-          message: provider === 'deepseek' ? 'DeepSeek (default: deepseek-v4-flash)' : provider === 'openai' ? 'OpenAI' : 'Anthropic',
+          message:
+            provider === 'deepseek'
+              ? 'DeepSeek (default: deepseek-v4-flash)'
+              : provider === 'openai'
+                ? 'OpenAI'
+                : 'Anthropic',
           hint: `stores ${defaultApiKeyEnvVarForProvider(provider)}`,
         })),
       },

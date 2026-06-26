@@ -24,9 +24,7 @@ export class DocumentValidationError extends Error {
       message: issue.message,
     }));
 
-    super(
-      [`${source} failed validation:`, ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'),
-    );
+    super([`${source} failed validation:`, ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'));
 
     this.name = 'DocumentValidationError';
     this.issues = issues;

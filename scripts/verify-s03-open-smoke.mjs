@@ -6,18 +6,22 @@ import path from 'node:path';
 const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 
-async function writeWorkspaceFiles(projectRoot, { physics = 'document', title = 'Smoke Resume', blockText = 'Smoke test content.' } = {}) {
-  const frames = physics === 'design'
-    ? [
-        {
-          id: 'summaryFrame',
-          pageId: 'pageOne',
-          blockId: 'summaryBlock',
-          box: { x: 36, y: 48, width: 540, height: 96 },
-          zIndex: 0,
-        },
-      ]
-    : [];
+async function writeWorkspaceFiles(
+  projectRoot,
+  { physics = 'document', title = 'Smoke Resume', blockText = 'Smoke test content.' } = {},
+) {
+  const frames =
+    physics === 'design'
+      ? [
+          {
+            id: 'summaryFrame',
+            pageId: 'pageOne',
+            blockId: 'summaryBlock',
+            box: { x: 36, y: 48, width: 540, height: 96 },
+            zIndex: 0,
+          },
+        ]
+      : [];
 
   await writeFile(
     path.join(projectRoot, 'sfrb.config.json'),
@@ -95,7 +99,9 @@ async function waitForBridgeReady(projectRoot) {
 
   const readyOutput = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`),
+      );
     }, 15000);
 
     child.stdout.on('data', () => {
@@ -108,7 +114,11 @@ async function waitForBridgeReady(projectRoot) {
 
     child.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(
+          `Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`,
+        ),
+      );
     });
   });
 
@@ -139,14 +149,22 @@ async function getViteWebSocket(baseUrl) {
 
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Timed out opening Vite websocket.')), 10000);
-    socket.addEventListener('open', () => {
-      clearTimeout(timeout);
-      resolve();
-    }, { once: true });
-    socket.addEventListener('error', () => {
-      clearTimeout(timeout);
-      reject(new Error('Failed to open Vite websocket.'));
-    }, { once: true });
+    socket.addEventListener(
+      'open',
+      () => {
+        clearTimeout(timeout);
+        resolve();
+      },
+      { once: true },
+    );
+    socket.addEventListener(
+      'error',
+      () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to open Vite websocket.'));
+      },
+      { once: true },
+    );
   });
 
   return socket;
@@ -214,15 +232,23 @@ try {
     blockText: 'Updated from disk without restart.',
   });
   const updateEvent = await updateEventPromise;
-  const updated = await waitForBootstrapMatch(globalThis.__bridgeUrl, (payload) => payload.status === 'ready' && payload.physics === 'design');
+  const updated = await waitForBootstrapMatch(
+    globalThis.__bridgeUrl,
+    (payload) => payload.status === 'ready' && payload.physics === 'design',
+  );
   console.log(`Update event OK: ${(updateEvent.changedPaths ?? [updateEvent.changedPath]).join(', ')}`);
   console.log(`Updated payload OK: ${updated.payload.document.metadata.title} (${updated.payload.physics})`);
 
   const errorEventPromise = waitForCustomEvent(socket, BRIDGE_ERROR_EVENT);
   await writeFile(path.join(projectRoot, 'resume.sfrb.json'), '{"version":1,"metadata":', 'utf8');
   const errorEvent = await errorEventPromise;
-  const invalid = await waitForBootstrapMatch(globalThis.__bridgeUrl, (payload, status) => payload.status === 'error' && status === 409);
-  console.log(`Error event OK: ${errorEvent.name} from ${(errorEvent.changedPaths ?? [errorEvent.changedPath]).join(', ')}`);
+  const invalid = await waitForBootstrapMatch(
+    globalThis.__bridgeUrl,
+    (payload, status) => payload.status === 'error' && status === 409,
+  );
+  console.log(
+    `Error event OK: ${errorEvent.name} from ${(errorEvent.changedPaths ?? [errorEvent.changedPath]).join(', ')}`,
+  );
   console.log(`Invalid payload OK: HTTP ${invalid.status} ${invalid.payload.name}`);
 
   const stderrText = globalThis.__bridgeStderr.join('');

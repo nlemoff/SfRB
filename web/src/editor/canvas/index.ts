@@ -3,7 +3,12 @@ import type { GhostPreviewLayer, GhostPreviewModel } from '../../ui/GhostPreview
 import type { DocumentEditorEngine, DocumentEditorSnapshot, EditorLens, FrameBox } from '../engine';
 import { renderFlowSurface } from './flow-surface';
 import { renderFreeformSurface, setFreeformMoveState, type FreeformSurfaceController } from './freeform-surface';
-import { renderTileSurface, setFrameElementPosition, setTileActionNote, type TileSurfaceController } from './tile-surface';
+import {
+  renderTileSurface,
+  setFrameElementPosition,
+  setTileActionNote,
+  type TileSurfaceController,
+} from './tile-surface';
 import { createOverflowController, createDocumentKey, type CanvasOverflowDiagnostics } from './overflow';
 import { createPointerController } from './pointer';
 import { createTextEditingController } from './text-editing';
@@ -72,7 +77,8 @@ export function mountCanvas(
   title.dataset.testid = 'document-title';
 
   const subtitle = document.createElement('p');
-  subtitle.style.cssText = 'margin: 2px 0 0; max-width: 64ch; color: var(--sfrb-ink-faint); font-size: 12px; line-height: 1.4;';
+  subtitle.style.cssText =
+    'margin: 2px 0 0; max-width: 64ch; color: var(--sfrb-ink-faint); font-size: 12px; line-height: 1.4;';
   headingGroup.append(title, subtitle);
 
   const pageMeta = document.createElement('div');
@@ -260,7 +266,10 @@ export function mountCanvas(
         },
         (error: unknown) => {
           engine.revertFrameOverrides(memberIds);
-          setTileActionNote(rootElement, `Bridge unavailable: ${error instanceof Error ? error.message : String(error)}`);
+          setTileActionNote(
+            rootElement,
+            `Bridge unavailable: ${error instanceof Error ? error.message : String(error)}`,
+          );
         },
       );
     },
@@ -272,7 +281,12 @@ export function mountCanvas(
       layer.render(null);
     }
 
-    if (!payload || payload.physics !== 'design' || !ghostPreview || ghostPreview.sourceDocumentKey !== createDocumentKey(payload)) {
+    if (
+      !payload ||
+      payload.physics !== 'design' ||
+      !ghostPreview ||
+      ghostPreview.sourceDocumentKey !== createDocumentKey(payload)
+    ) {
       return;
     }
 
@@ -423,7 +437,13 @@ export function mountCanvas(
         surface: 'freeform',
         pages: nextPayload.document.layout.pages.map((page) => ({ id: page.id, size: page.size, margin: page.margin })),
         frames: nextPayload.document.layout.frames
-          .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex, placement: frame.placement }))
+          .map((frame) => ({
+            id: frame.id,
+            pageId: frame.pageId,
+            blockId: frame.blockId,
+            zIndex: frame.zIndex,
+            placement: frame.placement,
+          }))
           .sort((left, right) => left.zIndex - right.zIndex),
         groups: nextPayload.document.layout.frameGroups.map((group) => ({
           id: group.id,
@@ -438,7 +458,13 @@ export function mountCanvas(
         surface: 'tile',
         pages: nextPayload.document.layout.pages.map((page) => ({ id: page.id, size: page.size, margin: page.margin })),
         frames: nextPayload.document.layout.frames
-          .map((frame) => ({ id: frame.id, pageId: frame.pageId, blockId: frame.blockId, zIndex: frame.zIndex, placement: frame.placement }))
+          .map((frame) => ({
+            id: frame.id,
+            pageId: frame.pageId,
+            blockId: frame.blockId,
+            zIndex: frame.zIndex,
+            placement: frame.placement,
+          }))
           .sort((left, right) => left.zIndex - right.zIndex),
         // Group membership, lock state, and placement drive badges, handles,
         // and frame datasets, so those changes must rebuild the surface
@@ -470,11 +496,12 @@ export function mountCanvas(
     pageMeta.textContent = `${nextPayload.document.layout.pages.length} page${nextPayload.document.layout.pages.length === 1 ? '' : 's'} · ${nextPayload.document.semantic.sections.length} section${nextPayload.document.semantic.sections.length === 1 ? '' : 's'} · ${nextPayload.document.semantic.blocks.length} blocks · ${firstPage.size.width}×${firstPage.size.height}`;
 
     const nextStructureKey = computeStructureKey(nextPayload, lens);
-    const nextSurface: ActiveSurface = nextPayload.physics === 'design' && lens === 'tile'
-      ? 'tile'
-      : nextPayload.physics === 'design' && lens === 'freeform'
-        ? 'freeform'
-        : 'flow';
+    const nextSurface: ActiveSurface =
+      nextPayload.physics === 'design' && lens === 'tile'
+        ? 'tile'
+        : nextPayload.physics === 'design' && lens === 'freeform'
+          ? 'freeform'
+          : 'flow';
 
     if (structureKey !== nextStructureKey) {
       structureKey = nextStructureKey;
@@ -498,7 +525,8 @@ export function mountCanvas(
           payload: nextPayload,
         });
       } else if (nextSurface === 'freeform') {
-        subtitle.textContent = "Move and resize anything directly. When you leave this lens, you'll choose how placements rejoin the layout.";
+        subtitle.textContent =
+          "Move and resize anything directly. When you leave this lens, you'll choose how placements rejoin the layout.";
         freeformControls = renderFreeformSurface({
           engine,
           surfaceRoot,

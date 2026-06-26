@@ -28,22 +28,38 @@ const assert = (condition, label) => {
 
 async function createTempWorkspace() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-m003-s03-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: { title: 'Assembly Proof', locale: 'en' },
-    semantic: {
-      sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
-      blocks: [{ id: 'b1', kind: 'paragraph', text: 'M003 assembled export assembly proof.' }],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: { title: 'Assembly Proof', locale: 'en' },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
+          blocks: [{ id: 'b1', kind: 'paragraph', text: 'M003 assembled export assembly proof.' }],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 
@@ -76,10 +92,14 @@ async function startBridge(projectRoot) {
 }
 
 async function runExport(projectRoot, outputPath) {
-  const child = spawn(process.execPath, [cliEntry, 'export', '--cwd', projectRoot, '--output', outputPath, '--port', '0'], {
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    process.execPath,
+    [cliEntry, 'export', '--cwd', projectRoot, '--output', outputPath, '--port', '0'],
+    {
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
 
   const stdout = [];
   child.stdout.on('data', (chunk) => stdout.push(chunk.toString()));
@@ -111,7 +131,7 @@ async function main() {
 
     // Step 2: Verify the same workspace document includes our text
     assert(
-      payload.document?.semantic?.blocks?.some(b => b.text?.includes('M003 assembled export assembly proof.')),
+      payload.document?.semantic?.blocks?.some((b) => b.text?.includes('M003 assembled export assembly proof.')),
       'bootstrap payload contains expected canonical text',
     );
 
@@ -137,7 +157,9 @@ async function main() {
     await rm(projectRoot, { recursive: true, force: true });
   }
 
-  console.log(exitCode === 0 ? '\nM003/S03 assembly verification passed.\n' : '\nM003/S03 assembly verification FAILED.\n');
+  console.log(
+    exitCode === 0 ? '\nM003/S03 assembly verification passed.\n' : '\nM003/S03 assembly verification FAILED.\n',
+  );
   process.exit(exitCode);
 }
 

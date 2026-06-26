@@ -58,9 +58,7 @@ export async function runTemplateShowCommand(
   const error = runtime.error ?? ((message: string) => console.error(message));
 
   if (!isKnownTemplateId(templateId)) {
-    error(
-      `Unknown template id "${templateId}". Run \`sfrb template list\` to see registered templates.`,
-    );
+    error(`Unknown template id "${templateId}". Run \`sfrb template list\` to see registered templates.`);
     return { exitCode: 1 };
   }
 
@@ -78,9 +76,7 @@ export async function runTemplateApplyCommand(
   const error = runtime.error ?? ((message: string) => console.error(message));
 
   if (!isKnownTemplateId(templateId)) {
-    error(
-      `Unknown template id "${templateId}". Run \`sfrb template list\` to see registered templates.`,
-    );
+    error(`Unknown template id "${templateId}". Run \`sfrb template list\` to see registered templates.`);
     return { exitCode: 1 };
   }
 
@@ -137,8 +133,7 @@ function formatError(prefix: string, caught: unknown): string {
 }
 
 export function createTemplateCommand(): Command {
-  const command = new Command('template')
-    .description('Manage the active resume template');
+  const command = new Command('template').description('Manage the active resume template');
 
   command
     .command('list')

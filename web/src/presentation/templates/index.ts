@@ -1,7 +1,4 @@
-import {
-  isKnownTemplateId,
-  type TemplateId,
-} from '../../../../src/document/templates/registry';
+import { isKnownTemplateId, type TemplateId } from '../../../../src/document/templates/registry';
 import type { Theme } from '../theme';
 import { classicTheme } from './classic';
 import { defaultTheme } from './default';

@@ -1,0 +1,17 @@
+dist/
+node_modules/
+coverage/
+docs/api/
+docs/history/
+.jscpd/
+package-lock.json
+schema.json
+*.md
+
+# Canonical tool-generated documents (must match `JSON.stringify(doc, null, 2)` output)
+.artifacts/
+**/resume.sfrb.json
+reports/
+
+# Static, hand-authored HTML overview artifact (not parseable as standard HTML)
+ui-refresh/

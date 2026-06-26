@@ -122,9 +122,7 @@ export class OperationParseError extends Error {
     }));
 
     super(
-      ['Editor operation failed validation:', ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join(
-        '\n',
-      ),
+      ['Editor operation failed validation:', ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'),
     );
 
     this.name = 'OperationParseError';

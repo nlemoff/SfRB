@@ -32,7 +32,12 @@ export type EditCommandResult = {
   exitCode: number;
 };
 
-type EditFailureCode = 'request_invalid' | 'operation_invalid' | 'document_invalid' | 'physics_invalid' | 'persistence_failed';
+type EditFailureCode =
+  | 'request_invalid'
+  | 'operation_invalid'
+  | 'document_invalid'
+  | 'physics_invalid'
+  | 'persistence_failed';
 
 type EditEnvelope = {
   ok: boolean;
@@ -117,7 +122,10 @@ async function resolveRawOperation(
     try {
       return { ok: true, raw: await readFile(path.resolve(options.opFile), 'utf8') };
     } catch (caught) {
-      return { ok: false, message: `Could not read --op-file: ${caught instanceof Error ? caught.message : String(caught)}` };
+      return {
+        ok: false,
+        message: `Could not read --op-file: ${caught instanceof Error ? caught.message : String(caught)}`,
+      };
     }
   }
 
@@ -128,7 +136,10 @@ async function resolveRawOperation(
   return { ok: true, raw: fromStdin };
 }
 
-export async function runEditCommand(options: EditOptions, runtime: EditCommandRuntime = {}): Promise<EditCommandResult> {
+export async function runEditCommand(
+  options: EditOptions,
+  runtime: EditCommandRuntime = {},
+): Promise<EditCommandResult> {
   const log = runtime.log ?? ((message: string) => console.log(message));
   const error = runtime.error ?? ((message: string) => console.error(message));
   const readStdin = runtime.readStdin ?? defaultReadStdin;

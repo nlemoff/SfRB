@@ -14,9 +14,7 @@ export const templateIdSchema = z.enum(TEMPLATE_IDS);
 
 export const templateMetadataSchema = z.strictObject({
   id: templateIdSchema,
-  version: z
-    .string()
-    .min(1, 'Template version is required'),
+  version: z.string().min(1, 'Template version is required'),
 });
 
 export type TemplateMetadata = z.output<typeof templateMetadataSchema>;

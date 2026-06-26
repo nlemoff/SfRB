@@ -34,9 +34,27 @@ function createDocument(options?: { lockedGroup?: boolean; freeFrameId?: string 
         },
       ],
       frames: [
-        { id: 'heroFrame', pageId: 'mainPage', blockId: 'heroBlock', box: { x: 36, y: 32, width: 540, height: 44 }, zIndex: 0 },
-        { id: 'summaryFrame', pageId: 'mainPage', blockId: 'summaryBlock', box: { x: 36, y: 84, width: 540, height: 72 }, zIndex: 1 },
-        { id: 'skillsFrame', pageId: 'mainPage', blockId: 'skillsBlock', box: { x: 36, y: 176, width: 540, height: 40 }, zIndex: 2 },
+        {
+          id: 'heroFrame',
+          pageId: 'mainPage',
+          blockId: 'heroBlock',
+          box: { x: 36, y: 32, width: 540, height: 44 },
+          zIndex: 0,
+        },
+        {
+          id: 'summaryFrame',
+          pageId: 'mainPage',
+          blockId: 'summaryBlock',
+          box: { x: 36, y: 84, width: 540, height: 72 },
+          zIndex: 1,
+        },
+        {
+          id: 'skillsFrame',
+          pageId: 'mainPage',
+          blockId: 'skillsBlock',
+          box: { x: 36, y: 176, width: 540, height: 40 },
+          zIndex: 2,
+        },
       ],
       frameGroups: [
         { id: 'heroComposition', pageId: 'mainPage', frameIds: ['heroFrame', 'summaryFrame'], locked: lockedGroup },

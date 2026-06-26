@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an enhancement for SfRB
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem are you trying to solve? What is the motivation?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to happen. Note any impact on the canonical document, the bridge contract, or CLI parity.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why you set them aside.
+    validations:
+      required: false

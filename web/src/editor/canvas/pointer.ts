@@ -32,14 +32,24 @@ const MIN_FRAME_SIZE = 8;
 type DragState = SingleDragState | GroupDragState | ResizeDragState;
 
 export type PointerController = {
-  beginFrameDrag: (event: PointerEvent, frame: { id: string; blockId: string }, originBox: FrameBox, handle: HTMLElement) => void;
+  beginFrameDrag: (
+    event: PointerEvent,
+    frame: { id: string; blockId: string },
+    originBox: FrameBox,
+    handle: HTMLElement,
+  ) => void;
   beginGroupDrag: (
     event: PointerEvent,
     groupId: string,
     members: Array<{ id: string; originBox: FrameBox }>,
     handle: HTMLElement,
   ) => void;
-  beginFrameResize: (event: PointerEvent, frame: { id: string; blockId: string }, originBox: FrameBox, handle: HTMLElement) => void;
+  beginFrameResize: (
+    event: PointerEvent,
+    frame: { id: string; blockId: string },
+    originBox: FrameBox,
+    handle: HTMLElement,
+  ) => void;
   nudgeFrame: (frameId: string, dx: number, dy: number) => void;
   isDragging: () => boolean;
   attach: () => void;
@@ -109,14 +119,18 @@ export function createPointerController(deps: {
       void engine.commitFrameMove(activeDrag.frameId, reason).finally(() => {
         onDragSettled();
       });
-      const handle = rootElement.querySelector(`[data-testid="frame-handle-${activeDrag.frameId}"]`) as HTMLElement | null;
+      const handle = rootElement.querySelector(
+        `[data-testid="frame-handle-${activeDrag.frameId}"]`,
+      ) as HTMLElement | null;
       if (handle) {
         handle.style.cursor = 'grab';
       }
       return;
     }
 
-    const handle = rootElement.querySelector(`[data-testid="tile-group-handle-${activeDrag.groupId}"]`) as HTMLElement | null;
+    const handle = rootElement.querySelector(
+      `[data-testid="tile-group-handle-${activeDrag.groupId}"]`,
+    ) as HTMLElement | null;
     if (handle) {
       handle.style.cursor = 'grab';
     }

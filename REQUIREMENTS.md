@@ -47,7 +47,3 @@ External agents can inspect and mutate workspaces through local files and CLI co
 - custom paper sizes and deeper print controls
 - richer AI presentation/design assistance
 - packaging and distribution polish
-
-## Historical traceability
-
-The old detailed requirement/slice traceability archive now lives under [`docs/history/gsd/`](./docs/history/gsd/). Treat it as historical context, not the active planning source of truth.

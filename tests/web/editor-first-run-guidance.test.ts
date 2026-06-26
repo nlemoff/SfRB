@@ -17,7 +17,9 @@ import {
 } from '../utils/bridge-browser';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright') as { chromium: { launch: (options: { headless: boolean }) => Promise<any> } };
+const { chromium } = require('playwright') as {
+  chromium: { launch: (options: { headless: boolean }) => Promise<any> };
+};
 
 type Browser = Awaited<ReturnType<typeof chromium.launch>>;
 type Page = Awaited<ReturnType<Browser['newPage']>>;
@@ -120,7 +122,11 @@ describe('editor first-run guidance', () => {
         await page.waitForFunction((expectedText: string) => {
           const signal = document.querySelector('#bridge-last-signal')?.textContent ?? '';
           const payloadPreview = document.querySelector('#bridge-payload-preview')?.textContent ?? '';
-          return signal.includes('sfrb:bridge-update') && signal.includes('resume.sfrb.json') && payloadPreview.includes(expectedText);
+          return (
+            signal.includes('sfrb:bridge-update') &&
+            signal.includes('resume.sfrb.json') &&
+            payloadPreview.includes(expectedText)
+          );
         }, nextText);
 
         expect(await page.evaluate(() => document.activeElement?.id)).toBe('editor-active-textarea');
@@ -139,14 +145,12 @@ describe('editor first-run guidance', () => {
           },
           document: {
             semantic: {
-              blocks: expect.arrayContaining([
-                expect.objectContaining({ id: blockId, text: nextText }),
-              ]),
+              blocks: expect.arrayContaining([expect.objectContaining({ id: blockId, text: nextText })]),
             },
           },
         });
 
-        const diskDocument = await readWorkspaceDocument(projectRoot) as {
+        const diskDocument = (await readWorkspaceDocument(projectRoot)) as {
           metadata: { starter?: { id: string; kind: string } };
           semantic: { blocks: Array<{ id: string; text: string }> };
         };

@@ -33,25 +33,41 @@ const assert = (condition, label) => {
 
 async function createTempWorkspace() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-m004-s03-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: { title: 'Verify M004 S03', locale: 'en' },
-    semantic: {
-      sections: [{ id: 'sec1', title: 'Profile', blockIds: ['heading1', 'b1'] }],
-      blocks: [
-        { id: 'heading1', kind: 'heading', text: 'Assembled Template Proof' },
-        { id: 'b1', kind: 'paragraph', text: 'Default body before template apply.' },
-      ],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: { title: 'Verify M004 S03', locale: 'en' },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Profile', blockIds: ['heading1', 'b1'] }],
+          blocks: [
+            { id: 'heading1', kind: 'heading', text: 'Assembled Template Proof' },
+            { id: 'b1', kind: 'paragraph', text: 'Default body before template apply.' },
+          ],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 
@@ -131,8 +147,10 @@ async function main() {
       await page.goto(new URL('/print?mode=artifact', bridge.url).href, { waitUntil: 'networkidle' });
       await page.waitForFunction(() => {
         const root = document.getElementById('root');
-        return root?.getAttribute('data-export-state') !== 'blocked'
-          || root?.getAttribute('data-blocked-reason') !== 'loading';
+        return (
+          root?.getAttribute('data-export-state') !== 'blocked' ||
+          root?.getAttribute('data-blocked-reason') !== 'loading'
+        );
       });
 
       const markers = await page.evaluate(() => {
@@ -189,7 +207,11 @@ async function main() {
     await rm(projectRoot, { recursive: true, force: true });
   }
 
-  console.log(exitCode === 0 ? '\nM004/S03 template assembly verification passed.\n' : '\nM004/S03 template assembly verification FAILED.\n');
+  console.log(
+    exitCode === 0
+      ? '\nM004/S03 template assembly verification passed.\n'
+      : '\nM004/S03 template assembly verification FAILED.\n',
+  );
   process.exit(exitCode);
 }
 

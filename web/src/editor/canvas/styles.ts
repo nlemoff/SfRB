@@ -1,6 +1,4 @@
-export const canvasShellStyles = [
-  'display: grid',
-].join('; ');
+export const canvasShellStyles = ['display: grid'].join('; ');
 
 export const pageStyles = [
   'display: grid',
@@ -25,11 +23,7 @@ export const selectedDocumentBlockStyles = `${documentBlockStyles}; border-color
 export const editingDocumentBlockStyles = `${selectedDocumentBlockStyles}; background: var(--sfrb-accent-soft);`;
 
 // Wrapper around a design page: a quiet label row plus the paper itself.
-export const pageWrapperStyles = [
-  'display: grid',
-  'gap: 6px',
-  'width: fit-content',
-].join('; ');
+export const pageWrapperStyles = ['display: grid', 'gap: 6px', 'width: fit-content'].join('; ');
 
 // Paper chrome shared by the tile and freeform page canvases: white sheet,
 // hairline edge, soft elevation. Geometry (width/height) stays caller-owned.

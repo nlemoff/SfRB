@@ -55,7 +55,8 @@ describe('editor keyboard access', () => {
       await page.keyboard.press('Shift+ArrowDown');
       await page.waitForFunction(
         ({ expectedX }: { expectedX: number }) =>
-          document.querySelector('[data-testid="editor-frame-summaryFrame"]')?.getAttribute('data-frame-x') === String(expectedX),
+          document.querySelector('[data-testid="editor-frame-summaryFrame"]')?.getAttribute('data-frame-x') ===
+          String(expectedX),
         { expectedX: beforeBox.x + 3 },
       );
 
@@ -82,7 +83,9 @@ describe('editor keyboard access', () => {
 
       // Escape on a selected frame clears the selection.
       await page.focus('[data-testid="editor-frame-summaryFrame"]');
-      await page.waitForFunction(() => document.querySelector('#editor-selected-frame')?.textContent === 'summaryFrame');
+      await page.waitForFunction(
+        () => document.querySelector('#editor-selected-frame')?.textContent === 'summaryFrame',
+      );
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => document.querySelector('#editor-selected-frame')?.textContent === 'None');
 
