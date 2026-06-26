@@ -23,11 +23,15 @@ async function readDocument(projectRoot) {
 }
 
 async function waitForBridgeReady(projectRoot) {
-  const child = spawn(process.execPath, [path.join(repoRoot, 'dist/cli.js'), 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
-    cwd: repoRoot,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    process.execPath,
+    [path.join(repoRoot, 'dist/cli.js'), 'open', '--cwd', projectRoot, '--port', '0', '--no-open'],
+    {
+      cwd: repoRoot,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
 
   const stdout = [];
   child.stdout.on('data', (chunk) => stdout.push(chunk.toString()));
@@ -59,7 +63,9 @@ async function moveElement(page, testId, dx, dy) {
 }
 
 async function waitForIdleSave(page) {
-  await page.waitForFunction(() => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle');
+  await page.waitForFunction(
+    () => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle',
+  );
 }
 
 async function main() {
@@ -71,7 +77,17 @@ async function main() {
     await execFile('npm', ['run', 'build'], { cwd: repoRoot });
     await execFile(
       process.execPath,
-      [path.join(repoRoot, 'dist/cli.js'), 'init', '--cwd', workspace, '--starter', 'blank', '--physics', 'design', '--skip-ai'],
+      [
+        path.join(repoRoot, 'dist/cli.js'),
+        'init',
+        '--cwd',
+        workspace,
+        '--starter',
+        'blank',
+        '--physics',
+        'design',
+        '--skip-ai',
+      ],
       { cwd: repoRoot },
     );
 
@@ -126,15 +142,22 @@ async function main() {
     const handleBox = await handle.boundingBox();
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
     await page.mouse.down();
-    await page.mouse.move(handleBox.x + handleBox.width / 2 + 30, handleBox.y + handleBox.height / 2 + 30, { steps: 5 });
+    await page.mouse.move(handleBox.x + handleBox.width / 2 + 30, handleBox.y + handleBox.height / 2 + 30, {
+      steps: 5,
+    });
     await page.mouse.up();
 
     const note = await page.textContent('#tile-action-note');
-    expectCondition(String(note).includes('freeform placement'), `Blocked tile edit should explain the placement, received: ${note}`);
+    expectCondition(
+      String(note).includes('freeform placement'),
+      `Blocked tile edit should explain the placement, received: ${note}`,
+    );
     const afterRaw = await readFile(path.join(workspace, 'resume.sfrb.json'), 'utf8');
     expectCondition(afterRaw === beforeRaw, 'Blocked tile edit on a kept element must be a no-write.');
 
-    console.log('Mode reconciliation smoke verification passed: rejoin continuity, keep_locked protection, and blocked tile edits.');
+    console.log(
+      'Mode reconciliation smoke verification passed: rejoin continuity, keep_locked protection, and blocked tile edits.',
+    );
   } finally {
     if (browser) {
       await browser.close();

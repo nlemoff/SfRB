@@ -78,7 +78,7 @@ export async function runExportCommand(
         const root = document.getElementById('root');
         if (!root) return false;
         const state = root.getAttribute('data-export-state');
-        return state !== null && state !== 'blocked' || root.getAttribute('data-blocked-reason') !== 'loading';
+        return (state !== null && state !== 'blocked') || root.getAttribute('data-blocked-reason') !== 'loading';
       },
       undefined,
       { timeout: 15000 },

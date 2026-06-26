@@ -63,7 +63,6 @@ The whole product is one canonical document boundary, mediated by a local HTTP b
 - **CLI parity.** Every meaningful editor or export action must be representable as a structured operation invokable from the CLI — even if the browser is the primary UX.
 - **No provider secrets in the browser or in committed config.** Bridge reads env vars; browser sees only sanitized payloads.
 - **Bridge file is `.mjs`** and loads compiled CJS via `createRequire`. Run `npm run build` before running the bridge against `src/` changes.
-- **Historical planning archive** lives under `docs/history/gsd/`. It is reference material only; do not add new active planning there.
 
 ## Planning source of truth
 
@@ -73,8 +72,6 @@ Active planning lives in plain Markdown plus GitHub issues/PRs:
 - `README.md` — contributor quick start and project overview
 - GitHub issues — scoped future work
 - PR descriptions — implementation notes and verification evidence
-
-Historical planning artifacts from the old workflow live under `docs/history/gsd/` for reference only. Do not create new `.gsd/` planning files.
 
 ---
 

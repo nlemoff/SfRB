@@ -6,12 +6,13 @@ export type RgbColor = {
 
 export function parseHexColor(hex: string): RgbColor {
   const normalized = hex.trim().replace(/^#/u, '');
-  const expanded = normalized.length === 3
-    ? normalized
-        .split('')
-        .map((char) => char + char)
-        .join('')
-    : normalized;
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : normalized;
 
   if (!/^[0-9a-fA-F]{6}$/u.test(expanded)) {
     throw new Error(`Cannot parse hex color "${hex}"`);

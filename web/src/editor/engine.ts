@@ -346,7 +346,9 @@ export function createDocumentEditorEngine(options: {
 
       // Leaving freeform with session placements is an explicit decision:
       // pause the switch until the user reconciles or cancels.
-      const liveTouched = [...freeformTouchedFrameIds].filter((frameId) => getCanonicalFrameBox(payload, frameId) !== null);
+      const liveTouched = [...freeformTouchedFrameIds].filter(
+        (frameId) => getCanonicalFrameBox(payload, frameId) !== null,
+      );
       if (activeLens === 'freeform' && liveTouched.length > 0) {
         pendingLensExit = lens;
         emit();
@@ -367,7 +369,9 @@ export function createDocumentEditorEngine(options: {
       }
 
       const targetLens = pendingLensExit;
-      const frameIds = [...freeformTouchedFrameIds].filter((frameId) => getCanonicalFrameBox(payload, frameId) !== null);
+      const frameIds = [...freeformTouchedFrameIds].filter(
+        (frameId) => getCanonicalFrameBox(payload, frameId) !== null,
+      );
 
       if (frameIds.length > 0) {
         const result = await submitBridgeOperation(

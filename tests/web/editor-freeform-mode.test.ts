@@ -19,7 +19,12 @@ let browser: Browser;
 
 type DiskDocument = {
   layout: {
-    frames: Array<{ id: string; blockId: string; placement: string; box: { x: number; y: number; width: number; height: number } }>;
+    frames: Array<{
+      id: string;
+      blockId: string;
+      placement: string;
+      box: { x: number; y: number; width: number; height: number };
+    }>;
   };
   semantic: {
     blocks: Array<{ id: string; kind: string; text: string }>;
@@ -73,7 +78,8 @@ describe('editor freeform mode', () => {
       await waitForEditorIdle(page as unknown as BridgeBrowserPage);
       await page.waitForFunction(
         ({ expectedX }: { expectedX: number }) =>
-          document.querySelector('[data-testid="editor-frame-summaryFrame"]')?.getAttribute('data-frame-x') === String(expectedX),
+          document.querySelector('[data-testid="editor-frame-summaryFrame"]')?.getAttribute('data-frame-x') ===
+          String(expectedX),
         { expectedX: beforeBox.x + 30 },
       );
 

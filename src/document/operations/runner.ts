@@ -18,7 +18,10 @@ export type WorkspaceOperationResult = {
 // The one shared structured-mutation path: CLI `sfrb edit` and the bridge
 // `{operation}` route both run exactly this sequence, so neither can fork the
 // validation guarantees of the canonical document.
-export async function runWorkspaceOperation(projectRoot: string, rawOperation: unknown): Promise<WorkspaceOperationResult> {
+export async function runWorkspaceOperation(
+  projectRoot: string,
+  rawOperation: unknown,
+): Promise<WorkspaceOperationResult> {
   const resolvedRoot = path.resolve(projectRoot);
   const documentPath = getDocumentPath(resolvedRoot);
   const configPath = getConfigPath(resolvedRoot);

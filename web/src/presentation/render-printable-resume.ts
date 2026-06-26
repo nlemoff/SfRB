@@ -136,11 +136,7 @@ function createBlockTextElement(block: BlockDef, theme: Theme): HTMLElement {
 // Overflow measurement
 // ---------------------------------------------------------------------------
 
-function measureOverflowRisks(
-  pageElements: HTMLElement[],
-  doc: BridgeDocument,
-  physics: string,
-): OverflowRisk[] {
+function measureOverflowRisks(pageElements: HTMLElement[], doc: BridgeDocument, physics: string): OverflowRisk[] {
   const risks: OverflowRisk[] = [];
 
   if (physics === 'design') {
@@ -162,14 +158,14 @@ function measureOverflowRisks(
   }
 
   for (const page of doc.layout.pages) {
-    const pageEl = pageElements.find(el => el.getAttribute('data-page-id') === page.id);
+    const pageEl = pageElements.find((el) => el.getAttribute('data-page-id') === page.id);
     if (!pageEl) continue;
 
     const contentArea = page.size.height - page.margin.top - page.margin.bottom;
     const actualContent = pageEl.scrollHeight - page.margin.top - page.margin.bottom;
 
     if (actualContent > contentArea + 1) {
-      const pageFrames = doc.layout.frames.filter(f => f.pageId === page.id);
+      const pageFrames = doc.layout.frames.filter((f) => f.pageId === page.id);
       if (pageFrames.length > 0) {
         risks.push({
           frameId: pageFrames[pageFrames.length - 1].id,
@@ -315,7 +311,7 @@ export function renderPrintableResume(
   }
 
   const doc = payload.document;
-  const blockMap = new Map(doc.semantic.blocks.map(b => [b.id, b]));
+  const blockMap = new Map(doc.semantic.blocks.map((b) => [b.id, b]));
 
   const pageStack = document.createElement('div');
   pageStack.setAttribute('data-testid', 'print-page-stack');
@@ -335,8 +331,7 @@ export function renderPrintableResume(
 
   for (const page of doc.layout.pages) {
     const pageEl = createPageElement(page, mode, theme);
-    const pageFrames = [...doc.layout.frames.filter(f => f.pageId === page.id)]
-      .sort((a, b) => a.zIndex - b.zIndex);
+    const pageFrames = [...doc.layout.frames.filter((f) => f.pageId === page.id)].sort((a, b) => a.zIndex - b.zIndex);
 
     if (payload.physics === 'design') {
       for (const frame of pageFrames) {
@@ -349,7 +344,7 @@ export function renderPrintableResume(
         for (const blockId of section.blockIds) {
           const block = blockMap.get(blockId);
           if (!block) continue;
-          const frame = pageFrames.find(f => f.blockId === blockId);
+          const frame = pageFrames.find((f) => f.blockId === blockId);
           if (frame) {
             pageEl.appendChild(createDocumentFrameElement(frame, block, theme));
           } else {
@@ -367,7 +362,7 @@ export function renderPrintableResume(
 
   // Measure overflow after rendering
   const risks = measureOverflowRisks(pageElements, doc, payload.physics);
-  const maxOverflowPx = risks.length > 0 ? Math.max(...risks.map(r => r.overflowPx)) : 0;
+  const maxOverflowPx = risks.length > 0 ? Math.max(...risks.map((r) => r.overflowPx)) : 0;
 
   const finalState: PrintableResumeState = {
     pageCount: doc.layout.pages.length,

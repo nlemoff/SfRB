@@ -117,28 +117,31 @@ export function createOverflowController(deps: {
       });
     }
 
-    overflowTimer = setTimeout(() => {
-      const currentPayload = getPayload();
-      const frameElement = frameElements.get(selectedFrame.id);
-      const body = frameElement?.querySelector<HTMLElement>('[data-role="block-body"]') ?? null;
-      if (!frameElement || !body || !currentPayload || currentPayload.physics !== 'design') {
-        emit(createEmptyOverflowDiagnostics());
-        return;
-      }
+    overflowTimer = setTimeout(
+      () => {
+        const currentPayload = getPayload();
+        const frameElement = frameElements.get(selectedFrame.id);
+        const body = frameElement?.querySelector<HTMLElement>('[data-role="block-body"]') ?? null;
+        if (!frameElement || !body || !currentPayload || currentPayload.physics !== 'design') {
+          emit(createEmptyOverflowDiagnostics());
+          return;
+        }
 
-      const measuredAvailableHeight = Math.max(0, Math.round(body.clientHeight));
-      const measuredContentHeight = Math.max(0, Math.round(body.scrollHeight));
-      const overflowPx = Math.max(0, measuredContentHeight - measuredAvailableHeight);
-      emit({
-        status: overflowPx > 0 ? 'overflow' : 'clear',
-        frameId: selectedFrame.id,
-        blockId: selectedFrame.blockId,
-        measuredContentHeight,
-        measuredAvailableHeight,
-        overflowPx,
-        documentKey: createDocumentKey(currentPayload),
-      });
-    }, reason === 'resize' ? 120 : 220);
+        const measuredAvailableHeight = Math.max(0, Math.round(body.clientHeight));
+        const measuredContentHeight = Math.max(0, Math.round(body.scrollHeight));
+        const overflowPx = Math.max(0, measuredContentHeight - measuredAvailableHeight);
+        emit({
+          status: overflowPx > 0 ? 'overflow' : 'clear',
+          frameId: selectedFrame.id,
+          blockId: selectedFrame.blockId,
+          measuredContentHeight,
+          measuredAvailableHeight,
+          overflowPx,
+          documentKey: createDocumentKey(currentPayload),
+        });
+      },
+      reason === 'resize' ? 120 : 220,
+    );
   };
 
   return {

@@ -27,7 +27,9 @@ import {
 } from '../utils/bridge-browser';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright') as { chromium: { launch: (options: { headless: boolean }) => Promise<any> } };
+const { chromium } = require('playwright') as {
+  chromium: { launch: (options: { headless: boolean }) => Promise<any> };
+};
 
 type Browser = Awaited<ReturnType<typeof chromium.launch>>;
 type Page = Awaited<ReturnType<Browser['newPage']>>;
@@ -46,7 +48,10 @@ describe('editor layout consultant', () => {
     await writeWorkspaceFiles(projectRoot, {
       physics: 'design',
       title: 'Layout Consultant Success',
-      blockText: Array.from({ length: 10 }, (_, index) => `Overflow line ${index + 1}: measured frame content should exceed the available body height.`).join('\n'),
+      blockText: Array.from(
+        { length: 10 },
+        (_, index) => `Overflow line ${index + 1}: measured frame content should exceed the available body height.`,
+      ).join('\n'),
     });
 
     const provider = await createOpenAiStubServer((_request, response) => {
@@ -122,7 +127,9 @@ describe('editor layout consultant', () => {
 
       const accepted = await readConsultantDiagnostics(page);
       const diskDocument = await readWorkspaceDocument(projectRoot);
-      expect((diskDocument.layout as { frames: Array<{ id: string; box: { height: number } }> }).frames[0]).toMatchObject({
+      expect(
+        (diskDocument.layout as { frames: Array<{ id: string; box: { height: number } }> }).frames[0],
+      ).toMatchObject({
         id: 'summaryFrame',
         box: { height: 420 },
       });
@@ -226,14 +233,14 @@ describe('editor layout consultant', () => {
       await requestConsultantPreview(page);
       await waitForPreviewVisibility(page, true);
 
-      const nextDocument = await readWorkspaceDocument(projectRoot) as {
+      const nextDocument = (await readWorkspaceDocument(projectRoot)) as {
         layout: { frames: Array<{ id: string; box: { x: number; y: number; width: number; height: number } }> };
       };
-      nextDocument.layout.frames = nextDocument.layout.frames.map((frame) => (
+      nextDocument.layout.frames = nextDocument.layout.frames.map((frame) =>
         frame.id === 'summaryFrame'
           ? { ...frame, box: { ...frame.box, x: 64, y: 80, width: 520, height: 140 } }
-          : frame
-      ));
+          : frame,
+      );
       await postEditorMutation(url, nextDocument as unknown as Record<string, unknown>);
 
       await waitForEditorIdle(page);

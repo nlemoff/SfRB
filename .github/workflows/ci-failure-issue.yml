@@ -1,0 +1,53 @@
+name: CI failure tracker
+
+# Opens a tracking issue when CI fails on the main branch so regressions are
+# not silently lost. Triage steps live in docs/runbooks/incident-response.md.
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  open-issue:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update tracking issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const shortSha = run.head_sha.slice(0, 7);
+            const title = `CI failed on main (${shortSha})`;
+            const body = [
+              'The CI workflow failed on `main`.',
+              '',
+              `- Run: ${run.html_url}`,
+              `- Commit: ${run.head_sha}`,
+              '',
+              'Triage with [docs/runbooks/incident-response.md](../blob/main/docs/runbooks/incident-response.md).',
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ci-failure',
+            });
+
+            if (existing.data.some((issue) => issue.title === title)) {
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['ci-failure'],
+            });

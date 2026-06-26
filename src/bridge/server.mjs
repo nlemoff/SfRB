@@ -4,17 +4,14 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 
 import { createServer } from 'vite';
 
 const require = createRequire(import.meta.url);
 const { readConfig, getConfigPath } = require('../config/store.js');
-const {
-  readWorkspaceDocument,
-  getDocumentPath,
-  validateDocument,
-  writeDocument,
-} = require('../document/store.js');
+const { readWorkspaceDocument, getDocumentPath, validateDocument, writeDocument } = require('../document/store.js');
 const {
   MissingWorkspaceConfigError,
   DocumentPhysicsValidationError,
@@ -22,19 +19,20 @@ const {
 } = require('../document/validation.js');
 const { ConfigParseError, ConfigValidationError } = require('../config/store.js');
 const { DocumentParseError, DocumentValidationError } = require('../document/store.js');
-const {
-  parseLayoutConsultantRequest,
-  requestLayoutConsultantProposal,
-} = require('../agent/LayoutConsultant.js');
+const { parseLayoutConsultantRequest, requestLayoutConsultantProposal } = require('../agent/LayoutConsultant.js');
 const {
   OperationApplicationError,
   OperationParseError,
   runWorkspaceOperation,
 } = require('../document/operations/index.js');
+const { logger } = require('../utils/logger.js');
+const { metrics } = require('../utils/metrics.js');
 
 const BRIDGE_BOOTSTRAP_PATH = '/__sfrb/bootstrap';
 const BRIDGE_EDITOR_MUTATION_PATH = '/__sfrb/editor';
 const BRIDGE_LAYOUT_CONSULTANT_PATH = '/__sfrb/consultant';
+const BRIDGE_HEALTH_PATH = '/__sfrb/health';
+const BRIDGE_METRICS_PATH = '/__sfrb/metrics';
 const BRIDGE_UPDATE_EVENT = 'sfrb:bridge-update';
 const BRIDGE_ERROR_EVENT = 'sfrb:bridge-error';
 const runtimeDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -102,7 +100,8 @@ function getErrorIssues(error) {
 
   return error.issues
     .filter(
-      (issue) => issue && typeof issue === 'object' && typeof issue.path === 'string' && typeof issue.message === 'string',
+      (issue) =>
+        issue && typeof issue === 'object' && typeof issue.path === 'string' && typeof issue.message === 'string',
     )
     .map((issue) => ({ path: issue.path, message: issue.message }));
 }
@@ -238,7 +237,8 @@ function resolveBridgeAiAvailability(config) {
     return {
       status: 'degraded',
       provider,
-      message: 'AI is configured incompletely for this workspace. Add the expected API key env var before requesting consultant help.',
+      message:
+        'AI is configured incompletely for this workspace. Add the expected API key env var before requesting consultant help.',
     };
   }
 
@@ -335,7 +335,7 @@ async function readJsonBody(request, bodyLabel = 'Bridge request body') {
     return JSON.parse(rawBody);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${bodyLabel} is not valid JSON: ${detail}`);
+    throw new Error(`${bodyLabel} is not valid JSON: ${detail}`, { cause: error });
   }
 }
 
@@ -367,6 +367,8 @@ function respondJson(response, statusCode, payload) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  const serverStartedAt = Date.now();
+  const log = logger.child({ component: 'bridge', workspaceRoot: options.cwd });
   let currentState;
 
   try {
@@ -400,6 +402,64 @@ async function main() {
       port: options.port,
       strictPort: false,
     },
+  });
+
+  vite.middlewares.use((request, response, next) => {
+    if (request.url === undefined || !request.url.startsWith('/__sfrb/')) {
+      next();
+      return;
+    }
+
+    const headerRequestId = request.headers['x-request-id'];
+    const requestId =
+      typeof headerRequestId === 'string' && headerRequestId.length > 0 ? headerRequestId : randomUUID();
+    response.setHeader('x-request-id', requestId);
+
+    const route = new URL(request.url, 'http://localhost').pathname;
+    log.debug('bridge request received', { requestId, route, method: request.method });
+
+    const startedAt = performance.now();
+    response.on('finish', () => {
+      const durationSeconds = (performance.now() - startedAt) / 1000;
+      metrics.recordRequest(route, response.statusCode, durationSeconds);
+      log.debug('bridge request completed', {
+        requestId,
+        route,
+        method: request.method,
+        status: response.statusCode,
+        durationSeconds,
+      });
+    });
+
+    next();
+  });
+
+  vite.middlewares.use(BRIDGE_HEALTH_PATH, (request, response, next) => {
+    if (request.method !== 'GET') {
+      next();
+      return;
+    }
+
+    const healthy = currentState.status === 'ready';
+    respondJson(response, healthy ? 200 : 503, {
+      status: healthy ? 'ok' : 'degraded',
+      bridgeState: currentState.status,
+      workspaceRoot: options.cwd,
+      uptimeMs: Date.now() - serverStartedAt,
+      documentPath: getDocumentPath(options.cwd),
+      configPath: getConfigPath(options.cwd),
+    });
+  });
+
+  vite.middlewares.use(BRIDGE_METRICS_PATH, (request, response, next) => {
+    if (request.method !== 'GET') {
+      next();
+      return;
+    }
+
+    response.statusCode = 200;
+    response.setHeader('content-type', 'text/plain; version=0.0.4; charset=utf-8');
+    response.end(metrics.render());
   });
 
   vite.middlewares.use(BRIDGE_BOOTSTRAP_PATH, (_request, response) => {

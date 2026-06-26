@@ -21,10 +21,7 @@ function readCliVersion(): string {
 export function createCli(): Command {
   const program = new Command();
 
-  program
-    .name('sfrb')
-    .description('Straightforward Resume Builder CLI')
-    .version(readCliVersion());
+  program.name('sfrb').description('Straightforward Resume Builder CLI').version(readCliVersion());
 
   program.addCommand(createEditCommand());
   program.addCommand(createExportCommand());

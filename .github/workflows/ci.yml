@@ -6,7 +6,51 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  quality:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Dead code / unused dependencies
+        run: npm run knip
+
+      - name: Duplicate code
+        run: npm run duplication
+
+      - name: Tech-debt markers
+        run: npm run check:tech-debt
+
+      - name: Large files
+        run: npm run check:large-files
+
   build-test:
     runs-on: ubuntu-latest
     steps:
@@ -31,5 +75,21 @@ jobs:
       - name: Check schema
         run: npm run schema:check
 
-      - name: Test
-        run: npm test
+      - name: Test with coverage
+        run: npm run coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+
+      - name: Upload JUnit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit
+          path: reports/junit/vitest.xml
+          if-no-files-found: ignore

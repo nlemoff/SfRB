@@ -29,22 +29,38 @@ const assert = (condition, label) => {
 
 async function createTempWorkspace() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-s01-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: { title: 'Verify S01', locale: 'en' },
-    semantic: {
-      sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
-      blocks: [{ id: 'b1', kind: 'paragraph', text: 'S01 print surface verification.' }],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: { title: 'Verify S01', locale: 'en' },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
+          blocks: [{ id: 'b1', kind: 'paragraph', text: 'S01 print surface verification.' }],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  TEMPLATE_IDS,
-  templateIdSchema,
-  isKnownTemplateId,
-} from '../../src/document/templates/registry';
+import { TEMPLATE_IDS, templateIdSchema, isKnownTemplateId } from '../../src/document/templates/registry';
 
 describe('canonical template registry', () => {
   it('always includes the default template id', () => {

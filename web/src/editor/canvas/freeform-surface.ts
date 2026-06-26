@@ -30,7 +30,11 @@ function uniqueId(base: string, taken: Set<string>): string {
   return candidate;
 }
 
-export function setFreeformMoveState(rootElement: HTMLElement, state: 'idle' | 'preview' | 'blocked' | 'saving', note?: string): void {
+export function setFreeformMoveState(
+  rootElement: HTMLElement,
+  state: 'idle' | 'preview' | 'blocked' | 'saving',
+  note?: string,
+): void {
   const stateNode = rootElement.querySelector('#freeform-move-state');
   if (stateNode instanceof HTMLElement) {
     stateNode.dataset.moveState = state;
@@ -107,7 +111,8 @@ export function renderFreeformSurface(deps: {
   moveState.dataset.testid = 'freeform-move-state';
   moveState.dataset.moveState = 'idle';
   moveState.textContent = 'idle';
-  moveState.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--sfrb-accent); text-transform: uppercase; letter-spacing: 0.07em;';
+  moveState.style.cssText =
+    'font-size: 11px; font-weight: 600; color: var(--sfrb-accent); text-transform: uppercase; letter-spacing: 0.07em;';
 
   const note = document.createElement('div');
   note.id = 'freeform-action-note';
@@ -241,7 +246,8 @@ export function renderFreeformSurface(deps: {
       blockBody.dataset.role = 'block-body';
       blockBody.id = `editor-block-text-${frame.blockId}`;
       blockBody.dataset.testid = `editor-block-text-${frame.blockId}`;
-      blockBody.style.cssText = 'white-space: pre-wrap; line-height: 1.55; color: #0f172a; height: 100%; overflow: hidden; pointer-events: none;';
+      blockBody.style.cssText =
+        'white-space: pre-wrap; line-height: 1.55; color: #0f172a; height: 100%; overflow: hidden; pointer-events: none;';
       if (block?.kind === 'divider') {
         blockBody.style.borderTop = '1px solid currentColor';
         blockBody.textContent = '';

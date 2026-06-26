@@ -18,21 +18,25 @@ async function makeTempProject(): Promise<string> {
   return dir;
 }
 
-async function writeWorkspaceFiles(projectRoot: string, options: { physics?: 'document' | 'design'; title?: string; blockText?: string }) {
+async function writeWorkspaceFiles(
+  projectRoot: string,
+  options: { physics?: 'document' | 'design'; title?: string; blockText?: string },
+) {
   const physics = options.physics ?? 'document';
   const title = options.title ?? 'Bridge Live Sync Resume';
   const blockText = options.blockText ?? 'Initial bridge text.';
-  const frames = physics === 'design'
-    ? [
-        {
-          id: 'summaryFrame',
-          pageId: 'pageOne',
-          blockId: 'summaryBlock',
-          box: { x: 36, y: 48, width: 540, height: 96 },
-          zIndex: 0,
-        },
-      ]
-    : [];
+  const frames =
+    physics === 'design'
+      ? [
+          {
+            id: 'summaryFrame',
+            pageId: 'pageOne',
+            blockId: 'summaryBlock',
+            box: { x: 36, y: 48, width: 540, height: 96 },
+            zIndex: 0,
+          },
+        ]
+      : [];
 
   await writeFile(
     path.join(projectRoot, 'sfrb.config.json'),
@@ -96,7 +100,9 @@ async function writeWorkspaceFiles(projectRoot: string, options: { physics?: 'do
   );
 }
 
-async function waitForBridgeReady(projectRoot: string): Promise<{ child: ReturnType<typeof spawn>; url: string; stdout: string[]; stderr: string[] }> {
+async function waitForBridgeReady(
+  projectRoot: string,
+): Promise<{ child: ReturnType<typeof spawn>; url: string; stdout: string[]; stderr: string[] }> {
   const child = spawn(process.execPath, ['dist/cli.js', 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
     cwd: process.cwd(),
     env: process.env,
@@ -110,7 +116,9 @@ async function waitForBridgeReady(projectRoot: string): Promise<{ child: ReturnT
 
   const readyOutput = await new Promise<string>((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`),
+      );
     }, 15000);
 
     child.stdout.on('data', () => {
@@ -123,7 +131,11 @@ async function waitForBridgeReady(projectRoot: string): Promise<{ child: ReturnT
 
     child.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(
+          `Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`,
+        ),
+      );
     });
   });
 
@@ -154,14 +166,22 @@ async function getViteWebSocket(baseUrl: string): Promise<WebSocket> {
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Timed out opening Vite websocket.')), 10000);
-    ws.addEventListener('open', () => {
-      clearTimeout(timeout);
-      resolve();
-    }, { once: true });
-    ws.addEventListener('error', () => {
-      clearTimeout(timeout);
-      reject(new Error('Failed to open Vite websocket.'));
-    }, { once: true });
+    ws.addEventListener(
+      'open',
+      () => {
+        clearTimeout(timeout);
+        resolve();
+      },
+      { once: true },
+    );
+    ws.addEventListener(
+      'error',
+      () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to open Vite websocket.'));
+      },
+      { once: true },
+    );
   });
 
   return ws;
@@ -186,7 +206,10 @@ async function waitForCustomEvent(socket: WebSocket, eventName: string): Promise
   });
 }
 
-async function waitForBootstrapMatch(baseUrl: string, predicate: (payload: Record<string, unknown>) => boolean): Promise<Record<string, unknown>> {
+async function waitForBootstrapMatch(
+  baseUrl: string,
+  predicate: (payload: Record<string, unknown>) => boolean,
+): Promise<Record<string, unknown>> {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15000) {
     const response = await fetch(new URL('/__sfrb/bootstrap', baseUrl));
@@ -269,9 +292,11 @@ describe('bridge live sync', () => {
       );
 
       const updatedPayload = await waitForBootstrapMatch(url, (payload) => {
-        return payload.status === 'ready'
-          && (payload.physics === 'design')
-          && (payload.document as { metadata?: { title?: string } }).metadata?.title === 'Live Sync Updated';
+        return (
+          payload.status === 'ready' &&
+          payload.physics === 'design' &&
+          (payload.document as { metadata?: { title?: string } }).metadata?.title === 'Live Sync Updated'
+        );
       });
       expect(updatedPayload).toMatchObject({
         status: 'ready',
@@ -292,9 +317,7 @@ describe('bridge live sync', () => {
         configPath: path.join(projectRoot, 'sfrb.config.json'),
         name: 'DocumentParseError',
       });
-      expect(errorEvent.changedPaths).toEqual(
-        expect.arrayContaining([path.join(projectRoot, 'resume.sfrb.json')]),
-      );
+      expect(errorEvent.changedPaths).toEqual(expect.arrayContaining([path.join(projectRoot, 'resume.sfrb.json')]));
 
       const invalidPayload = await waitForBootstrapMatch(url, (payload) => payload.status === 'error');
       expect(invalidPayload).toMatchObject({

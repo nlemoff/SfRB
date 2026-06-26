@@ -13,7 +13,9 @@ import {
 } from '../utils/bridge-browser';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright') as { chromium: { launch: (options: { headless: boolean }) => Promise<any> } };
+const { chromium } = require('playwright') as {
+  chromium: { launch: (options: { headless: boolean }) => Promise<any> };
+};
 
 type Browser = Awaited<ReturnType<typeof chromium.launch>>;
 type Page = Awaited<ReturnType<Browser['newPage']>>;
@@ -73,12 +75,16 @@ describe('editor design mode', () => {
 
       await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
       await page.mouse.down();
-      await page.mouse.move(handleBox.x + handleBox.width / 2 + 44, handleBox.y + handleBox.height / 2 + 28, { steps: 8 });
+      await page.mouse.move(handleBox.x + handleBox.width / 2 + 44, handleBox.y + handleBox.height / 2 + 28, {
+        steps: 8,
+      });
       await page.mouse.up();
 
       await page.waitForFunction(() => {
         const frameElement = document.querySelector('[data-testid="editor-frame-summaryFrame"]');
-        return frameElement?.getAttribute('data-frame-x') === '80' && frameElement?.getAttribute('data-frame-y') === '76';
+        return (
+          frameElement?.getAttribute('data-frame-x') === '80' && frameElement?.getAttribute('data-frame-y') === '76'
+        );
       });
       await waitForEditorIdle(page);
       await page.waitForFunction(() => {
@@ -111,7 +117,13 @@ describe('editor design mode', () => {
         id: 'summaryBlock',
         text: editedText,
       });
-      expect((diskDocument.layout as { frames: Array<{ id: string; box: { x: number; y: number; width: number; height: number } }> }).frames[0]).toMatchObject({
+      expect(
+        (
+          diskDocument.layout as {
+            frames: Array<{ id: string; box: { x: number; y: number; width: number; height: number } }>;
+          }
+        ).frames[0],
+      ).toMatchObject({
         id: 'summaryFrame',
         box: { x: 80, y: 76, width: 540, height: 96 },
       });

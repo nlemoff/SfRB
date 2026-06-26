@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/bridge/server.mjs",
+    "src/agent/LayoutConsultant.ts",
+    "web/src/main.tsx",
+    "web/src/print-main.tsx",
+    "scripts/*.mjs",
+    "tests/**/*.test.ts"
+  ],
+  "project": ["src/**/*.ts", "web/src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "duplicates": "off"
+  }
+}

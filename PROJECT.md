@@ -27,5 +27,3 @@ The main branch includes:
 ## Planning
 
 Current planning lives in [`ROADMAP.md`](./ROADMAP.md), GitHub issues, and PR descriptions.
-
-Historical `.gsd` planning artifacts were moved to [`docs/history/gsd/`](./docs/history/gsd/) for archive/reference only. Do not add new active planning there.

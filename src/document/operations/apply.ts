@@ -7,9 +7,7 @@ export class OperationApplicationError extends Error {
   readonly operationKind: EditorOperation['op'];
 
   constructor(operationKind: EditorOperation['op'], issues: OperationIssue[]) {
-    super(
-      [`Cannot apply ${operationKind}:`, ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'),
-    );
+    super([`Cannot apply ${operationKind}:`, ...issues.map((issue) => `- ${issue.path}: ${issue.message}`)].join('\n'));
 
     this.name = 'OperationApplicationError';
     this.operationKind = operationKind;
@@ -29,7 +27,12 @@ function requireBlock(document: SfrbDocument, operationKind: EditorOperation['op
   return block;
 }
 
-function requireFrame(document: SfrbDocument, operationKind: EditorOperation['op'], frameId: string, path = 'frameId'): LayoutFrame {
+function requireFrame(
+  document: SfrbDocument,
+  operationKind: EditorOperation['op'],
+  frameId: string,
+  path = 'frameId',
+): LayoutFrame {
   const frame = document.layout.frames.find((candidate) => candidate.id === frameId);
   if (!frame) {
     reject(operationKind, path, `Document does not contain layout frame "${frameId}"`);
@@ -126,7 +129,11 @@ function applyInsertBlock(
 
   const index = operation.index ?? section.blockIds.length;
   if (index > section.blockIds.length) {
-    reject(operation.op, 'index', `Index ${index} is out of range for section "${section.id}" (${section.blockIds.length} blocks)`);
+    reject(
+      operation.op,
+      'index',
+      `Index ${index} is out of range for section "${section.id}" (${section.blockIds.length} blocks)`,
+    );
   }
 
   let frames = document.layout.frames;
@@ -241,7 +248,9 @@ function applySplitBlock(
     splitFrom: operation.blockId,
   }));
 
-  const blocks = document.semantic.blocks.flatMap((block) => (block.id === operation.blockId ? segmentBlocks : [block]));
+  const blocks = document.semantic.blocks.flatMap((block) =>
+    block.id === operation.blockId ? segmentBlocks : [block],
+  );
   const sections = document.semantic.sections.map((section) => ({
     ...section,
     blockIds: section.blockIds.flatMap((id) => (id === operation.blockId ? operation.segments.map((s) => s.id) : [id])),
@@ -306,7 +315,10 @@ function applySetFrameBox(
   };
 }
 
-function applyMoveGroup(document: SfrbDocument, operation: Extract<EditorOperation, { op: 'move-group' }>): SfrbDocument {
+function applyMoveGroup(
+  document: SfrbDocument,
+  operation: Extract<EditorOperation, { op: 'move-group' }>,
+): SfrbDocument {
   const group = requireGroup(document, operation.op, operation.groupId);
 
   if (!group.locked) {
@@ -348,10 +360,18 @@ function applyGroupFrames(
   members.forEach((frame, index) => {
     const existingGroup = findGroupForFrame(document, frame.id);
     if (existingGroup) {
-      reject(operation.op, `frameIds.${index}`, `Frame "${frame.id}" already belongs to frame group "${existingGroup.id}"`);
+      reject(
+        operation.op,
+        `frameIds.${index}`,
+        `Frame "${frame.id}" already belongs to frame group "${existingGroup.id}"`,
+      );
     }
     if (frame.placement === 'free') {
-      reject(operation.op, `frameIds.${index}`, `Frame "${frame.id}" is freeform-placed — reconcile it before grouping`);
+      reject(
+        operation.op,
+        `frameIds.${index}`,
+        `Frame "${frame.id}" is freeform-placed — reconcile it before grouping`,
+      );
     }
   });
 
@@ -361,7 +381,12 @@ function applyGroupFrames(
       ...document.layout,
       frameGroups: [
         ...document.layout.frameGroups,
-        { id: operation.groupId, pageId: members[0].pageId, frameIds: [...operation.frameIds], locked: operation.locked },
+        {
+          id: operation.groupId,
+          pageId: members[0].pageId,
+          frameIds: [...operation.frameIds],
+          locked: operation.locked,
+        },
       ],
     },
   };

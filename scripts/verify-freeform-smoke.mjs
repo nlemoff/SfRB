@@ -23,11 +23,15 @@ async function readDocument(projectRoot) {
 }
 
 async function waitForBridgeReady(projectRoot) {
-  const child = spawn(process.execPath, [path.join(repoRoot, 'dist/cli.js'), 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
-    cwd: repoRoot,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    process.execPath,
+    [path.join(repoRoot, 'dist/cli.js'), 'open', '--cwd', projectRoot, '--port', '0', '--no-open'],
+    {
+      cwd: repoRoot,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
 
   const stdout = [];
   child.stdout.on('data', (chunk) => stdout.push(chunk.toString()));
@@ -68,7 +72,17 @@ async function main() {
 
     await execFile(
       process.execPath,
-      [path.join(repoRoot, 'dist/cli.js'), 'init', '--cwd', workspace, '--starter', 'template', '--physics', 'design', '--skip-ai'],
+      [
+        path.join(repoRoot, 'dist/cli.js'),
+        'init',
+        '--cwd',
+        workspace,
+        '--starter',
+        'template',
+        '--physics',
+        'design',
+        '--skip-ai',
+      ],
       { cwd: repoRoot },
     );
 
@@ -86,10 +100,13 @@ async function main() {
     const before = await readDocument(workspace);
     const skillsBefore = before.layout.frames.find((frame) => frame.id === 'skillsFrame').box;
     await dragElement(page, 'editor-frame-skillsFrame', 26, 14);
-    await page.waitForFunction(() => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle');
+    await page.waitForFunction(
+      () => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle',
+    );
     await page.waitForFunction(
       ({ expectedX }) =>
-        document.querySelector('[data-testid="editor-frame-skillsFrame"]')?.getAttribute('data-frame-x') === String(expectedX),
+        document.querySelector('[data-testid="editor-frame-skillsFrame"]')?.getAttribute('data-frame-x') ===
+        String(expectedX),
       { expectedX: skillsBefore.x + 26 },
     );
 

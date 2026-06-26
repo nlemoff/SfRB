@@ -28,30 +28,50 @@ const assert = (condition, label) => {
 
 async function createTempWorkspace() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-s02-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: { title: 'Verify S02', locale: 'en' },
-    semantic: {
-      sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
-      blocks: [{ id: 'b1', kind: 'paragraph', text: 'S02 export flow verification.' }],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: { title: 'Verify S02', locale: 'en' },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Summary', blockIds: ['b1'] }],
+          blocks: [{ id: 'b1', kind: 'paragraph', text: 'S02 export flow verification.' }],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 
 async function runExport(projectRoot, outputPath) {
-  const child = spawn(process.execPath, [cliEntry, 'export', '--cwd', projectRoot, '--output', outputPath, '--port', '0'], {
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    process.execPath,
+    [cliEntry, 'export', '--cwd', projectRoot, '--output', outputPath, '--port', '0'],
+    {
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
 
   const stdout = [];
   const stderr = [];

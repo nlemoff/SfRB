@@ -25,18 +25,22 @@ async function ensureBuilt() {
   });
 }
 
-async function writeWorkspaceFiles(projectRoot, { physics = 'document', title = 'S04 Smoke Resume', blockText = 'Initial smoke text.' } = {}) {
-  const frames = physics === 'design'
-    ? [
-        {
-          id: 'summaryFrame',
-          pageId: 'pageOne',
-          blockId: 'summaryBlock',
-          box: { x: 36, y: 48, width: 540, height: 96 },
-          zIndex: 0,
-        },
-      ]
-    : [];
+async function writeWorkspaceFiles(
+  projectRoot,
+  { physics = 'document', title = 'S04 Smoke Resume', blockText = 'Initial smoke text.' } = {},
+) {
+  const frames =
+    physics === 'design'
+      ? [
+          {
+            id: 'summaryFrame',
+            pageId: 'pageOne',
+            blockId: 'summaryBlock',
+            box: { x: 36, y: 48, width: 540, height: 96 },
+            zIndex: 0,
+          },
+        ]
+      : [];
 
   await writeFile(
     path.join(projectRoot, 'sfrb.config.json'),
@@ -114,7 +118,9 @@ async function waitForBridgeReady(projectRoot) {
 
   const readyOutput = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`),
+      );
     }, 15000);
 
     child.stdout.on('data', () => {
@@ -127,7 +133,11 @@ async function waitForBridgeReady(projectRoot) {
 
     child.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(
+          `Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`,
+        ),
+      );
     });
   });
 
@@ -145,7 +155,9 @@ async function closeBridge(child) {
 }
 
 async function waitForEditorIdle(page) {
-  await page.waitForFunction(() => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle');
+  await page.waitForFunction(
+    () => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle',
+  );
 }
 
 async function verifyDocumentMode(browser) {
@@ -158,7 +170,11 @@ async function verifyDocumentMode(browser) {
       blockText: 'Smoke text before editing.',
     });
 
-    ({ child, url: globalThis.__documentBridgeUrl, stderr: globalThis.__documentBridgeStderr } = await waitForBridgeReady(projectRoot));
+    ({
+      child,
+      url: globalThis.__documentBridgeUrl,
+      stderr: globalThis.__documentBridgeStderr,
+    } = await waitForBridgeReady(projectRoot));
     const page = await browser.newPage();
     await page.goto(globalThis.__documentBridgeUrl, { waitUntil: 'networkidle' });
 
@@ -167,11 +183,11 @@ async function verifyDocumentMode(browser) {
       throw new Error(`Expected document physics mode, received: ${await page.textContent('#physics-mode')}`);
     }
 
-    if (await page.getAttribute('#editor-drag-affordance-status', 'data-drag-affordances') !== 'absent') {
+    if ((await page.getAttribute('#editor-drag-affordance-status', 'data-drag-affordances')) !== 'absent') {
       throw new Error('Document mode should report drag affordances as absent.');
     }
 
-    if (await page.locator('[data-testid^="frame-handle"]').count() !== 0) {
+    if ((await page.locator('[data-testid^="frame-handle"]').count()) !== 0) {
       throw new Error('Document mode unexpectedly rendered frame drag handles.');
     }
 
@@ -199,7 +215,9 @@ async function verifyDocumentMode(browser) {
     const documentOnDisk = JSON.parse(await readFile(path.join(projectRoot, 'resume.sfrb.json'), 'utf8'));
     const blockText = documentOnDisk.semantic.blocks[0]?.text;
     if (blockText !== nextText) {
-      throw new Error(`Expected persisted block text ${JSON.stringify(nextText)}, received ${JSON.stringify(blockText)}`);
+      throw new Error(
+        `Expected persisted block text ${JSON.stringify(nextText)}, received ${JSON.stringify(blockText)}`,
+      );
     }
 
     if (documentOnDisk.layout.frames.length !== 0) {
@@ -231,7 +249,11 @@ async function verifyDesignMode(browser) {
       blockText: 'Design smoke text before dragging.',
     });
 
-    ({ child, url: globalThis.__designBridgeUrl, stderr: globalThis.__designBridgeStderr } = await waitForBridgeReady(projectRoot));
+    ({
+      child,
+      url: globalThis.__designBridgeUrl,
+      stderr: globalThis.__designBridgeStderr,
+    } = await waitForBridgeReady(projectRoot));
     const page = await browser.newPage();
     await page.goto(globalThis.__designBridgeUrl, { waitUntil: 'networkidle' });
 
@@ -240,16 +262,16 @@ async function verifyDesignMode(browser) {
       throw new Error(`Expected design physics mode, received: ${await page.textContent('#physics-mode')}`);
     }
 
-    if (await page.getAttribute('#editor-drag-affordance-status', 'data-drag-affordances') !== 'present') {
+    if ((await page.getAttribute('#editor-drag-affordance-status', 'data-drag-affordances')) !== 'present') {
       throw new Error('Design mode should expose drag affordances.');
     }
 
-    if (await page.locator('[data-testid="frame-handle-summaryFrame"]').count() !== 1) {
+    if ((await page.locator('[data-testid="frame-handle-summaryFrame"]').count()) !== 1) {
       throw new Error('Design mode should render one drag handle for the single frame.');
     }
 
     await page.click('[data-testid="editor-frame-summaryFrame"]');
-    if (await page.getAttribute('#editor-selected-frame', 'data-selected-frame-id') !== 'summaryFrame') {
+    if ((await page.getAttribute('#editor-selected-frame', 'data-selected-frame-id')) !== 'summaryFrame') {
       throw new Error('Selecting a frame did not update selected-frame diagnostics.');
     }
 
@@ -261,7 +283,9 @@ async function verifyDesignMode(browser) {
 
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
     await page.mouse.down();
-    await page.mouse.move(handleBox.x + handleBox.width / 2 + 44, handleBox.y + handleBox.height / 2 + 28, { steps: 8 });
+    await page.mouse.move(handleBox.x + handleBox.width / 2 + 44, handleBox.y + handleBox.height / 2 + 28, {
+      steps: 8,
+    });
     await page.mouse.up();
 
     await page.waitForFunction(() => {
@@ -290,7 +314,9 @@ async function verifyDesignMode(browser) {
 
     const frameBox = documentOnDisk.layout.frames[0]?.box;
     if (!frameBox || frameBox.x !== 80 || frameBox.y !== 76 || frameBox.width !== 540 || frameBox.height !== 96) {
-      throw new Error(`Expected persisted design frame box to be x:80 y:76 w:540 h:96, received ${JSON.stringify(frameBox)}`);
+      throw new Error(
+        `Expected persisted design frame box to be x:80 y:76 w:540 h:96, received ${JSON.stringify(frameBox)}`,
+      );
     }
 
     const stderrText = globalThis.__designBridgeStderr.join('');

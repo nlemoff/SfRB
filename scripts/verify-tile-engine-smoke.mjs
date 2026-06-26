@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile as execFileCallback, spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,11 +23,15 @@ async function readDocument(projectRoot) {
 }
 
 async function waitForBridgeReady(projectRoot) {
-  const child = spawn(process.execPath, [path.join(repoRoot, 'dist/cli.js'), 'open', '--cwd', projectRoot, '--port', '0', '--no-open'], {
-    cwd: repoRoot,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    process.execPath,
+    [path.join(repoRoot, 'dist/cli.js'), 'open', '--cwd', projectRoot, '--port', '0', '--no-open'],
+    {
+      cwd: repoRoot,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
 
   const stdout = [];
   child.stdout.on('data', (chunk) => stdout.push(chunk.toString()));
@@ -59,7 +63,9 @@ async function dragByTestId(page, testId, dx, dy) {
 }
 
 async function waitForIdleSave(page) {
-  await page.waitForFunction(() => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle');
+  await page.waitForFunction(
+    () => document.querySelector('#editor-save-status')?.getAttribute('data-save-state') === 'idle',
+  );
 }
 
 async function main() {
@@ -72,7 +78,17 @@ async function main() {
 
     const init = await execFile(
       process.execPath,
-      [path.join(repoRoot, 'dist/cli.js'), 'init', '--cwd', workspace, '--starter', 'blank', '--physics', 'design', '--skip-ai'],
+      [
+        path.join(repoRoot, 'dist/cli.js'),
+        'init',
+        '--cwd',
+        workspace,
+        '--starter',
+        'blank',
+        '--physics',
+        'design',
+        '--skip-ai',
+      ],
       { cwd: repoRoot },
     );
     expectCondition(init.stderr.trim().length === 0, `init produced stderr:\n${init.stderr}`);
@@ -85,7 +101,11 @@ async function main() {
         '--cwd',
         workspace,
         '--op',
-        JSON.stringify({ op: 'set-block-text', blockId: 'summaryBlock', text: 'Tile smoke line one.\nTile smoke line two.' }),
+        JSON.stringify({
+          op: 'set-block-text',
+          blockId: 'summaryBlock',
+          text: 'Tile smoke line one.\nTile smoke line two.',
+        }),
       ],
       { cwd: repoRoot },
     );
@@ -143,7 +163,10 @@ async function main() {
     document_ = await readDocument(workspace);
     for (const before of beforeMove) {
       const after = document_.layout.frames.find((frame) => frame.id === before.id);
-      expectCondition(after.box.x === before.x + 30 && after.box.y === before.y + 22, `Group move should translate ${before.id}.`);
+      expectCondition(
+        after.box.x === before.x + 30 && after.box.y === before.y + 22,
+        `Group move should translate ${before.id}.`,
+      );
     }
 
     // 4. A locked member drag is a visible no-write.

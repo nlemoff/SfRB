@@ -58,10 +58,24 @@ function lockedGroupDocument() {
         { id: 'mainPage', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
       ],
       frames: [
-        { id: 'heroFrame', pageId: 'mainPage', blockId: 'heroBlock', box: { x: 36, y: 32, width: 540, height: 44 }, zIndex: 0 },
-        { id: 'summaryFrame', pageId: 'mainPage', blockId: 'summaryBlock', box: { x: 36, y: 84, width: 540, height: 72 }, zIndex: 1 },
+        {
+          id: 'heroFrame',
+          pageId: 'mainPage',
+          blockId: 'heroBlock',
+          box: { x: 36, y: 32, width: 540, height: 44 },
+          zIndex: 0,
+        },
+        {
+          id: 'summaryFrame',
+          pageId: 'mainPage',
+          blockId: 'summaryBlock',
+          box: { x: 36, y: 84, width: 540, height: 72 },
+          zIndex: 1,
+        },
       ],
-      frameGroups: [{ id: 'heroComposition', pageId: 'mainPage', frameIds: ['heroFrame', 'summaryFrame'], locked: true }],
+      frameGroups: [
+        { id: 'heroComposition', pageId: 'mainPage', frameIds: ['heroFrame', 'summaryFrame'], locked: true },
+      ],
     },
   };
 }

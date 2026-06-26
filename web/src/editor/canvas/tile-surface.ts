@@ -10,7 +10,10 @@ export type TileSurfaceController = {
   syncToolbar: (snapshot: DocumentEditorSnapshot) => void;
 };
 
-export function setFrameElementPosition(frameElement: HTMLElement, box: { x: number; y: number; width: number; height: number }): void {
+export function setFrameElementPosition(
+  frameElement: HTMLElement,
+  box: { x: number; y: number; width: number; height: number },
+): void {
   frameElement.style.left = `${box.x}px`;
   frameElement.style.top = `${box.y}px`;
   frameElement.style.width = `${box.width}px`;
@@ -60,7 +63,17 @@ export function renderTileSurface(deps: {
   bindEditableInteractions: EditableInteractionBinder;
   payload: ReadyBridgePayload;
 }): TileSurfaceController {
-  const { engine, surfaceRoot, controlsHost, frameElements, pageCanvasElements, ghostLayers, pointer, bindEditableInteractions, payload } = deps;
+  const {
+    engine,
+    surfaceRoot,
+    controlsHost,
+    frameElements,
+    pageCanvasElements,
+    ghostLayers,
+    pointer,
+    bindEditableInteractions,
+    payload,
+  } = deps;
 
   const groups = payload.document.layout.frameGroups;
   const groupByFrameId = new Map<string, (typeof groups)[number]>();
@@ -158,7 +171,8 @@ export function renderTileSurface(deps: {
         x: originBox.x,
         y: originBox.y + index * sliceHeight,
         width: originBox.width,
-        height: index === lines.length - 1 ? Math.max(8, originBox.height - sliceHeight * (lines.length - 1)) : sliceHeight,
+        height:
+          index === lines.length - 1 ? Math.max(8, originBox.height - sliceHeight * (lines.length - 1)) : sliceHeight,
       },
     }));
 
@@ -226,7 +240,8 @@ export function renderTileSurface(deps: {
     pageShell.style.cssText = pageWrapperStyles;
 
     const pageHeading = document.createElement('div');
-    pageHeading.style.cssText = 'display: flex; justify-content: space-between; gap: 16px; align-items: baseline; color: var(--sfrb-ink-faint); font-family: var(--sfrb-font-sans); font-size: 11px;';
+    pageHeading.style.cssText =
+      'display: flex; justify-content: space-between; gap: 16px; align-items: baseline; color: var(--sfrb-ink-faint); font-family: var(--sfrb-font-sans); font-size: 11px;';
     pageHeading.innerHTML = `<span style="letter-spacing: 0.07em; text-transform: uppercase; font-weight: 600;">${page.id}</span><span>${page.size.width}×${page.size.height}</span>`;
 
     const canvas = document.createElement('div');
@@ -312,7 +327,9 @@ export function renderTileSurface(deps: {
 
         if (frame.placement === 'free') {
           engine.selectFrame(frame.id);
-          setNote(`Frame "${frame.id}" keeps its freeform placement — edit it in the freeform lens or rejoin the layout.`);
+          setNote(
+            `Frame "${frame.id}" keeps its freeform placement — edit it in the freeform lens or rejoin the layout.`,
+          );
           return;
         }
 

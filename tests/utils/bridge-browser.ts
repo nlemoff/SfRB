@@ -163,7 +163,9 @@ export async function waitForBridgeReady(
 
   const readyOutput = await new Promise<string>((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(`Timed out waiting for bridge readiness.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`),
+      );
     }, 15000);
 
     child.stdout.on('data', () => {
@@ -176,7 +178,11 @@ export async function waitForBridgeReady(
 
     child.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+      reject(
+        new Error(
+          `Bridge exited before readiness with code ${code}.\nstdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`,
+        ),
+      );
     });
   });
 
@@ -207,14 +213,22 @@ export async function getViteWebSocket(baseUrl: string): Promise<WebSocket> {
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Timed out opening Vite websocket.')), 10000);
-    ws.addEventListener('open', () => {
-      clearTimeout(timeout);
-      resolve();
-    }, { once: true });
-    ws.addEventListener('error', () => {
-      clearTimeout(timeout);
-      reject(new Error('Failed to open Vite websocket.'));
-    }, { once: true });
+    ws.addEventListener(
+      'open',
+      () => {
+        clearTimeout(timeout);
+        resolve();
+      },
+      { once: true },
+    );
+    ws.addEventListener(
+      'error',
+      () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to open Vite websocket.'));
+      },
+      { once: true },
+    );
   });
 
   return ws;
@@ -352,7 +366,11 @@ export type FirstRunGuidanceDiagnostics = {
   consultantCode: string | null;
 };
 
-export async function openWorkspace(page: BridgeBrowserPage, url: string, physics: 'document' | 'design'): Promise<void> {
+export async function openWorkspace(
+  page: BridgeBrowserPage,
+  url: string,
+  physics: 'document' | 'design',
+): Promise<void> {
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.waitForSelector(`#editor-canvas[data-physics-mode="${physics}"]`);
   await page.waitForSelector('[data-testid="first-run-guidance"]');
@@ -380,9 +398,14 @@ export async function selectConsultantFrame(page: BridgeBrowserPage, frameId = '
   await page.click(`[data-testid="editor-frame-${frameId}"]`);
 }
 
-export async function waitForOverflowStatus(page: BridgeBrowserPage, expected: 'overflow' | 'clear' | 'settling' | 'idle'): Promise<void> {
+export async function waitForOverflowStatus(
+  page: BridgeBrowserPage,
+  expected: 'overflow' | 'clear' | 'settling' | 'idle',
+): Promise<void> {
   await page.waitForFunction((expectedStatus: string) => {
-    return document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === expectedStatus;
+    return (
+      document.querySelector('#consultant-overflow-status')?.getAttribute('data-overflow-status') === expectedStatus
+    );
   }, expected);
 }
 
@@ -394,7 +417,9 @@ export async function waitForConsultantState(page: BridgeBrowserPage, expected: 
 
 export async function waitForPreviewVisibility(page: BridgeBrowserPage, visible: boolean): Promise<void> {
   await page.waitForFunction((expectedVisibility: string) => {
-    return document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === expectedVisibility;
+    return (
+      document.querySelector('#consultant-preview-state')?.getAttribute('data-preview-visible') === expectedVisibility
+    );
   }, String(visible));
 }
 
@@ -417,7 +442,10 @@ export async function acceptConsultantPreview(page: BridgeBrowserPage): Promise<
   await page.click('#consultant-accept');
 }
 
-export async function readConsultantDiagnostics(page: BridgeBrowserPage, frameId = 'summaryFrame'): Promise<ConsultantDiagnostics> {
+export async function readConsultantDiagnostics(
+  page: BridgeBrowserPage,
+  frameId = 'summaryFrame',
+): Promise<ConsultantDiagnostics> {
   const overflowPx = await page.getAttribute('#consultant-measurements', 'data-overflow-px');
   const errorNode = page.locator('#consultant-error');
   const ghost = page.locator(`[data-testid="consultant-ghost-preview-${frameId}"]`);
@@ -505,14 +533,14 @@ export async function openPrintSurface(
   baseUrl: string,
   mode: 'preview' | 'artifact' = 'preview',
 ): Promise<void> {
-  const printUrl = mode === 'artifact'
-    ? new URL('/print?mode=artifact', baseUrl).href
-    : new URL('/print', baseUrl).href;
+  const printUrl =
+    mode === 'artifact' ? new URL('/print?mode=artifact', baseUrl).href : new URL('/print', baseUrl).href;
   await page.goto(printUrl, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => {
     const root = document.getElementById('root');
-    return root?.getAttribute('data-export-state') !== 'blocked'
-      || root?.getAttribute('data-blocked-reason') !== 'loading';
+    return (
+      root?.getAttribute('data-export-state') !== 'blocked' || root?.getAttribute('data-blocked-reason') !== 'loading'
+    );
   });
 }
 
@@ -544,10 +572,11 @@ export async function readPrintSurfaceDiagnostics(page: BridgeBrowserPage): Prom
   };
 }
 
-export async function fetchPrintRoute(baseUrl: string, mode?: 'artifact'): Promise<{ status: number; contentType: string; body: string }> {
-  const url = mode === 'artifact'
-    ? new URL('/print?mode=artifact', baseUrl).href
-    : new URL('/print', baseUrl).href;
+export async function fetchPrintRoute(
+  baseUrl: string,
+  mode?: 'artifact',
+): Promise<{ status: number; contentType: string; body: string }> {
+  const url = mode === 'artifact' ? new URL('/print?mode=artifact', baseUrl).href : new URL('/print', baseUrl).href;
   const response = await fetch(url);
   return {
     status: response.status,

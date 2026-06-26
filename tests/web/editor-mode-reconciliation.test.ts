@@ -94,7 +94,9 @@ describe('editor mode reconciliation', () => {
       const handleBox = await handle.boundingBox();
       await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2);
       await page.mouse.down();
-      await page.mouse.move(handleBox!.x + handleBox!.width / 2 - 12, handleBox!.y + handleBox!.height / 2 + 6, { steps: 5 });
+      await page.mouse.move(handleBox!.x + handleBox!.width / 2 - 12, handleBox!.y + handleBox!.height / 2 + 6, {
+        steps: 5,
+      });
       await page.mouse.up();
       await waitForEditorIdle(page as unknown as BridgeBrowserPage);
 
@@ -141,7 +143,9 @@ describe('editor mode reconciliation', () => {
       const handleBox = await handle.boundingBox();
       await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2);
       await page.mouse.down();
-      await page.mouse.move(handleBox!.x + handleBox!.width / 2 + 30, handleBox!.y + handleBox!.height / 2 + 30, { steps: 5 });
+      await page.mouse.move(handleBox!.x + handleBox!.width / 2 + 30, handleBox!.y + handleBox!.height / 2 + 30, {
+        steps: 5,
+      });
       await page.mouse.up();
 
       expect(await page.textContent('#tile-action-note')).toContain('freeform placement');

@@ -1,0 +1,8 @@
+name: SfRB CodeQL config
+
+# Security scanning targets shipped product code only. Dev/test tooling under
+# scripts/ and tests/ is not part of the published package (see package.json
+# "files") and is intentionally excluded.
+paths-ignore:
+  - scripts
+  - tests

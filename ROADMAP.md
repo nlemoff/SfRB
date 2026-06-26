@@ -1,6 +1,6 @@
 # SfRB Roadmap
 
-This is the current contributor-facing roadmap for SfRB. The repo has moved off the old `.gsd` planning workflow; historical notes now live under `docs/history/gsd/` for reference only.
+This is the current contributor-facing roadmap for SfRB.
 
 Use this file for active roadmap context, GitHub issues for scoped work, and PR descriptions for implementation notes and verification evidence.
 
@@ -191,7 +191,6 @@ When contributing, preserve these project-level rules:
 - **Templates are typography, not geometry.** `Theme` exposes fonts, colors, and per-block spacing; it does not expose page size, margins, or frame boxes.
 - **Keep the registries aligned.** A template id added to `src/document/templates/registry.ts` must have a matching theme in `web/src/presentation/templates/index.ts`. The `satisfies` check enforces this at compile time.
 - **Keep docs honest.** If a slice is only contract-complete, do not describe it as full end-to-end.
-- **Keep history archived, not active.** `docs/history/gsd/` is for historical reference; new planning should happen in this roadmap, GitHub issues, or PRs.
 
 ## 6. Definition of done for a strong contribution
 

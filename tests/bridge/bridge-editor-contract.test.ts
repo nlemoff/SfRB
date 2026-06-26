@@ -70,8 +70,13 @@ describe('bridge editor contract', () => {
 
       const mutatedDocument = structuredClone(initial.payload.document as Record<string, unknown>);
       (mutatedDocument.metadata as { title: string }).title = 'After Mutation';
-      (mutatedDocument.semantic as { blocks: Array<{ text: string }> }).blocks[0].text = 'Saved from the browser write contract.';
-      ((mutatedDocument.layout as { frames: Array<{ box: { x: number; y: number; width: number; height: number }; zIndex: number }> }).frames[0].box) = {
+      (mutatedDocument.semantic as { blocks: Array<{ text: string }> }).blocks[0].text =
+        'Saved from the browser write contract.';
+      (
+        mutatedDocument.layout as {
+          frames: Array<{ box: { x: number; y: number; width: number; height: number }; zIndex: number }>;
+        }
+      ).frames[0].box = {
         x: 72,
         y: 96,
         width: 480,
@@ -101,9 +106,11 @@ describe('bridge editor contract', () => {
       expect(updateEvent.changedPaths).toEqual(expect.arrayContaining([path.join(projectRoot, 'resume.sfrb.json')]));
 
       const updated = await waitForBootstrapMatch(url, (payload, status) => {
-        return status === 200
-          && payload.status === 'ready'
-          && (payload.document as { metadata?: { title?: string } }).metadata?.title === 'After Mutation';
+        return (
+          status === 200 &&
+          payload.status === 'ready' &&
+          (payload.document as { metadata?: { title?: string } }).metadata?.title === 'After Mutation'
+        );
       });
       expect(updated.payload.document).toMatchObject({
         metadata: { title: 'After Mutation' },

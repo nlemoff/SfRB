@@ -170,7 +170,7 @@ async function expectFailure(run, pattern, label) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!pattern.test(message)) {
-      throw new Error(`${label}: expected ${pattern}, received:\n${message}`);
+      throw new Error(`${label}: expected ${pattern}, received:\n${message}`, { cause: error });
     }
     return;
   }

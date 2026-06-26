@@ -38,27 +38,41 @@ const TEMPLATE_EXPECTATIONS = [
 
 async function createTempWorkspace() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'sfrb-verify-m004-s02-'));
-  await writeFile(path.join(dir, 'sfrb.config.json'), JSON.stringify({
-    version: 1,
-    workspace: { physics: 'document' },
-  }, null, 2));
-  await writeFile(path.join(dir, 'resume.sfrb.json'), JSON.stringify({
-    version: 1,
-    metadata: { title: 'Verify M004 S02', locale: 'en' },
-    semantic: {
-      sections: [
-        { id: 'sec1', title: 'Profile', blockIds: ['heading1', 'b1'] },
-      ],
-      blocks: [
-        { id: 'heading1', kind: 'heading', text: 'Verify Catalog' },
-        { id: 'b1', kind: 'paragraph', text: 'Template catalog verification body.' },
-      ],
-    },
-    layout: {
-      pages: [{ id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } }],
-      frames: [],
-    },
-  }, null, 2));
+  await writeFile(
+    path.join(dir, 'sfrb.config.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        workspace: { physics: 'document' },
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(dir, 'resume.sfrb.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        metadata: { title: 'Verify M004 S02', locale: 'en' },
+        semantic: {
+          sections: [{ id: 'sec1', title: 'Profile', blockIds: ['heading1', 'b1'] }],
+          blocks: [
+            { id: 'heading1', kind: 'heading', text: 'Verify Catalog' },
+            { id: 'b1', kind: 'paragraph', text: 'Template catalog verification body.' },
+          ],
+        },
+        layout: {
+          pages: [
+            { id: 'p1', size: { width: 612, height: 792 }, margin: { top: 36, right: 36, bottom: 36, left: 36 } },
+          ],
+          frames: [],
+        },
+      },
+      null,
+      2,
+    ),
+  );
   return dir;
 }
 
@@ -114,8 +128,9 @@ async function readMarkers(page, baseUrl) {
   await page.goto(printUrl, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => {
     const root = document.getElementById('root');
-    return root?.getAttribute('data-export-state') !== 'blocked'
-      || root?.getAttribute('data-blocked-reason') !== 'loading';
+    return (
+      root?.getAttribute('data-export-state') !== 'blocked' || root?.getAttribute('data-blocked-reason') !== 'loading'
+    );
   });
   return page.evaluate(() => {
     const root = document.getElementById('root');
@@ -180,7 +195,11 @@ async function main() {
 
   await browser.close();
 
-  console.log(exitCode === 0 ? '\nM004/S02 template catalog verification passed.\n' : '\nM004/S02 template catalog verification FAILED.\n');
+  console.log(
+    exitCode === 0
+      ? '\nM004/S02 template catalog verification passed.\n'
+      : '\nM004/S02 template catalog verification FAILED.\n',
+  );
   process.exit(exitCode);
 }
 
