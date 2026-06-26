@@ -8,7 +8,7 @@ SfRB (Straightforward Resume Builder) is a local-first, CLI-first resume editor.
 
 ## Environment
 
-- Node.js `>=20` (CI runs Node 20 and 22).
+- Node.js `>=20` (CI builds and tests on Node 22).
 - Install dependencies with `npm ci`.
 - Browser tests require Chromium: `npm run test:setup:browsers` (one-time).
 

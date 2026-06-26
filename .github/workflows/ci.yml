@@ -52,12 +52,7 @@ jobs:
         run: npm run check:large-files
 
   build-test:
-    name: Build and test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['20', '22']
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -65,7 +60,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
@@ -87,7 +82,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-node-${{ matrix.node-version }}
+          name: coverage
           path: coverage/
           if-no-files-found: ignore
 
@@ -95,6 +90,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-node-${{ matrix.node-version }}
-          path: reports/junit.xml
+          name: junit
+          path: reports/junit/vitest.xml
           if-no-files-found: ignore
